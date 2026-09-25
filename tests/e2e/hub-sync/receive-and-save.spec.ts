@@ -43,9 +43,9 @@ test.use({ serveFrontend: false });
 
 const PERIOD_KEYS = { today: 'today', month: 'month', allTime: 'all_time' } as const;
 
-// 保存処理とは別の読み取り専用接続で読む。
+// 保存処理とは別の読み取り専用接続で読む。アプリの移行・保存中はロックの解放を待つ。
 function query<T>(databasePath: string, sql: string, ...params: (string | number)[]): T[] {
-  const db = new DatabaseSync(databasePath, { readOnly: true });
+  const db = new DatabaseSync(databasePath, { readOnly: true, timeout: 5000 });
   try {
     return db.prepare(sql).all(...params) as T[];
   } finally {
