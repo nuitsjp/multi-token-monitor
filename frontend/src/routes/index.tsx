@@ -124,14 +124,6 @@ function Dashboard({ overview, period }: { overview: Overview; period: Period })
   const usage = overview.periods[period];
   const received = overview.hubs.filter((hub) => hub.receivedAt !== null).length;
   const stale = overview.devices.filter((device) => device.stale).length;
-  // 色はモデルに固定する。期間を切り替えても同じモデルは同じ色のまま。
-  const modelKey = (row: { tool: string; model: string }) => `${row.tool}/${row.model}`;
-  const modelColor = new Map(
-    [...overview.periods.allTime.models]
-      .sort((a, b) => b.tokens - a.tokens)
-      .slice(0, seriesColors.length - 1)
-      .map((row, index) => [modelKey(row), seriesColors[index]!]),
-  );
   return (
     <Stack gap="lg">
       <section aria-label="Total">
@@ -151,7 +143,7 @@ function Dashboard({ overview, period }: { overview: Overview; period: Period })
           <HubCard overview={overview} usage={usage} />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 7 }}>
-          <ModelCard usage={usage} modelColor={modelColor} modelKey={modelKey} />
+          <ModelCard usage={usage} />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 7 }}>
           <LimitCard overview={overview} />
@@ -212,19 +204,37 @@ function HubCard({ overview, usage }: { overview: Overview; usage: Usage }) {
   );
 }
 
-function ModelCard({
-  usage,
-  modelColor,
-  modelKey,
-}: {
-  usage: Usage;
-  modelColor: Map<string, string>;
-  modelKey: (row: { tool: string; model: string }) => string;
-}) {
-  const rows = [...usage.models].sort((a, b) => b.tokens - a.tokens);
+const topModels = 5;
+
+// 上位5モデルを個別に、6位以降を Other に合算する。色はその期間の順位で割り当てる。
+function ModelCard({ usage }: { usage: Usage }) {
+  const sorted = [...usage.models].sort((a, b) => b.tokens - a.tokens);
+  const rest = sorted.slice(topModels);
+  const restCosts = rest.flatMap((row) => (row.costUsd === null ? [] : [row.costUsd]));
+  const slices = [
+    ...sorted.slice(0, topModels).map((row, index) => ({
+      key: `${row.tool}/${row.model}`,
+      name: row.model,
+      detail: row.tool,
+      tokens: row.tokens,
+      costUsd: row.costUsd,
+      color: seriesColors[index]!,
+    })),
+    ...(rest.length === 0
+      ? []
+      : [
+          {
+            key: 'other',
+            name: 'Other',
+            detail: rest.length === 1 ? '1 model' : `${rest.length} models`,
+            tokens: rest.reduce((sum, row) => sum + row.tokens, 0),
+            costUsd:
+              restCosts.length === 0 ? null : restCosts.reduce((sum, value) => sum + value, 0),
+            color: otherColor,
+          },
+        ]),
+  ];
   const total = Math.max(1, usage.total.tokens);
-  const color = (row: { tool: string; model: string }) =>
-    modelColor.get(modelKey(row)) ?? otherColor;
   return (
     <Card title="By model">
       <Flex direction={{ base: 'column', sm: 'row' }} align="center" gap="xl">
@@ -232,10 +242,10 @@ function ModelCard({
           size={200}
           thickness={20}
           roundCaps={false}
-          sections={rows.map((row) => ({
-            value: (row.tokens / total) * 100,
-            color: color(row),
-            tooltip: `${row.model} · ${full.format(row.tokens)}`,
+          sections={slices.map((slice) => ({
+            value: (slice.tokens / total) * 100,
+            color: slice.color,
+            tooltip: `${slice.name} · ${full.format(slice.tokens)}`,
           }))}
           label={
             <Stack gap={0} align="center">
@@ -250,24 +260,24 @@ function ModelCard({
         />
         <Table verticalSpacing={6} style={{ flex: 1, width: '100%' }}>
           <Table.Tbody>
-            {rows.map((row) => (
-              <Table.Tr key={modelKey(row)}>
+            {slices.map((slice) => (
+              <Table.Tr key={slice.key}>
                 <Table.Td>
                   <Group gap="xs" wrap="nowrap">
-                    <Box w={10} h={10} bg={color(row)} style={{ borderRadius: 3, flex: 'none' }} />
+                    <Box w={10} h={10} bg={slice.color} style={{ borderRadius: 3, flex: 'none' }} />
                     <div>
-                      <Text size="sm">{row.model}</Text>
+                      <Text size="sm">{slice.name}</Text>
                       <Text size="xs" className="muted">
-                        {row.tool}
+                        {slice.detail}
                       </Text>
                     </div>
                   </Group>
                 </Table.Td>
                 <Table.Td ta="right" className="num">
-                  {full.format(row.tokens)}
+                  {full.format(slice.tokens)}
                 </Table.Td>
                 <Table.Td ta="right" className="num muted">
-                  {cost(row.costUsd)}
+                  {cost(slice.costUsd)}
                 </Table.Td>
               </Table.Tr>
             ))}
@@ -277,6 +287,10 @@ function ModelCard({
     </Card>
   );
 }
+
+// Hubによってはラベルが空文字で届くため、空でないものだけを並べる。
+const labels = (row: Overview['limitWindows'][number]) =>
+  [row.accountLabel, row.planLabel].filter(Boolean).join(' · ');
 
 function LimitCard({ overview }: { overview: Overview }) {
   const accounts = new Map<string, Overview['limitWindows']>();
@@ -290,10 +304,10 @@ function LimitCard({ overview }: { overview: Overview }) {
         {[...accounts].map(([key, windows]) => {
           const first = windows[0]!;
           return (
-            <div key={key} aria-label={`${first.provider} ${first.accountLabel ?? ''}`}>
-              <Text fw={500}>{first.accountLabel ?? first.accountKey}</Text>
+            <div key={key} aria-label={`${first.provider} ${labels(first)}`}>
+              <Text fw={500}>{first.provider}</Text>
               <Text size="xs" className="muted" mb="sm">
-                {first.provider} · {first.planLabel ?? '—'}
+                {labels(first) || '—'}
               </Text>
               <Group gap="md">
                 {windows.map((row) => (
@@ -310,7 +324,7 @@ function LimitCard({ overview }: { overview: Overview }) {
                         </Text>
                       }
                     />
-                    <Text size="xs">{row.label ?? row.limitKey}</Text>
+                    <Text size="xs">{row.label || row.kind}</Text>
                     <Text size="xs" className="muted">
                       {row.resetsAt === null ? '—' : `↻ ${time(row.resetsAt)}`}
                     </Text>
