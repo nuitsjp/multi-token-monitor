@@ -3,6 +3,19 @@
 }
 body {
   margin: 0;
-  background: #f4f7f9;
-  color: #182d3b;
+  background: #16171b;
+  color: #e4e5e9;
+}
+.card {
+  background: #1f2126;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 20px;
+  height: 100%;
+}
+.muted {
+  color: #8b8e99;
+}
+.num {
+  font-variant-numeric: tabular-nums;
 }
