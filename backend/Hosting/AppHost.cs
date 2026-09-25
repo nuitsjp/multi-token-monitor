@@ -42,6 +42,7 @@ internal static class AppHost
             var database = new Database(config.DatabasePath);
             await database.InitializeAsync();
             await HubStateStore.RegisterHubsAsync(database, hubs);
+            builder.Services.AddSingleton(database);
             builder.Services.AddHostedService(services =>
                 new HubReceivers(hubs, database, services.GetRequiredService<ILogger<HubReceivers>>()));
         }

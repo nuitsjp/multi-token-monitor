@@ -68,6 +68,21 @@ internal sealed class Database
         }
     }
 
+    // 読み取り専用接続の1トランザクション内で読み、複数のSELECTを同じ時点の状態で揃える。
+    internal async Task<T> InReadTransactionAsync<T>(Func<SqliteConnection, Task<T>> operation)
+    {
+        await using var connection = await OpenReadOnlyAsync(path);
+        await connection.ExecuteAsync("BEGIN;");
+        try
+        {
+            return await operation(connection);
+        }
+        finally
+        {
+            await connection.ExecuteAsync("COMMIT;");
+        }
+    }
+
     internal void Backup(string destinationPath)
     {
         var source = path;
