@@ -4,33 +4,35 @@
 
 ## 1. システムコンテキスト
 
-外部の人物・システムと本システムの関係を1枚で示します（Person には主アクター名を指定）。
-
 ```mermaid
 flowchart LR
-  user["[Person] {{ACTOR}}"]
-  system["[System] {{PROJECT_NAME}}"]
-  external["[External] {{EXTERNAL_SYSTEM}}"]
-  user --> system --> external
+  user["[Person] 利用者"]
+  system["[System] Token Monitor Analytics"]
+  hub["[External] Token Monitor Hub（1件以上）"]
+  user -->|"起動・終了、利用状況の閲覧"| system
+  hub -->|"最新の利用状況（認証付きSSE）"| system
 ```
 
 ## 2. コンテナ
 
 | コンテナ | 技術 | 責務 | リポジトリ内パス |
 | --- | --- | --- | --- |
-| {{CONTAINER}} | {{TECH}} | {{RESPONSIBILITY}} | {{PATH}} |
+| ブラウザー画面 | React・TypeScript・Vite | 保存済みの利用状況を表示する | frontend/ |
+| アプリケーションサーバー | ASP.NET Core（.NET 10） | Hubからの受信と保存、画面とAPIの配信 | backend/ |
+| ローカルDB | SQLite | Hubと最新状態の正本 | `.env` の `DB_PATH` |
 
-全体の依存方向、状態の所有者と永続化の共通方針を記し、関係線ごとにモック切り替え境界（合成点）の有無を記載します。単一コンテナ構成の場合は図を省略し、1文の記述で代替可能です。
+受信・保存・配信は単一の .NET プロセスで行い、SQLite を保存済み状態の正本とします。画面は DB を直接参照せず、アプリケーションサーバーを経由します。Hub とアプリケーションサーバーの間にモックの合成点は置かず、検証時は接続設定の URL を制御可能な SSE サーバーへ向けます。画面とアプリケーションサーバーの間の合成点は、閲覧のユースケースで定めます。
 
 <a id="patterns"></a>
 ## 3. 実現パターン
 
 | 実現パターンの設計 | 適用条件・関与コンテナ |
 | --- | --- |
-| [UCP-1](design/UCP-1.md) | {{APPLICABILITY}} |
+| [UCP-1](design/UCP-1.md) | Hubから受信した最新状態をDBへ反映する。アプリケーションサーバー、ローカルDB、外部のHub |
 
 ## 4. 設計上の制約
 
-{{ARCHITECTURAL_CONSTRAINTS}}
-
-現在の設計が満たすべき制約と適用範囲を記述します。第1〜3節で表せる構成や責務は各節へ集約します。外部仕様に依存する場合は [確認した事実](project.md#design) を参照します。
+- ループバックアドレスだけで待ち受け、利用者向けの認証は設けません。閲覧用のAPIを公開する時点で、Hostヘッダーをループバックの名前に限定します。
+- Hubの URL と認証トークンは Git 管理外の接続設定ファイルだけに置き、DB・ログ・API応答に含めません。
+- Hubごとに受信処理を独立させ、あるHubの停止を他のHubとWebサーバーへ波及させません。
+- 受信履歴は蓄積せず、Hubごとの最新状態だけを保持します。Hubの通知形式は [確認した事実](project.md#design) に従います。
