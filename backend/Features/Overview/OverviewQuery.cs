@@ -117,7 +117,16 @@ internal static class OverviewQuery
         return costs.Count == 0 ? null : costs.Sum();
     }
 
-    private sealed record UsageRow(string Period, string HubId, string Tool, string Model, long Tokens, double? CostUsd);
+    // SUMの列は宣言型を持たず、行が0件だと型を推定できないため、コンストラクターではなくプロパティで受ける。
+    private sealed class UsageRow
+    {
+        public string Period { get; set; } = "";
+        public string HubId { get; set; } = "";
+        public string Tool { get; set; } = "";
+        public string Model { get; set; } = "";
+        public long Tokens { get; set; }
+        public double? CostUsd { get; set; }
+    }
 
     private sealed record DeviceRow(
         string HubId,
