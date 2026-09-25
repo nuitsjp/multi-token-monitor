@@ -29,6 +29,7 @@ internal sealed record HubUsageOutput(string HubId, long Tokens, double? CostUsd
 internal sealed record ModelUsageOutput(string Tool, string Model, long Tokens, double? CostUsd);
 
 internal sealed record OverviewLimitWindowOutput(
+    string HubId,
     string Provider,
     string AccountKey,
     string? AccountLabel,

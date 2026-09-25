@@ -166,6 +166,7 @@
       },
       "OverviewLimitWindowOutput": {
         "required": [
+          "hubId",
           "provider",
           "accountKey",
           "accountLabel",
@@ -178,6 +179,9 @@
         ],
         "type": "object",
         "properties": {
+          "hubId": {
+            "type": "string"
+          },
           "provider": {
             "type": "string"
           },

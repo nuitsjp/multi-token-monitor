@@ -91,12 +91,23 @@ export function Home() {
   );
 }
 
-function Card({ title, children }: { title: string; children: ReactNode }) {
+function Card({
+  title,
+  control,
+  children,
+}: {
+  title: string;
+  control?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="card" aria-label={title}>
-      <Title order={2} size="h5" fw={500} mb="md">
-        {title}
-      </Title>
+      <Group justify="space-between" mb="md">
+        <Title order={2} size="h5" fw={500}>
+          {title}
+        </Title>
+        {control}
+      </Group>
       {children}
     </section>
   );
@@ -292,14 +303,33 @@ function ModelCard({ usage }: { usage: Usage }) {
 const labels = (row: Overview['limitWindows'][number]) =>
   [row.accountLabel, row.planLabel].filter(Boolean).join(' · ');
 
+// 利用枠は選択したHubが報告したものだけを表示する。
 function LimitCard({ overview }: { overview: Overview }) {
+  const [hubId, setHubId] = useState(overview.hubs[0]?.hubId ?? '');
   const accounts = new Map<string, Overview['limitWindows']>();
-  for (const row of overview.limitWindows) {
+  for (const row of overview.limitWindows.filter((row) => row.hubId === hubId)) {
     const key = `${row.provider}/${row.accountKey}`;
     accounts.set(key, [...(accounts.get(key) ?? []), row]);
   }
   return (
-    <Card title="Usage limits">
+    <Card
+      title="Usage limits"
+      control={
+        <SegmentedControl
+          aria-label="Hub"
+          color="violet"
+          size="xs"
+          data={overview.hubs.map((hub) => ({ value: hub.hubId, label: hub.name }))}
+          value={hubId}
+          onChange={setHubId}
+        />
+      }
+    >
+      {accounts.size === 0 && (
+        <Text size="sm" className="muted">
+          No limits
+        </Text>
+      )}
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
         {[...accounts].map(([key, windows]) => {
           const first = windows[0]!;

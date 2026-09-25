@@ -40,10 +40,11 @@ internal static class OverviewQuery
                     period, hub_id, tool, model
                 """)).AsList();
 
-            // 同じアカウントの同じ枠を複数Hubが報告した場合は、残量が最後に変わった方を採用する。
+            // 利用枠はHubごとに返し、画面でHubを切り替えて表示する。
             var limitWindows = (await connection.QueryAsync<OverviewLimitWindowOutput>(
                 """
                 SELECT
+                    w.hub_id AS HubId,
                     w.provider AS Provider,
                     w.account_key AS AccountKey,
                     a.account_label AS AccountLabel,
@@ -54,21 +55,10 @@ internal static class OverviewQuery
                     w.remaining_percent AS RemainingPercent,
                     w.resets_at AS ResetsAt
                 FROM
-                    (
-                        SELECT
-                            *,
-                            ROW_NUMBER() OVER (
-                                PARTITION BY provider, account_key, kind, limit_key
-                                ORDER BY meter_changed_at DESC, hub_id
-                            ) AS rank
-                        FROM
-                            latest_limit_windows
-                    ) w
+                    latest_limit_windows w
                     JOIN accounts a USING (provider, account_key)
-                WHERE
-                    w.rank = 1
                 ORDER BY
-                    w.provider, w.account_key, w.kind, w.limit_key
+                    w.hub_id, w.provider, w.account_key, w.kind, w.limit_key
                 """)).AsList();
 
             var devices = (await connection.QueryAsync<DeviceRow>(

@@ -68,6 +68,7 @@ export interface components {
             updatedAt: string | null;
         };
         OverviewLimitWindowOutput: {
+            hubId: string;
             provider: string;
             accountKey: string;
             accountLabel: string | null;
