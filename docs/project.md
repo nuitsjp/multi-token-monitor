@@ -65,7 +65,7 @@ Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（
 
 | 目的 | コマンド | 期待結果 |
 | --- | --- | --- |
-| モック有効で開発起動 | PowerShellで `$env:VITE_OVERVIEW_MOCK='1'; mise run dev` | `http://127.0.0.1:5173/` に、Hub「私用」「業務」と未受信の「検証用」の固定データが表示されます |
+| モック有効で開発起動 | PowerShellで `$env:VITE_OVERVIEW_MOCK='1'; mise run dev` | `http://127.0.0.1:5173/` に、Hub「Personal」「Work」と未受信の「Lab」の固定データが表示されます |
 | モック無効の確認 | 環境変数を外して `mise run dev` | 画面は `GET /api/overview` を呼び、固定データのHub名は表示されません |
 
 保存済みの状態は、アプリケーションの起動中でも別の読み取り専用接続で確認できます（テーブルは [データ設計](design/data.md) を参照）。

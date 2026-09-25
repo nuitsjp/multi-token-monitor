@@ -1,22 +1,22 @@
 import type { Overview } from './overview.ts';
 
 // 段階3の動作合意用の固定データ。合計は手で整合させた固定値で、集計処理は持たない。
-// 「検証用」Hubは未受信の状態を示す。
+// 「Lab」Hubは未受信の状態を示す。
 export const overviewMock: Overview = {
   hubs: [
     {
       hubId: 'personal',
-      name: '私用',
+      name: 'Personal',
       receivedAt: '2026-09-25T03:12:40Z',
       updatedAt: '2026-09-25T03:12:30Z',
     },
     {
       hubId: 'work',
-      name: '業務',
+      name: 'Work',
       receivedAt: '2026-09-25T03:10:05Z',
       updatedAt: '2026-09-25T03:09:58Z',
     },
-    { hubId: 'lab', name: '検証用', receivedAt: null, updatedAt: null },
+    { hubId: 'lab', name: 'Lab', receivedAt: null, updatedAt: null },
   ],
   periods: {
     today: {
@@ -66,51 +66,51 @@ export const overviewMock: Overview = {
     {
       provider: 'anthropic',
       accountKey: 'a1',
-      accountLabel: '個人',
+      accountLabel: 'Personal',
       planLabel: 'Max 20x',
       kind: 'session',
       limitKey: 'five_hour',
-      label: '5時間',
+      label: '5h',
       remainingPercent: 62,
       resetsAt: '2026-09-25T05:00:00Z',
     },
     {
       provider: 'anthropic',
       accountKey: 'a1',
-      accountLabel: '個人',
+      accountLabel: 'Personal',
       planLabel: 'Max 20x',
       kind: 'weekly',
       limitKey: 'seven_day',
-      label: '週間',
+      label: 'Weekly',
       remainingPercent: 38,
       resetsAt: '2026-09-29T00:00:00Z',
     },
     {
       provider: 'anthropic',
       accountKey: 'b2',
-      accountLabel: '業務',
+      accountLabel: 'Work',
       planLabel: 'Team',
       kind: 'session',
       limitKey: 'five_hour',
-      label: '5時間',
+      label: '5h',
       remainingPercent: 81,
       resetsAt: '2026-09-25T06:30:00Z',
     },
     {
       provider: 'anthropic',
       accountKey: 'b2',
-      accountLabel: '業務',
+      accountLabel: 'Work',
       planLabel: 'Team',
       kind: 'weekly',
       limitKey: 'seven_day',
-      label: '週間',
+      label: 'Weekly',
       remainingPercent: 55,
       resetsAt: '2026-09-30T00:00:00Z',
     },
     {
       provider: 'openai',
       accountKey: 'c3',
-      accountLabel: '個人',
+      accountLabel: 'Personal',
       planLabel: 'Plus',
       kind: 'weekly',
       limitKey: 'weekly',
