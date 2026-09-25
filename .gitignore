@@ -1,0 +1,17 @@
+node_modules/
+bin/
+obj/
+TestResults/
+.vs/
+dist/
+frontend/dist/
+routeTree.gen.ts
+.env
+mise.local.props
+data/
+*.sqlite*
+*.log
+.e2e-results/
+playwright-report/
+coverage/
+release/

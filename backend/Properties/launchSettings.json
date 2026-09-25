@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "MultiTokenMonitor": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "HOST": "127.0.0.1",
+        "PORT": "3000",
+        "DB_PATH": "../data/app.sqlite"
+      },
+      "applicationUrl": "http://127.0.0.1:3000"
+    }
+  }
+}
