@@ -24,6 +24,26 @@
           }
         }
       }
+    },
+    "/api/overview": {
+      "get": {
+        "tags": [
+          "MultiTokenMonitor"
+        ],
+        "operationId": "GetOverview",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewOutput"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -36,6 +56,253 @@
         "properties": {
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "HubUsageOutput": {
+        "required": [
+          "hubId",
+          "tokens",
+          "costUsd"
+        ],
+        "type": "object",
+        "properties": {
+          "hubId": {
+            "type": "string"
+          },
+          "tokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costUsd": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        }
+      },
+      "ModelUsageOutput": {
+        "required": [
+          "tool",
+          "model",
+          "tokens",
+          "costUsd"
+        ],
+        "type": "object",
+        "properties": {
+          "tool": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "tokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costUsd": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        }
+      },
+      "OverviewDeviceOutput": {
+        "required": [
+          "hubId",
+          "deviceId",
+          "hostname",
+          "osName",
+          "updatedAt",
+          "stale"
+        ],
+        "type": "object",
+        "properties": {
+          "hubId": {
+            "type": "string"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "osName": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        }
+      },
+      "OverviewHubOutput": {
+        "required": [
+          "hubId",
+          "name",
+          "receivedAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "hubId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "receivedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "OverviewLimitWindowOutput": {
+        "required": [
+          "provider",
+          "accountKey",
+          "accountLabel",
+          "planLabel",
+          "kind",
+          "limitKey",
+          "label",
+          "remainingPercent",
+          "resetsAt"
+        ],
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "accountKey": {
+            "type": "string"
+          },
+          "accountLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "planLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string"
+          },
+          "limitKey": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "remainingPercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "resetsAt": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "OverviewOutput": {
+        "required": [
+          "hubs",
+          "periods",
+          "limitWindows",
+          "devices"
+        ],
+        "type": "object",
+        "properties": {
+          "hubs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewHubOutput"
+            }
+          },
+          "periods": {
+            "$ref": "#/components/schemas/OverviewPeriodsOutput"
+          },
+          "limitWindows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewLimitWindowOutput"
+            }
+          },
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewDeviceOutput"
+            }
+          }
+        }
+      },
+      "OverviewPeriodOutput": {
+        "required": [
+          "total",
+          "hubs",
+          "models"
+        ],
+        "type": "object",
+        "properties": {
+          "total": {
+            "$ref": "#/components/schemas/UsageOutput"
+          },
+          "hubs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubUsageOutput"
+            }
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelUsageOutput"
+            }
+          }
+        }
+      },
+      "OverviewPeriodsOutput": {
+        "required": [
+          "today",
+          "month",
+          "allTime"
+        ],
+        "type": "object",
+        "properties": {
+          "today": {
+            "$ref": "#/components/schemas/OverviewPeriodOutput"
+          },
+          "month": {
+            "$ref": "#/components/schemas/OverviewPeriodOutput"
+          },
+          "allTime": {
+            "$ref": "#/components/schemas/OverviewPeriodOutput"
+          }
+        }
+      },
+      "UsageOutput": {
+        "required": [
+          "tokens",
+          "costUsd"
+        ],
+        "type": "object",
+        "properties": {
+          "tokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costUsd": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
           }
         }
       }

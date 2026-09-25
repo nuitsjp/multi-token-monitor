@@ -61,6 +61,13 @@ Hub同期のE2E（`tests/e2e/hub-sync/`）は、テストごとにBearerトー�
 
 Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（Git管理外）へ複製し、各Hubの `id`・`name`・`url`（`http(s)://ホスト[:ポート]` の形式）・`token` を記入して作ります。`.env` の `HUB_CONFIG_PATH`（`.env.example` では `./data/hubs.local.json`）がこのファイルを指します。設定が不正な場合は起動せず、理由を標準エラーに出力して終了します。起動後はHubごとに受信を開始し、保存と受信停止をHub IDと原因の分類だけでログに出力します。
 
+閲覧画面のモックは、環境変数 `VITE_OVERVIEW_MOCK=1` を付けた開発起動で有効になります。画面が閲覧用API（`GET /api/overview`）を呼ばず、`frontend/src/api/overview.mock.ts` の固定データを表示します。既定（未設定）は実APIを呼び、APIが失敗しても固定データは表示しません。
+
+| 目的 | コマンド | 期待結果 |
+| --- | --- | --- |
+| モック有効で開発起動 | PowerShellで `$env:VITE_OVERVIEW_MOCK='1'; mise run dev` | `http://127.0.0.1:5173/` に、Hub「私用」「業務」と未受信の「検証用」の固定データが表示されます |
+| モック無効の確認 | 環境変数を外して `mise run dev` | 画面は `GET /api/overview` を呼び、固定データのHub名は表示されません |
+
 保存済みの状態は、アプリケーションの起動中でも別の読み取り専用接続で確認できます（テーブルは [データ設計](design/data.md) を参照）。
 
 | 目的 | コマンド | 期待結果 |

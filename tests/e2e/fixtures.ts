@@ -31,7 +31,7 @@ type ProxyEntry = { target?: string };
 function updateViteProxyTarget(server: ViteDevServer, target: string) {
   const proxy = server.config.server.proxy;
   if (!proxy || Array.isArray(proxy)) throw new Error('Viteのproxy設定を読み取れません。');
-  for (const path of ['/health']) {
+  for (const path of ['/health', '/api']) {
     const entry = proxy[path] as ProxyEntry | string | undefined;
     if (!entry || typeof entry === 'string' || Array.isArray(entry))
       throw new Error(`Viteのproxy設定が不正です: ${path}`);
