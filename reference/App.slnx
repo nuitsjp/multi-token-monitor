@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="backend/App.csproj" />
+  <Project Path="frontend/Frontend.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="tests/dotnet-unit/Backend.UnitTests.csproj" />
+  <Project Path="tests/dotnet-integration/Backend.IntegrationTests.csproj" />
+</Solution>

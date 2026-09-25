@@ -1,0 +1,95 @@
+[tools]
+node = "24.21.0"
+dotnet = "10.0.401"
+python = "3.13.15"
+
+[env]
+PYTHONIOENCODING = "utf-8"
+
+[tasks.setup]
+description = "固定版ツールとnpm/NuGet依存、ローカル設定を準備する"
+run = ["mise install", "node scripts/setup.mjs"]
+
+[tasks."setup:browser"]
+description = "E2E用ChromiumとLinuxの必要ライブラリを導入する"
+run = "node scripts/setup-browser.mjs"
+
+[tasks.dev]
+description = "ViteのHMRと.NET APIを起動する（Ctrl+Cで両方停止）"
+run = "node --env-file-if-exists=.env scripts/dev.mjs"
+
+[tasks.build]
+description = "Reactを同梱した.NET配布物をビルドする"
+run = "node scripts/build.mjs"
+
+[tasks."build:frontend"]
+description = "API契約生成、Reactの型検査とViteビルドを実行する"
+run = "node scripts/build-frontend.mjs"
+
+[tasks."build:backend"]
+description = "Reactを含めず.NET APIだけをビルドする"
+run = "node scripts/build-backend.mjs"
+
+[tasks.start]
+description = "ビルド済み.NETからUIとAPIを同じポートで配信する"
+run = "node --env-file-if-exists=.env scripts/start.mjs"
+
+[tasks."test:frontend"]
+description = "フロントエンド単体テスト（.NET不要）"
+run = "npm run test:unit"
+
+[tasks."test:backend"]
+description = ".NETと実DBのテスト（Reactビルド不要）"
+run = "dotnet test MultiTokenMonitor.slnx --no-restore -p:SkipFrontendBuild=true"
+
+[tasks."test:e2e:dev"]
+description = "Vite＋実.NET/DBのE2E"
+run = "node scripts/test-e2e.mjs dev"
+
+[tasks."test:e2e:hosted"]
+description = "Reactを同梱した.NET/実DBのE2E"
+run = "node scripts/test-e2e.mjs hosted"
+
+[tasks.verify]
+description = "型・Lint・文書・単体・両構成のE2Eを検証する"
+run = "node scripts/verify.mjs"
+
+[tasks.package]
+description = "全検証後にrelease/appへ配布物を配置する"
+run = ["node scripts/verify.mjs", "node scripts/package.mjs"]
+
+[tasks."db:backup"]
+description = "指定パスへSQLiteをバックアップする"
+run = "node --env-file-if-exists=.env scripts/db.mjs backup"
+
+[tasks."db:check"]
+description = "指定DBまたはDB_PATHの整合性を確認する"
+run = "node --env-file-if-exists=.env scripts/db.mjs check"
+
+[tasks.typecheck]
+description = "フロントエンドの型を検査する"
+run = "npm run typecheck"
+
+[tasks.lint]
+description = "TypeScriptと開発スクリプトを検査する"
+run = "npm run lint"
+
+[tasks.format]
+description = "フロントエンドと開発スクリプトを整形する"
+run = "npm run format"
+
+[tasks."format:check"]
+description = "整形済みであることを検査する"
+run = "npm run format:check"
+
+[tasks."check:docs"]
+description = "文書の整合性を検査する"
+run = "node scripts/check-docs.mjs"
+
+[tasks.contracts]
+description = "C#からOpenAPIとReact用の型を生成する（DB・HTTP待受不要）"
+run = "node scripts/contracts.mjs"
+
+[tasks."contracts:check"]
+description = "コミット済みのAPI契約がC#と一致することを検査する"
+run = "node scripts/contracts.mjs --check"

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.6578810">
+  <PropertyGroup>
+    <PackageJsonDirectory>$(MSBuildProjectDirectory)/../</PackageJsonDirectory>
+    <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <StartupCommand>npm run dev</StartupCommand>
+    <BuildOutputFolder>$(MSBuildProjectDirectory)/dist</BuildOutputFolder>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../package.json" Link="package.json" />
+    <None Include="../package-lock.json" Link="package-lock.json" />
+    <None Include="../tsconfig.json" Link="tsconfig.json" />
+  </ItemGroup>
+</Project>

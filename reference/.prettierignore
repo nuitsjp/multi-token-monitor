@@ -1,0 +1,7 @@
+contracts/api.gen.ts
+contracts/openapi.json
+frontend/src/routeTree.gen.ts
+**/bin/
+**/obj/
+**/packages.lock.json
+package-lock.json

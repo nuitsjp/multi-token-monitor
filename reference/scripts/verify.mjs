@@ -1,0 +1,10 @@
+import { npm, run } from './lib.mjs';
+await npm('run', 'contracts:check');
+await npm('run', 'typecheck');
+await npm('run', 'lint');
+await npm('run', 'format:check');
+await run(process.execPath, ['scripts/check-docs.mjs']);
+await npm('run', 'test:core');
+await npm('run', 'test:unit');
+await run(process.execPath, ['scripts/test-e2e.mjs', 'dev']);
+await run(process.execPath, ['scripts/test-e2e.mjs', 'hosted']);
