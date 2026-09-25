@@ -37,7 +37,6 @@ const accent = '#9085e9';
 const statusGood = '#0ca30c';
 const statusWarning = '#fab219';
 
-const compact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 });
 const full = new Intl.NumberFormat('en-US');
 const usd = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -109,7 +108,7 @@ function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: 
       <Text size="sm" className="muted">
         {label}
       </Text>
-      <Text fz={32} fw={600} lh={1.3}>
+      <Text fz={{ base: 22, md: 32 }} fw={600} lh={1.3}>
         {value}
       </Text>
       {hint !== undefined && (
@@ -137,15 +136,7 @@ function Dashboard({ overview, period }: { overview: Overview; period: Period })
     <Stack gap="lg">
       <section aria-label="Total">
         <SimpleGrid cols={{ base: 2, md: 4 }}>
-          <Stat
-            label="Tokens"
-            value={
-              <Tooltip label={full.format(usage.total.tokens)}>
-                <span>{compact.format(usage.total.tokens)}</span>
-              </Tooltip>
-            }
-            hint={full.format(usage.total.tokens)}
-          />
+          <Stat label="Tokens" value={full.format(usage.total.tokens)} />
           <Stat label="Est. cost" value={cost(usage.total.costUsd)} hint="USD" />
           <Stat label="Hubs" value={`${received} / ${overview.hubs.length}`} hint="received" />
           <Stat
@@ -191,7 +182,7 @@ function HubCard({ overview, usage }: { overview: Overview; usage: Usage }) {
                   </Badge>
                 ) : (
                   <Text className="num">
-                    {compact.format(row?.tokens ?? 0)}
+                    {full.format(row?.tokens ?? 0)}
                     <Text span className="muted" ml="sm">
                       {cost(row?.costUsd ?? null)}
                     </Text>
@@ -248,8 +239,8 @@ function ModelCard({
           }))}
           label={
             <Stack gap={0} align="center">
-              <Text fz={24} fw={600}>
-                {compact.format(usage.total.tokens)}
+              <Text fz={15} fw={600} className="num">
+                {full.format(usage.total.tokens)}
               </Text>
               <Text size="xs" className="muted">
                 tokens
@@ -273,7 +264,7 @@ function ModelCard({
                   </Group>
                 </Table.Td>
                 <Table.Td ta="right" className="num">
-                  {compact.format(row.tokens)}
+                  {full.format(row.tokens)}
                 </Table.Td>
                 <Table.Td ta="right" className="num muted">
                   {cost(row.costUsd)}
