@@ -15,6 +15,15 @@ export interface IsolatedApp {
   url: string;
   databasePath: string;
   pid: number;
+  /** サーバーの標準出力と標準エラー（直近128KiB）。 */
+  output: string;
+}
+
+export interface HubConfigEntry {
+  id: string;
+  name: string;
+  url: string;
+  token: string;
 }
 
 type ProxyEntry = { target?: string };
@@ -33,20 +42,17 @@ function updateViteProxyTarget(server: ViteDevServer, target: string) {
 export const test = base.extend<{
   app: IsolatedApp;
   serveFrontend: boolean;
+  hubs: HubConfigEntry[];
 }>({
   serveFrontend: [true, { option: true }],
-  app: async ({ serveFrontend }, use, testInfo) => {
+  // 利用者のHub接続設定を読まないよう、既定では接続先のない専用設定を渡す。
+  hubs: [[{ id: 'e2e', name: 'E2E', url: 'http://127.0.0.1:9', token: 'e2e' }], { option: true }],
+  app: async ({ serveFrontend, hubs }, use, testInfo) => {
     // worker番号だけでなくmkdtempで分けるので、再試行・shard・複数コマンド同時実行でも衝突しない。
     const directory = await mkdtemp(join(tmpdir(), `aidd-e2e-${mode}-w${testInfo.workerIndex}-`));
     const databasePath = join(directory, 'app.sqlite');
-    // 利用者のHub接続設定を読まないよう、接続先のない専用設定を渡す。
     const hubConfigPath = join(directory, 'hubs.json');
-    await writeFile(
-      hubConfigPath,
-      JSON.stringify({
-        hubs: [{ id: 'e2e', name: 'E2E', url: 'http://127.0.0.1:9', token: 'e2e' }],
-      }),
-    );
+    await writeFile(hubConfigPath, JSON.stringify({ hubs }));
     const viteCacheDirectory = join(directory, 'node_modules/.vite');
     let child: ChildProcess | undefined;
     let vite: ViteDevServer | undefined;
@@ -154,6 +160,7 @@ export const test = base.extend<{
       );
       child = running;
       running.stderr?.on('data', append);
+      running.stdout?.on('data', append);
       await new Promise<void>((ready, reject) => {
         const lines = createInterface({ input: running.stdout! });
         let settled = false;
@@ -215,6 +222,9 @@ export const test = base.extend<{
       databasePath,
       get pid() {
         return pid;
+      },
+      get output() {
+        return output;
       },
     };
     try {
