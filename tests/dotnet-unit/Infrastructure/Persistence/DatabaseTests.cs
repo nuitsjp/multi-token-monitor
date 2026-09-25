@@ -31,7 +31,7 @@ public sealed class DatabaseTests
         // Assert
         // -------------------------------------------------------------
         (await CountUsersAsync(first.Database)).ShouldBe(1);
-        (await CountTablesAsync(second.Database)).ShouldBe(0);
+        (await CountUsersTablesAsync(second.Database)).ShouldBe(0);
     }
 
     public sealed class Constructor
@@ -59,7 +59,7 @@ public sealed class DatabaseTests
     public sealed class InitializeAsync
     {
         [Fact]
-        public async Task NewFile_UsesSchemaVersionZeroAndWalAsync()
+        public async Task NewFile_MigratesToSchemaVersionOneWithWalAsync()
         {
             // -------------------------------------------------------------
             // Arrange
@@ -75,7 +75,7 @@ public sealed class DatabaseTests
             // Assert
             // -------------------------------------------------------------
             await using var connection = await fixture.Database.OpenAsync();
-            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(0);
+            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(1);
             (await connection.ExecuteScalarAsync<string>("PRAGMA journal_mode")).ShouldBe("wal");
         }
 
@@ -182,7 +182,7 @@ public sealed class DatabaseTests
             // -------------------------------------------------------------
             // Assert
             // -------------------------------------------------------------
-            result.Version.ShouldBe(0);
+            result.Version.ShouldBe(1);
             result.IsHealthy.ShouldBeTrue();
         }
     }
@@ -190,10 +190,10 @@ public sealed class DatabaseTests
     private const string CreateSavedUserSql =
         "CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT NOT NULL); INSERT INTO users (id, name) VALUES ('saved', 'Saved')";
 
-    private static async Task<int> CountTablesAsync(Database database)
+    private static async Task<int> CountUsersTablesAsync(Database database)
     {
         await using var connection = await database.OpenAsync();
-        return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'");
+        return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'users'");
     }
 
     private static async Task<int> CountUsersAsync(Database database)

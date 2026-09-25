@@ -55,4 +55,12 @@
 | 全体検証 | `mise run verify` | API契約の一致、型検査、Lint、整形、文書検査、.NETとフロントエンドの単体テスト、開発構成と配布構成のE2Eがすべて合格します |
 | 文書検査 | `python scripts/doc_check.py .` | NGが0件です |
 
-設定は `mise run setup` が作る `.env` に置きます。`HOST` は `127.0.0.1` または `::1` だけを受け付けます。DBは `DB_PATH`（既定 `./data/app.sqlite`）のSQLiteファイルで、起動時に作成します。
+設定は `mise run setup` が作る `.env` に置きます。`HOST` は `127.0.0.1` または `::1` だけを受け付けます。DBは `DB_PATH`（既定 `./data/app.sqlite`）のSQLiteファイルで、起動時に作成・移行します。
+
+Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（Git管理外）へ複製し、各Hubの `id`・`name`・`url`（`http(s)://ホスト[:ポート]` の形式）・`token` を記入して作ります。`.env` の `HUB_CONFIG_PATH`（`.env.example` では `./data/hubs.local.json`）がこのファイルを指します。設定が不正な場合は起動せず、理由を標準エラーに出力して終了します。起動後はHubごとに受信を開始し、保存と受信停止をHub IDと原因の分類だけでログに出力します。
+
+保存済みの状態は、アプリケーションの起動中でも別の読み取り専用接続で確認できます（テーブルは [データ設計](design/data.md) を参照）。
+
+| 目的 | コマンド | 期待結果 |
+| --- | --- | --- |
+| Hubごとの受信時刻の確認 | `python -c "import sqlite3; db = sqlite3.connect('file:data/app.sqlite?mode=ro', uri=True); print(db.execute('SELECT h.hub_id, h.name, s.received_at FROM hubs h LEFT JOIN hub_states s USING (hub_id)').fetchall())"` | 設定した全Hubが表示され、受信済みのHubには最後に保存した受信時刻が表示されます |

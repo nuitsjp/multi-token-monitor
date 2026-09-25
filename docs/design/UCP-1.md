@@ -4,10 +4,10 @@
 
 | 役割 | 責務 | 実装パス（段階4完了時に記入） |
 | --- | --- | --- |
-| 起動・終了管理 | 接続設定とDBを準備し、全HubをDBへ登録してから受信を開始する。終了時は全Hubの受信を止め、処理中の保存が確定してからDBを閉じる | |
-| 接続設定読込 | `.env` の `HUB_CONFIG_PATH` が指すJSONを検証し、Hubの接続情報を返す。ファイルは更新しない | |
-| Hub受信処理 | Hubごとに1つ動く。`Authorization: Bearer`・`x-token-monitor-stream: 2` を付けて `/api/stats/stream` へ接続し、通知を解析・検証して、受信順に保存処理を呼ぶ | |
-| 最新状態の保存処理 | 通知から次の状態を計算し、受信時刻と一括で保存する。同じトランザクションで受信データを本システムのドメインモデルへ変換して保存する | |
+| 起動・終了管理 | 接続設定とDBを準備し、全HubをDBへ登録してから受信を開始する。終了時は全Hubの受信を止め、処理中の保存が確定してからDBを閉じる | `backend/Hosting/AppHost.cs`、`backend/Features/HubSync/HubReceivers.cs` |
+| 接続設定読込 | `.env` の `HUB_CONFIG_PATH` が指すJSONを検証し、Hubの接続情報を返す。ファイルは更新しない | `backend/Infrastructure/Configuration/HubConfigFile.cs` |
+| Hub受信処理 | Hubごとに1つ動く。`Authorization: Bearer`・`x-token-monitor-stream: 2` を付けて `/api/stats/stream` へ接続し、通知を解析・検証して、受信順に保存処理を呼ぶ | `backend/Features/HubSync/HubReceivers.cs`、`backend/Features/HubSync/HubNotification.cs` |
+| 最新状態の保存処理 | 通知から次の状態を計算し、受信時刻と一括で保存する。同じトランザクションで受信データを本システムのドメインモデルへ変換して保存する | `backend/Features/HubSync/HubStateStore.cs`、`backend/Infrastructure/Persistence/Migrations/001-hub-sync.sql` |
 
 ```mermaid
 sequenceDiagram

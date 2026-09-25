@@ -6,7 +6,8 @@ internal sealed record AppConfig(
     string Host,
     int Port,
     string DatabasePath,
-    string WebRootPath)
+    string WebRootPath,
+    string? HubConfigPath)
 {
     internal static AppConfig FromEnvironment() => FromValues(Environment.GetEnvironmentVariable);
 
@@ -31,7 +32,8 @@ internal sealed record AppConfig(
             throw new InvalidOperationException("DBはWeb公開領域の外に配置してください。");
         }
 
-        return new AppConfig(host, port, databasePath, webRoot);
+        var hubConfigPath = value("HUB_CONFIG_PATH") is { } path ? Path.GetFullPath(path) : null;
+        return new AppConfig(host, port, databasePath, webRoot, hubConfigPath);
     }
 
     internal static string DatabasePathFromEnvironment() =>

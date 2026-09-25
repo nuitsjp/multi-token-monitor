@@ -25,11 +25,46 @@ internal sealed class Database
             PRAGMA journal_mode = WAL;
             PRAGMA synchronous = FULL;
             """);
-        // 現在のスキーマはmigrationを持たないため、版0以外は未対応とする。
-        var version = await connection.ExecuteScalarAsync<int>("PRAGMA user_version;");
-        if (version != 0)
+        await connection.ExecuteAsync("BEGIN IMMEDIATE;");
+        try
         {
-            throw new InvalidOperationException("未対応のDBスキーマです。");
+            var version = await connection.ExecuteScalarAsync<int>("PRAGMA user_version;");
+            if (version is < 0 or > 1)
+            {
+                throw new InvalidOperationException("未対応のDBスキーマです。");
+            }
+
+            if (version == 0)
+            {
+                using var stream = typeof(Database).Assembly.GetManifestResourceStream("MultiTokenMonitor.Migrations.001-hub-sync.sql")
+                    ?? throw new InvalidOperationException("DB migrationが見つかりません。");
+                using var reader = new StreamReader(stream);
+                await connection.ExecuteAsync(await reader.ReadToEndAsync());
+                await connection.ExecuteAsync("PRAGMA user_version = 1;");
+            }
+
+            await connection.ExecuteAsync("COMMIT;");
+        }
+        catch
+        {
+            await connection.ExecuteAsync("ROLLBACK;");
+            throw;
+        }
+    }
+
+    internal async Task InTransactionAsync(Func<SqliteConnection, Task> operation)
+    {
+        await using var connection = await OpenAsync();
+        await connection.ExecuteAsync("BEGIN IMMEDIATE;");
+        try
+        {
+            await operation(connection);
+            await connection.ExecuteAsync("COMMIT;");
+        }
+        catch
+        {
+            await connection.ExecuteAsync("ROLLBACK;");
+            throw;
         }
     }
 

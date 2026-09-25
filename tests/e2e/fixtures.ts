@@ -1,6 +1,6 @@
 import { test as base, expect } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -39,6 +39,14 @@ export const test = base.extend<{
     // worker番号だけでなくmkdtempで分けるので、再試行・shard・複数コマンド同時実行でも衝突しない。
     const directory = await mkdtemp(join(tmpdir(), `aidd-e2e-${mode}-w${testInfo.workerIndex}-`));
     const databasePath = join(directory, 'app.sqlite');
+    // 利用者のHub接続設定を読まないよう、接続先のない専用設定を渡す。
+    const hubConfigPath = join(directory, 'hubs.json');
+    await writeFile(
+      hubConfigPath,
+      JSON.stringify({
+        hubs: [{ id: 'e2e', name: 'E2E', url: 'http://127.0.0.1:9', token: 'e2e' }],
+      }),
+    );
     const viteCacheDirectory = join(directory, 'node_modules/.vite');
     let child: ChildProcess | undefined;
     let vite: ViteDevServer | undefined;
@@ -138,6 +146,7 @@ export const test = base.extend<{
             HOST: '127.0.0.1',
             PORT: '0',
             DB_PATH: databasePath,
+            HUB_CONFIG_PATH: hubConfigPath,
             AIDD_CONTROL_STDIN: '1',
             Logging__LogLevel__Default: 'Warning',
           },

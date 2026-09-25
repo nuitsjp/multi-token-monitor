@@ -1,3 +1,4 @@
+using MultiTokenMonitor.Features.HubSync;
 using MultiTokenMonitor.Infrastructure.Configuration;
 using MultiTokenMonitor.Infrastructure.Persistence;
 using MultiTokenMonitor.Presentation.Http;
@@ -33,9 +34,18 @@ internal static class AppHost
 
     internal static async Task<WebApplication> BuildAppAsync(AppConfig config, bool initializeDatabase = true)
     {
-        if (initializeDatabase) await new Database(config.DatabasePath).InitializeAsync();
-
         var builder = config.CreateWebApplicationBuilder();
+        if (initializeDatabase)
+        {
+            // 接続設定とDBを準備し、全Hubを登録してから受信を開始する。
+            var hubs = HubConfigFile.Read(config.HubConfigPath);
+            var database = new Database(config.DatabasePath);
+            await database.InitializeAsync();
+            await HubStateStore.RegisterHubsAsync(database, hubs);
+            builder.Services.AddHostedService(services =>
+                new HubReceivers(hubs, database, services.GetRequiredService<ILogger<HubReceivers>>()));
+        }
+
         var contractSources = builder.AddHttpPresentation(exportOpenApi: !initializeDatabase);
         var app = builder.Build();
         app.UseHttpPresentation(config, contractSources);
