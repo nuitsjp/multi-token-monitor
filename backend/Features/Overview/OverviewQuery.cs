@@ -10,11 +10,12 @@ internal static class OverviewQuery
     internal static Task<OverviewOutput> ReadAsync(Database database) =>
         database.InReadTransactionAsync(async connection =>
         {
-            var hubs = (await connection.QueryAsync<OverviewHubOutput>(
+            var hubs = (await connection.QueryAsync<HubRow>(
                 """
                 SELECT
                     h.hub_id AS HubId,
                     h.name AS Name,
+                    h.connected AS Connected,
                     s.received_at AS ReceivedAt,
                     m.updated_at AS UpdatedAt
                 FROM
@@ -23,7 +24,9 @@ internal static class OverviewQuery
                     LEFT JOIN hub_summaries m USING (hub_id)
                 ORDER BY
                     h.name, h.hub_id
-                """)).AsList();
+                """))
+                .Select(row => new OverviewHubOutput(row.HubId, row.Name, row.Connected != 0, row.ReceivedAt, row.UpdatedAt))
+                .ToList();
 
             var usages = (await connection.QueryAsync<UsageRow>(
                 """
@@ -127,6 +130,8 @@ internal static class OverviewQuery
         public long Tokens { get; set; }
         public double? CostUsd { get; set; }
     }
+
+    private sealed record HubRow(string HubId, string Name, long Connected, string? ReceivedAt, string? UpdatedAt);
 
     private sealed record DeviceRow(
         string HubId,

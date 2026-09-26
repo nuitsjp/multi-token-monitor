@@ -10,6 +10,11 @@ type E2EMode = 'dev' | 'hosted';
 const mode = process.env.E2E_MODE ?? 'hosted';
 if (mode !== 'dev' && mode !== 'hosted') throw new Error('E2E_MODEはdevまたはhostedです。');
 
+/** E2Eで起動するサーバーのDLL。 */
+export const serverDll = resolve(
+  mode === 'dev' ? 'dist/backend/MultiTokenMonitor.dll' : 'dist/server/MultiTokenMonitor.dll',
+);
+
 export interface IsolatedApp {
   mode: E2EMode;
   url: string;
@@ -17,6 +22,12 @@ export interface IsolatedApp {
   pid: number;
   /** サーバーの標準出力と標準エラー（直近128KiB）。 */
   output: string;
+  /** サーバーに通常終了を依頼し、終了を待つ。 */
+  stop(): Promise<void>;
+  /** 停止したサーバーを同じDBと設定で起動し直す。 */
+  start(): Promise<void>;
+  /** 次の起動で読むHub接続設定を書き換える。 */
+  writeHubs(hubs: HubConfigEntry[]): Promise<void>;
 }
 
 export interface HubConfigEntry {
@@ -133,31 +144,21 @@ export const test = base.extend<{
       await startVite();
       address = vite ? viteAddress : '';
       backendAddress = '';
-      const running = spawn(
-        'dotnet',
-        [
-          resolve(
-            mode === 'dev'
-              ? 'dist/backend/MultiTokenMonitor.dll'
-              : 'dist/server/MultiTokenMonitor.dll',
-          ),
-        ],
-        {
-          cwd: process.cwd(),
-          stdio: ['pipe', 'pipe', 'pipe'],
-          env: {
-            ...process.env,
-            DOTNET_ENVIRONMENT: 'Production',
-            ASPNETCORE_ENVIRONMENT: 'Production',
-            HOST: '127.0.0.1',
-            PORT: '0',
-            DB_PATH: databasePath,
-            HUB_CONFIG_PATH: hubConfigPath,
-            AIDD_CONTROL_STDIN: '1',
-            Logging__LogLevel__Default: 'Warning',
-          },
+      const running = spawn('dotnet', [serverDll], {
+        cwd: process.cwd(),
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          DOTNET_ENVIRONMENT: 'Production',
+          ASPNETCORE_ENVIRONMENT: 'Production',
+          HOST: '127.0.0.1',
+          PORT: '0',
+          DB_PATH: databasePath,
+          HUB_CONFIG_PATH: hubConfigPath,
+          AIDD_CONTROL_STDIN: '1',
+          Logging__LogLevel__Default: 'Warning',
         },
-      );
+      });
       child = running;
       running.stderr?.on('data', append);
       running.stdout?.on('data', append);
@@ -226,6 +227,10 @@ export const test = base.extend<{
       get output() {
         return output;
       },
+      stop,
+      start,
+      writeHubs: (next: HubConfigEntry[]) =>
+        writeFile(hubConfigPath, JSON.stringify({ hubs: next })),
     };
     try {
       await start();

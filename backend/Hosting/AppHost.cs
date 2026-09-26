@@ -36,13 +36,14 @@ internal static class AppHost
     internal static async Task<WebApplication> BuildAppAsync(AppConfig config, bool initializeDatabase = true)
     {
         var builder = config.CreateWebApplicationBuilder();
+        IReadOnlyList<string> removedHubs = [];
         if (initializeDatabase)
         {
             // 接続設定とDBを準備し、全Hubを登録してから受信を開始する。
             var hubs = HubConfigFile.Read(config.HubConfigPath);
             var database = new Database(config.DatabasePath);
             await database.InitializeAsync();
-            await HubStateStore.RegisterHubsAsync(database, hubs);
+            removedHubs = await HubStateStore.RegisterHubsAsync(database, hubs);
             builder.Services.AddSingleton(database);
             builder.Services.AddSingleton<ChangeNotifications>();
             builder.Services.AddHostedService(services => new HubReceivers(
@@ -54,6 +55,8 @@ internal static class AppHost
 
         var contractSources = builder.AddHttpPresentation(exportOpenApi: !initializeDatabase);
         var app = builder.Build();
+        foreach (var hubId in removedHubs)
+            app.Logger.LogWarning("設定から外したHubを削除しました。HubId={HubId}", hubId);
         app.UseHttpPresentation(config, contractSources);
         return app;
     }

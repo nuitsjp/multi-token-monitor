@@ -9,15 +9,38 @@ namespace MultiTokenMonitor.Features.HubSync;
 
 internal static class HubStateStore
 {
-    // 同じIDは表示名だけを更新し、設定から外れたHubは削除しない。
-    internal static Task RegisterHubsAsync(Database database, IReadOnlyList<HubConnection> hubs) =>
+    // 同じIDは表示名を更新して受信状態を受信中に戻す。設定から外れたHubはその行ごと削除し、削除したIDを返す。
+    internal static async Task<IReadOnlyList<string>> RegisterHubsAsync(Database database, IReadOnlyList<HubConnection> hubs)
+    {
+        IReadOnlyList<string> removed = [];
+        await database.InTransactionAsync(async connection =>
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO hubs (hub_id, name, connected)
+                VALUES (@Id, @Name, 1)
+                ON CONFLICT (hub_id) DO UPDATE SET name = excluded.name, connected = 1
+                """,
+                hubs.Select(hub => new { hub.Id, hub.Name }));
+            var ids = hubs.Select(hub => hub.Id).ToArray();
+            removed = (await connection.QueryAsync<string>(
+                "SELECT hub_id FROM hubs WHERE hub_id NOT IN @ids ORDER BY hub_id", new { ids })).AsList();
+            // Hubの行を消すと、受信データとドメインモデルの行も連鎖して消える。
+            await connection.ExecuteAsync("DELETE FROM hubs WHERE hub_id IN @removed", new { removed });
+            await connection.ExecuteAsync(
+                """
+                DELETE FROM accounts
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM latest_limit_windows w
+                    WHERE w.provider = accounts.provider AND w.account_key = accounts.account_key)
+                """);
+        });
+        return removed;
+    }
+
+    internal static Task MarkReconnectingAsync(Database database, string hubId) =>
         database.InTransactionAsync(connection => connection.ExecuteAsync(
-            """
-            INSERT INTO hubs (hub_id, name)
-            VALUES (@Id, @Name)
-            ON CONFLICT (hub_id) DO UPDATE SET name = excluded.name
-            """,
-            hubs.Select(hub => new { hub.Id, hub.Name })));
+            "UPDATE hubs SET connected = 0 WHERE hub_id = @hubId", new { hubId }));
 
     // 受信データと、そこから作り直したドメインモデルを1トランザクションで保存する。
     internal static Task SaveAsync(Database database, string hubId, HubNotification notification, string receivedAt) =>
@@ -42,6 +65,8 @@ internal static class HubStateStore
                     received_at = excluded.received_at
                 """,
                 new { hubId, statsJson = statsJson.ToJsonString(), receivedAt });
+            // 保存できた接続は受信中。再接続後の最初の保存で受信中に戻る。
+            await connection.ExecuteAsync("UPDATE hubs SET connected = 1 WHERE hub_id = @hubId", new { hubId });
             await ReplaceDomainAsync(connection, hubId, stats, receivedAt);
         });
 

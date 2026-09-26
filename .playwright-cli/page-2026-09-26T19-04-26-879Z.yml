@@ -1,0 +1,86 @@
+- generic [active] [ref=e1]:
+  - heading "Reconnecting indicator — 3 options" [level=1] [ref=e2]
+  - paragraph [ref=e3]: Hub別の区画（By hub）の見た目の案です。アイコンにマウスを重ねる（またはTabで選ぶ）と状態の説明が出ます。Work と Lab が再接続中の状態を示しています。
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "A. Spinning sync" [level=2] [ref=e6]
+      - paragraph [ref=e7]: 同期の矢印が回り続けます。「つなぎ直している最中」が最も直接的に伝わります。
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - generic [ref=e10]: Personal
+          - generic [ref=e11]: 1,500,000$20.50
+        - generic [ref=e14]: Received 9/25 12:12 · Updated 9/25 12:12
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - text: Work
+            - generic "Reconnecting. Showing last saved data." [ref=e18]:
+              - img [ref=e19]
+              - generic:
+                - text: Reconnecting
+                - generic: Showing last saved data
+          - generic [ref=e24]: 3,350,000$21.80
+        - generic [ref=e27]: Received 9/25 12:10 · Updated 9/25 12:09
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - text: Lab
+          - generic "Reconnecting. No data received yet." [ref=e31]:
+            - img [ref=e32]
+            - generic:
+              - text: Reconnecting
+              - generic: No data received yet
+        - generic [ref=e37]: Not received
+    - generic [ref=e38]:
+      - heading "B. Searching signal" [level=2] [ref=e39]
+      - paragraph [ref=e40]: 電波のアーチが下から順に点きます。「接続先を探している」印象で、回転より落ち着いて見えます。
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - generic [ref=e43]: Personal
+          - generic [ref=e44]: 1,500,000$20.50
+        - generic [ref=e47]: Received 9/25 12:12 · Updated 9/25 12:12
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - text: Work
+            - generic "Reconnecting. Showing last saved data." [ref=e51]:
+              - img [ref=e52]
+              - generic:
+                - text: Reconnecting
+                - generic: Showing last saved data
+          - generic [ref=e58]: 3,350,000$21.80
+        - generic [ref=e61]: Received 9/25 12:10 · Updated 9/25 12:09
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - text: Lab
+          - generic "Reconnecting. No data received yet." [ref=e65]:
+            - img [ref=e66]
+            - generic:
+              - text: Reconnecting
+              - generic: No data received yet
+        - generic [ref=e72]: Not received
+    - generic [ref=e73]:
+      - heading "C. Pulsing dot" [level=2] [ref=e74]
+      - paragraph [ref=e75]: オレンジの点から波紋が広がります。最も小さく控えめで、数値の読みやすさを邪魔しません。
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - generic [ref=e78]: Personal
+          - generic [ref=e79]: 1,500,000$20.50
+        - generic [ref=e82]: Received 9/25 12:12 · Updated 9/25 12:12
+      - generic [ref=e83]:
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - text: Work
+            - generic "Reconnecting. Showing last saved data." [ref=e86]:
+              - generic:
+                - text: Reconnecting
+                - generic: Showing last saved data
+          - generic [ref=e87]: 3,350,000$21.80
+        - generic [ref=e90]: Received 9/25 12:10 · Updated 9/25 12:09
+      - generic [ref=e92]:
+        - generic [ref=e93]:
+          - text: Lab
+          - generic "Reconnecting. No data received yet." [ref=e94]:
+            - generic:
+              - text: Reconnecting
+              - generic: No data received yet
+        - generic [ref=e95]: Not received
