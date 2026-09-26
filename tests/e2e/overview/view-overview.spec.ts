@@ -257,12 +257,7 @@ test('OVW-2 利用枠はHubを切り替えて、そのHubが報告した枠だ�
   await expect(limits).toContainText('No limits');
 });
 
-test('OVW-3 自動更新せず、再読み込みで最新の保存状態を表示する', async ({
-  page,
-  app,
-  alpha,
-  beta,
-}) => {
+test('OVW-3 再読み込みで最新の保存状態を表示する', async ({ page, app, alpha, beta }) => {
   // Arrange
   const db = app.databasePath;
   await waitReceived(db);
@@ -278,8 +273,8 @@ test('OVW-3 自動更新せず、再読み込みで最新の保存状態を表�
   alpha.send('stats', next);
   await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(before);
 
-  // Assert: 画面は開いた時点の状態のまま。
-  await expectPeriod(page, { alpha: alpha.stats, beta: beta.stats }, 'allTime');
+  // Assert: 表示中の画面は変更通知を受けて最新の保存状態になる。
+  await expectPeriod(page, { alpha: next, beta: beta.stats }, 'allTime');
 
   // Act & Assert: 再読み込みで最新の保存状態を Today から表示する。
   await page.reload();

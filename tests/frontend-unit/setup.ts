@@ -23,3 +23,8 @@ globalThis.ResizeObserver = class {
   unobserve() {}
   disconnect() {}
 };
+// 画面が変更通知の購読に使う。jsdomには無い。
+globalThis.EventSource = class {
+  addEventListener() {}
+  close() {}
+} as unknown as typeof EventSource;
