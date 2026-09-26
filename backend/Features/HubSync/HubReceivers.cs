@@ -8,7 +8,7 @@ using MultiTokenMonitor.Infrastructure.Persistence;
 
 namespace MultiTokenMonitor.Features.HubSync;
 
-// Hubごとに独立したSSE受信を動かす。あるHubの失敗はそのHubの受信だけを止める。
+// Hubごとに独立したSSE受信を動かす。あるHubの失敗はそのHubだけを再接続させる。
 internal sealed class HubReceivers(
     IReadOnlyList<HubConnection> hubs,
     Database database,
@@ -29,25 +29,72 @@ internal sealed class HubReceivers(
         base.Dispose();
     }
 
+    private static readonly TimeSpan FirstRetryDelay = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(60);
+
+    // 受信が止まった理由を問わず、待ち時間を倍にしながら上限なく再接続する。
     private async Task ReceiveAsync(HubConnection hub, CancellationToken stoppingToken)
     {
-        try
+        // 起動時の登録で受信中に戻っている。
+        var connected = true;
+        var delay = FirstRetryDelay;
+        while (true)
         {
-            var cause = await ReceiveUntilFailureAsync(hub, stoppingToken);
+            var saved = false;
+            string cause;
+            try
+            {
+                cause = await ReceiveUntilFailureAsync(hub, () => saved = true, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                // 終了要求による停止。
+                return;
+            }
+            catch (Exception error)
+            {
+                cause = $"connection Error={error.GetType().Name}";
+            }
+
+            if (saved)
+            {
+                connected = true;
+                delay = FirstRetryDelay;
+            }
+
             // 例外・応答本文・URL・トークンは秘密情報を含み得るため、原因の分類だけを記録する。
-            logger.LogError("Hub受信を停止しました。HubId={HubId} Cause={Cause}", hub.Id, cause);
-        }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-        {
-            // 終了要求による停止。
-        }
-        catch (Exception error)
-        {
-            logger.LogError("Hub受信を停止しました。HubId={HubId} Cause=connection Error={ErrorType}", hub.Id, error.GetType().Name);
+            logger.LogError("Hub受信が止まりました。再接続を待ちます。HubId={HubId} Cause={Cause} DelaySeconds={DelaySeconds}",
+                hub.Id, cause, delay.TotalSeconds);
+
+            if (connected)
+            {
+                try
+                {
+                    await HubStateStore.MarkReconnectingAsync(database, hub.Id);
+                    connected = false;
+                    notifications.Publish();
+                }
+                catch (Exception error)
+                {
+                    // 記録できなかった場合は、次に受信が止まったときに改めて記録する。
+                    logger.LogError("受信状態を記録できませんでした。HubId={HubId} Error={ErrorType}", hub.Id, error.GetType().Name);
+                }
+            }
+
+            try
+            {
+                await Task.Delay(delay, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, MaxRetryDelay.Ticks));
         }
     }
 
-    private async Task<string> ReceiveUntilFailureAsync(HubConnection hub, CancellationToken stoppingToken)
+    private async Task<string> ReceiveUntilFailureAsync(HubConnection hub, Action saved, CancellationToken stoppingToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(hub.Origin, "/api/stats/stream"));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", hub.Token);
@@ -124,6 +171,7 @@ internal sealed class HubReceivers(
 
             // COMMIT後にだけ、保存の種類を問わず閲覧側へ合図する。
             notifications.Publish();
+            saved();
             snapshotReceived = true;
             logger.LogInformation("Hubの最新状態を保存しました。HubId={HubId} Event={Event} ReceivedAt={ReceivedAt}",
                 hub.Id, eventName, receivedAt);

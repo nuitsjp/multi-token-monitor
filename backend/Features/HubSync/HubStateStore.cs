@@ -9,15 +9,19 @@ namespace MultiTokenMonitor.Features.HubSync;
 
 internal static class HubStateStore
 {
-    // 同じIDは表示名だけを更新し、設定から外れたHubは削除しない。
+    // 同じIDは表示名を更新して受信状態を受信中に戻し、設定から外れたHubは削除しない。
     internal static Task RegisterHubsAsync(Database database, IReadOnlyList<HubConnection> hubs) =>
         database.InTransactionAsync(connection => connection.ExecuteAsync(
             """
-            INSERT INTO hubs (hub_id, name)
-            VALUES (@Id, @Name)
-            ON CONFLICT (hub_id) DO UPDATE SET name = excluded.name
+            INSERT INTO hubs (hub_id, name, connected)
+            VALUES (@Id, @Name, 1)
+            ON CONFLICT (hub_id) DO UPDATE SET name = excluded.name, connected = 1
             """,
             hubs.Select(hub => new { hub.Id, hub.Name })));
+
+    internal static Task MarkReconnectingAsync(Database database, string hubId) =>
+        database.InTransactionAsync(connection => connection.ExecuteAsync(
+            "UPDATE hubs SET connected = 0 WHERE hub_id = @hubId", new { hubId }));
 
     // 受信データと、そこから作り直したドメインモデルを1トランザクションで保存する。
     internal static Task SaveAsync(Database database, string hubId, HubNotification notification, string receivedAt) =>
@@ -42,6 +46,8 @@ internal static class HubStateStore
                     received_at = excluded.received_at
                 """,
                 new { hubId, statsJson = statsJson.ToJsonString(), receivedAt });
+            // 保存できた接続は受信中。再接続後の最初の保存で受信中に戻る。
+            await connection.ExecuteAsync("UPDATE hubs SET connected = 1 WHERE hub_id = @hubId", new { hubId });
             await ReplaceDomainAsync(connection, hubId, stats, receivedAt);
         });
 

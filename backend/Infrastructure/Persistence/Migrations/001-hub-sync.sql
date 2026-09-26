@@ -1,6 +1,7 @@
 CREATE TABLE hubs (
   hub_id TEXT PRIMARY KEY,
-  name TEXT NOT NULL
+  name TEXT NOT NULL,
+  connected INTEGER NOT NULL
 ) STRICT;
 CREATE TABLE hub_states (
   hub_id TEXT PRIMARY KEY REFERENCES hubs(hub_id),

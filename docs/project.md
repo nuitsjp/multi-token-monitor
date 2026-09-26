@@ -62,7 +62,7 @@ Hub同期のE2E（`tests/e2e/hub-sync/`）は、テストごとにBearerトー�
 
 設定は `mise run setup` が作る `.env` に置きます。`HOST` は `127.0.0.1` または `::1` だけを受け付けます。DBは `DB_PATH`（既定 `./data/app.sqlite`）のSQLiteファイルで、起動時に作成・移行します。
 
-Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（Git管理外）へ複製し、各Hubの `id`・`name`・`url`（`http(s)://ホスト[:ポート]` の形式）・`token` を記入して作ります。`.env` の `HUB_CONFIG_PATH`（`.env.example` では `./data/hubs.local.json`）がこのファイルを指します。設定が不正な場合は起動せず、理由を標準エラーに出力して終了します。起動後はHubごとに受信を開始し、保存と受信停止をHub IDと原因の分類だけでログに出力します。
+Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（Git管理外）へ複製し、各Hubの `id`・`name`・`url`（`http(s)://ホスト[:ポート]` の形式）・`token` を記入して作ります。`.env` の `HUB_CONFIG_PATH`（`.env.example` では `./data/hubs.local.json`）がこのファイルを指します。設定が不正な場合は起動せず、理由を標準エラーに出力して終了します。起動後はHubごとに受信を開始し、保存と受信停止をHub IDと原因の分類だけでログに出力します。受信が止まったHubへは、待ち時間を1秒から倍にしながら（上限60秒）再接続を続けます。
 
 閲覧画面は `http://127.0.0.1:5173/`（開発起動）または `http://127.0.0.1:3000/`（配布物）で開き、閲覧用API `GET /api/overview` から保存済みの状態を読みます。APIはHostヘッダーが `localhost`・`127.0.0.1`・`[::1]` 以外の要求を400で拒否します。
 
@@ -80,4 +80,4 @@ Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（
 
 | 目的 | コマンド | 期待結果 |
 | --- | --- | --- |
-| Hubごとの受信時刻の確認 | `python -c "import sqlite3; db = sqlite3.connect('file:data/app.sqlite?mode=ro', uri=True); print(db.execute('SELECT h.hub_id, h.name, s.received_at FROM hubs h LEFT JOIN hub_states s USING (hub_id)').fetchall())"` | 設定した全Hubが表示され、受信済みのHubには最後に保存した受信時刻が表示されます |
+| Hubごとの受信時刻の確認 | `python -c "import sqlite3; db = sqlite3.connect('file:data/app.sqlite?mode=ro', uri=True); print(db.execute('SELECT h.hub_id, h.name, h.connected, s.received_at FROM hubs h LEFT JOIN hub_states s USING (hub_id)').fetchall())"` | 設定した全Hubが表示され、受信中のHubは `connected` が1、再接続中のHubは0です。受信済みのHubには最後に保存した受信時刻が表示されます |
