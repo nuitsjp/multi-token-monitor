@@ -4,7 +4,7 @@
 
 | 役割 | 責務 | 実装パス（段階4完了時に記入） |
 | --- | --- | --- |
-| 画面 | 表示時に閲覧用APIを1回呼ぶ。期間と利用枠のHubの切り替えは受け取った値から選び、APIを呼び直さない | `frontend/src/routes/index.tsx`、`frontend/src/api/overview.ts` |
+| 画面 | 表示時に閲覧用APIを1回呼ぶ（表示中の取得し直しは [UCP-3](UCP-3.md)）。期間と利用枠のHubの切り替えは受け取った値から選び、APIを呼び直さない | `frontend/src/routes/index.tsx`、`frontend/src/api/overview.ts` |
 | 閲覧用API | `GET /api/overview` を提供し、全区画のデータを期間別にまとめて1回で返す。契約はOpenAPIから生成するTypeScriptの型で画面と共有する。Hostヘッダーをループバックの名前に限定する | `backend/Presentation/Http/ApiEndpoints.cs`、`backend/Presentation/Http/Contracts.cs`、`backend/Presentation/Http/HttpPresentationRegistration.cs` |
 | 閲覧クエリ | ドメインモデルのテーブルだけを読み取り専用で読み、集計して返す。受信データ（`hub_states.stats_json`）は読まない | `backend/Features/Overview/OverviewQuery.cs`、`backend/Infrastructure/Persistence/Database.cs` |
 

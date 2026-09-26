@@ -28,8 +28,8 @@
 
 | ユースケース | 主アクター | 目的 | 実装順序 | 実現パターン | モック適用 |
 | --- | --- | --- | --- | --- | --- |
-| [Hubから利用状況を同期する](usecases/Hubから利用状況を同期する/README.md) | 利用者 | 設定したHubの最新利用状況をローカルに保存し、閲覧できる状態に保つ | 1 | [UCP-1](design/UCP-1.md) | 対象外（UI確認不要） |
-| [利用状況を閲覧する](usecases/利用状況を閲覧する/README.md) | 利用者 | 登録したHubの最新利用状況を1画面で確認する | 2 | [UCP-2](design/UCP-2.md) | 対象 |
+| [Hubから利用状況を同期する](usecases/Hubから利用状況を同期する/README.md) | 利用者 | 設定したHubの最新利用状況をローカルに保存し、閲覧できる状態に保つ | 1 | [UCP-1](design/UCP-1.md)、[UCP-3](design/UCP-3.md) | 対象外（UI確認不要） |
+| [利用状況を閲覧する](usecases/利用状況を閲覧する/README.md) | 利用者 | 登録したHubの最新利用状況を1画面で確認する | 2 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 
 <a id="design"></a>
 ## 4. 確認した事実
@@ -58,6 +58,7 @@
 Hub同期のE2E（`tests/e2e/hub-sync/`）は、テストごとにBearerトークンを検証する偽Hubを立て、接続設定のURLをそこへ向けて本番の受信・保存処理を通し、別の読み取り専用接続から保存値を照合します。
 
 閲覧のE2E（`tests/e2e/overview/`）は、同じ偽Hubから本番の受信・保存処理でDBに状態を作り、画面の表示値を偽Hubの送った値から求めた期待値と照合します。
+表示中の更新は、画面を開いたまま偽Hubに新しい状態を送って確かめます。通知の再接続は、ブラウザー側で `/api/events` の最初の接続を切り、保存の後に再接続を本物のAPIへ通して確かめます。
 
 設定は `mise run setup` が作る `.env` に置きます。`HOST` は `127.0.0.1` または `::1` だけを受け付けます。DBは `DB_PATH`（既定 `./data/app.sqlite`）のSQLiteファイルで、起動時に作成・移行します。
 
@@ -68,6 +69,12 @@ Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（
 | 目的 | コマンド | 期待結果 |
 | --- | --- | --- |
 | 閲覧用APIの確認 | `curl.exe -s http://127.0.0.1:3000/api/overview` | 設定した全Hubと、期間別の合計・Hub別・モデル別の値、利用枠、端末をJSONで返します。URLと認証トークンは含みません |
+
+画面は表示中、通知配信API `GET /api/events`（SSE）を購読し、接続時の `ready` と保存確定ごとの `overview.changed` を受けるたびに閲覧用APIから取得し直します。
+
+| 目的 | コマンド | 期待結果 |
+| --- | --- | --- |
+| 通知配信APIの確認 | `curl.exe -N http://127.0.0.1:3000/api/events` | 接続直後に `event: ready` が届き、Hubから受信した状態を保存するたびに `event: overview.changed` が届きます。合図の本文は `{}` だけです |
 
 保存済みの状態は、アプリケーションの起動中でも別の読み取り専用接続で確認できます（テーブルは [データ設計](design/data.md) を参照）。
 

@@ -85,6 +85,42 @@ function usageDevices(databasePath: string, hubId: string, period: string) {
   ).map((row) => row.device_id);
 }
 
+// 通知配信APIを購読し、受け取った合図を記録する。
+async function watchEvents(url: string) {
+  const controller = new AbortController();
+  const response = await fetch(`${url}/api/events`, { signal: controller.signal });
+  const events: { event: string; data: string }[] = [];
+  let raw = '';
+  void (async () => {
+    const decoder = new TextDecoder();
+    const reader = response.body!.getReader();
+    try {
+      for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+        raw += decoder.decode(chunk.value, { stream: true });
+        let end;
+        while ((end = raw.indexOf('\n\n')) >= 0) {
+          const block = raw.slice(0, end);
+          raw = raw.slice(end + 2);
+          const field = (name: string) =>
+            block
+              .split('\n')
+              .find((line) => line.startsWith(`${name}: `))
+              ?.slice(name.length + 2) ?? '';
+          events.push({ event: field('event'), data: field('data') });
+        }
+      }
+    } catch {
+      // 購読の終了による中断。
+    }
+  })();
+  return {
+    response,
+    events,
+    changed: () => events.filter((item) => item.event === 'overview.changed').length,
+    close: () => controller.abort(),
+  };
+}
+
 function meters(databasePath: string, hubId: string) {
   return query<{ limit_key: string; remaining_percent: number; meter_changed_at: string }>(
     databasePath,
@@ -172,10 +208,18 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
     ]);
   }
 
-  // --- heartbeat では保存しない
+  // 以後の保存確定を、閲覧側の通知の受け口で受け取る。
+  const watcher = await watchEvents(app.url);
+  expect(watcher.response.headers.get('content-type')).toBe('text/event-stream');
+  await expect.poll(() => watcher.events.map((item) => item.event)).toEqual(['ready']);
+
+  // --- heartbeat では保存も通知もしない
   const betaReceivedAt = receivedAt(db, 'beta');
   beta.heartbeat();
   silent.heartbeat();
+  // 通知が来ないことを確かめるため、heartbeat の処理に十分な時間だけ待つ。
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  expect(watcher.changed()).toBe(0);
   const alphaSnapshotAt = receivedAt(db, 'alpha')!;
   const snapshotMeters = meters(db, 'alpha');
 
@@ -192,6 +236,8 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
   alpha.send('stats', next);
 
   await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(alphaSnapshotAt);
+  await expect.poll(() => watcher.changed()).toBeGreaterThan(0);
+  const changedAfterStats = watcher.changed();
   const alphaStatsAt = receivedAt(db, 'alpha')!;
   expect(periodTotals(db, 'alpha')).toEqual(expectedTotals(next));
   expect(query(db, 'SELECT updated_at FROM hub_summaries WHERE hub_id = ?', 'alpha')).toEqual([
@@ -227,6 +273,7 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
   });
 
   await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(alphaStatsAt);
+  await expect.poll(() => watcher.changed()).toBeGreaterThan(changedAfterStats);
   const fresh = JSON.parse(
     query<{ stats_json: string }>(
       db,
@@ -263,6 +310,16 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
   expect(receivedAt(db, 'silent')).toBeUndefined();
   expect(silent.connected).toBe(1);
 
+  // --- snapshot: 接続後に初めて全体状態を受けたHubも、保存確定で通知する
+  const changedAfterFreshness = watcher.changed();
+  silent.send('snapshot', silent.stats);
+  await expect.poll(() => receivedAt(db, 'silent')).toBeTruthy();
+  await expect.poll(() => watcher.changed()).toBeGreaterThan(changedAfterFreshness);
+
+  // 合図には利用データを含めない。
+  watcher.close();
+  expect(new Set(watcher.events.map((item) => item.data))).toEqual(new Set(['{}']));
+
   // --- 共通の受け入れ条件: 失敗したHubは他のHubの受信とWebサーバーへ波及しない
   expect((await request.get('/health')).status()).toBe(200);
   expect(beta.connected).toBe(1);
@@ -282,6 +339,7 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
   const dump = JSON.stringify(tables.map(({ name }) => query(db, `SELECT * FROM "${name}"`)));
   for (const secret of secrets) {
     expect(dump).not.toContain(secret);
+    expect(JSON.stringify(watcher.events)).not.toContain(secret);
     expect(app.output).not.toContain(secret);
   }
 });

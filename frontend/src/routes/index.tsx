@@ -19,7 +19,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { fetchOverview, type Overview } from '../api/overview.ts';
+import { watchOverview, type Overview } from '../api/overview.ts';
 export const Route = createFileRoute('/')({ component: Home });
 
 type Period = keyof Overview['periods'];
@@ -58,11 +58,13 @@ export function Home() {
   const [overview, setOverview] = useState<Overview>();
   const [error, setError] = useState<string>();
   const [period, setPeriod] = useState<Period>('today');
-  useEffect(() => {
-    fetchOverview().then(setOverview, (reason: unknown) =>
-      setError(reason instanceof Error ? reason.message : String(reason)),
-    );
-  }, []);
+  useEffect(
+    () =>
+      watchOverview(setOverview, (reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : String(reason)),
+      ),
+    [],
+  );
 
   return (
     <Container component="main" size="xl" py="xl">
