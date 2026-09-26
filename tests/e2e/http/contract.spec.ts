@@ -32,3 +32,16 @@ test('同一.NETサーバーがSPAを配信し、未知APIにはHTMLを返さな
   expect(unknown.status()).toBe(404);
   expect(unknown.headers()['content-type'] ?? '').not.toContain('text/html');
 });
+
+test('閲覧用APIはループバック以外のHost名を拒否する', async ({ request }) => {
+  // Arrange
+  const path = '/api/overview';
+
+  // Act
+  const loopback = await request.get(path, { headers: { Host: 'localhost' } });
+  const other = await request.get(path, { headers: { Host: 'evil.example' } });
+
+  // Assert
+  expect(loopback.status()).toBe(200);
+  expect(other.status()).toBe(400);
+});
