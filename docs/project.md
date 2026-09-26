@@ -50,7 +50,7 @@
 | 環境構築 | `mise run setup` | 固定版のNode.js・.NET・Pythonと、npm・NuGetの依存を導入します。`.env` がなければ `.env.example` から作成します |
 | E2E用ブラウザーの導入 | `mise run setup:browser` | E2Eで使うChromiumを導入します |
 | 開発起動 | `mise run dev` | `http://127.0.0.1:5173/` でVite（HMR）の画面を開けます。.NETは `.env` の `HOST`・`PORT`（既定 `127.0.0.1:3000`）で起動します |
-| 配布物のビルドと起動 | `mise run build` の後に `mise run start` | `dist/server` に配布物を作り、`http://127.0.0.1:3000/`（`.env` の `HOST`・`PORT`）で画面とAPIを同じポートから配信します |
+| 配布物のビルドと起動 | `mise run start` | 起動のたびに `mise run build` で `dist/server` に配布物を作り直してから、`http://127.0.0.1:3000/`（`.env` の `HOST`・`PORT`）で画面とAPIを同じポートから配信します |
 | 停止 | 起動したターミナルで Ctrl+C | 開発起動ではViteと.NETの両方が停止します |
 | 全体検証 | `mise run verify` | API契約の一致、型検査、Lint、整形、文書検査、.NETとフロントエンドの単体テスト、開発構成と配布構成のE2Eがすべて合格します |
 | 文書検査 | `python scripts/doc_check.py .` | NGが0件です |

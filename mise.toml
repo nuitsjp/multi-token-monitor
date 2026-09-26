@@ -31,7 +31,8 @@ description = "Reactを含めず.NET APIだけをビルドする"
 run = "node scripts/build-backend.mjs"
 
 [tasks.start]
-description = "ビルド済み.NETからUIとAPIを同じポートで配信する"
+description = "ビルドしてから、.NETからUIとAPIを同じポートで配信する"
+depends = ["build"]
 run = "node --env-file-if-exists=.env scripts/start.mjs"
 
 [tasks."test:frontend"]
