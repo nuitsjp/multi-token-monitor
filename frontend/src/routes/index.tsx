@@ -182,11 +182,7 @@ function HubCard({ overview, usage }: { overview: Overview; usage: Usage }) {
               <Group justify="space-between" mb={6} wrap="nowrap">
                 <Group gap="xs" wrap="nowrap">
                   <Text fw={500}>{hub.name}</Text>
-                  {!hub.connected && (
-                    <Badge color="orange" variant="light">
-                      Reconnecting
-                    </Badge>
-                  )}
+                  {!hub.connected && <Reconnecting received={hub.receivedAt !== null} />}
                 </Group>
                 {hub.receivedAt === null ? (
                   <Badge color="gray" variant="light">
@@ -221,6 +217,47 @@ function HubCard({ overview, usage }: { overview: Overview; usage: Usage }) {
         })}
       </Stack>
     </Card>
+  );
+}
+
+// 再接続中の目印。電波のアーチが順に点き、ホバーやフォーカスで状態の説明を出す。
+function Reconnecting({ received }: { received: boolean }) {
+  const detail = received ? 'Showing last saved data' : 'No data received yet';
+  return (
+    <Tooltip
+      color="dark"
+      label={
+        <>
+          Reconnecting
+          <Text size="xs" className="muted">
+            {detail}
+          </Text>
+        </>
+      }
+    >
+      <span
+        className="reconnecting"
+        tabIndex={0}
+        role="img"
+        aria-label={`Reconnecting. ${detail}.`}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none" />
+          <path className="arc" d="M8.5 15.5a5 5 0 0 1 7 0" />
+          <path className="arc" d="M5.5 12.5a9 9 0 0 1 13 0" />
+          <path className="arc" d="M2.5 9.5a13 13 0 0 1 19 0" />
+        </svg>
+      </span>
+    </Tooltip>
   );
 }
 
