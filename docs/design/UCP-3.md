@@ -7,7 +7,7 @@
 | Hub受信処理 | 保存の COMMIT 完了後に変更を発行する。snapshot・stats と受信状態の変化は変更の合図として、freshness はHub ID・受信時刻・Hubと端末の時刻・古さを載せた時刻の更新として発行する。画面の表示内容は参照しない | `backend/Features/HubSync/HubReceivers.cs`、`backend/Hosting/AppHost.cs` |
 | 変更通知 | プロセス内で購読者を保持し、発行時に全購読者へ合図する。購読者の失敗は記録するだけで、発行元へ伝えない。利用者は1人のため購読者を区別しない | `backend/Infrastructure/Notifications/ChangeNotifications.cs` |
 | 通知配信API | `GET /api/events` を SSE で提供する。接続時に `ready`、変更の合図を受けたら本文 `{}` の `overview.changed`、時刻の更新を受けたらその内容を本文にした `hub.freshness` を送る。未送信の合図は1回に、時刻の更新はHubごとに最新の1件にまとめる。Hostヘッダーをループバックの名前に限定する | `backend/Presentation/Http/ApiEndpoints.cs` |
-| 画面 | 表示中は通知配信APIへ接続し、`ready` と `overview.changed` を受けるたびに閲覧用APIを呼び直す。最後に要求した取得の結果だけを表示する | `frontend/src/api/overview.ts`、`frontend/src/routes/index.tsx` |
+| 画面 | 表示中は通知配信APIへ接続し、`ready` と `overview.changed` を受けるたびに閲覧用APIを呼び直す。最後に要求した取得の結果だけを表示する。`hub.freshness` を受けたら閲覧用APIを呼ばずに、表示中の当該Hubの時刻と、表示中の端末の時刻・古さを書き換える。取得し直した応答の受信時刻が受けた時刻の更新より古い場合は、その更新を当てはめ直してから表示する | `frontend/src/api/overview.ts`、`frontend/src/routes/index.tsx` |
 
 ```mermaid
 sequenceDiagram
