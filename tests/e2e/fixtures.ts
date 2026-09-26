@@ -17,6 +17,8 @@ export interface IsolatedApp {
   pid: number;
   /** サーバーの標準出力と標準エラー（直近128KiB）。 */
   output: string;
+  /** サーバーに通常終了を依頼し、終了を待つ。 */
+  stop(): Promise<void>;
 }
 
 export interface HubConfigEntry {
@@ -226,6 +228,7 @@ export const test = base.extend<{
       get output() {
         return output;
       },
+      stop,
     };
     try {
       await start();

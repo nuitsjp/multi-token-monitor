@@ -172,6 +172,9 @@ export function createStats(seed: number, nowMs = Date.now()): FakeStats {
   return stats;
 }
 
+/** 次の接続に返す失敗。受信が止まる理由ごとに1つ。 */
+export type FakeFailure = 'unauthorized' | 'redirect' | 'invalid-notification' | 'save-failure';
+
 export interface FakeHub {
   url: string;
   token: string;
@@ -182,6 +185,10 @@ export interface FakeHub {
   readonly connected: number;
   send(event: 'snapshot' | 'stats' | 'freshness', stats: unknown): void;
   heartbeat(): void;
+  /** 以後の接続に、指定した失敗を1つずつ順に返す。使い切った後は通常どおり snapshot を送る。 */
+  fail(...failures: FakeFailure[]): void;
+  /** 開いているSSE接続をすべて終える。 */
+  disconnect(): void;
   close(): Promise<void>;
 }
 
@@ -193,6 +200,7 @@ export async function startFakeHub(
 ): Promise<FakeHub> {
   const streams = new Set<ServerResponse>();
   let rejected = 0;
+  const failures: FakeFailure[] = [];
   const hub = {
     url: '',
     token,
@@ -216,6 +224,12 @@ export async function startFakeHub(
     heartbeat() {
       for (const stream of streams) stream.write(': hb\n\n');
     },
+    fail(...next: FakeFailure[]) {
+      failures.push(...next);
+    },
+    disconnect() {
+      for (const stream of streams) stream.end();
+    },
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();
@@ -227,7 +241,8 @@ export async function startFakeHub(
       response.writeHead(404).end();
       return;
     }
-    if (request.headers.authorization !== `Bearer ${token}`) {
+    const failure = failures.shift();
+    if (failure === 'unauthorized' || request.headers.authorization !== `Bearer ${token}`) {
       rejected++;
       response.writeHead(401).end();
       return;
@@ -239,12 +254,23 @@ export async function startFakeHub(
       response.writeHead(400).end();
       return;
     }
+    if (failure === 'redirect') {
+      response.writeHead(302, { location: `${hub.url}/api/stats/stream` }).end();
+      return;
+    }
     response.writeHead(200, { 'content-type': 'text/event-stream' });
-    if (options.sendSnapshot !== false) {
+    if (failure === 'invalid-notification') {
+      response.write('event: snapshot\ndata: {"type":\n\n');
+    } else if (options.sendSnapshot !== false) {
+      // 端末IDの重複は通知の検証を通り、保存のトランザクションで一意制約に違反する。
+      const stats =
+        failure === 'save-failure'
+          ? { ...hub.stats, devices: [hub.stats.devices[0], hub.stats.devices[0]] }
+          : hub.stats;
       const data = JSON.stringify({
         type: 'stats',
         reason: 'snapshot',
-        stats: hub.stats,
+        stats,
         at: new Date().toISOString(),
       });
       response.write(`event: snapshot\ndata: ${data}\n\n`);
