@@ -64,6 +64,7 @@ export interface components {
         OverviewHubOutput: {
             hubId: string;
             name: string;
+            connected: boolean;
             receivedAt: string | null;
             updatedAt: string | null;
         };

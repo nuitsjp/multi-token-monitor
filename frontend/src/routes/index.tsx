@@ -180,7 +180,14 @@ function HubCard({ overview, usage }: { overview: Overview; usage: Usage }) {
           return (
             <div key={hub.hubId} aria-label={hub.name}>
               <Group justify="space-between" mb={6} wrap="nowrap">
-                <Text fw={500}>{hub.name}</Text>
+                <Group gap="xs" wrap="nowrap">
+                  <Text fw={500}>{hub.name}</Text>
+                  {!hub.connected && (
+                    <Badge color="orange" variant="light">
+                      Reconnecting
+                    </Badge>
+                  )}
+                </Group>
                 {hub.receivedAt === null ? (
                   <Badge color="gray" variant="light">
                     Not received

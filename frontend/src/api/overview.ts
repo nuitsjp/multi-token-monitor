@@ -13,6 +13,24 @@ export function watchOverview(
   onOverview: (overview: Overview) => void,
   onError: (reason: unknown) => void,
 ): () => void {
+  // 段階3の動作合意用。VITE_OVERVIEW_MOCK=1 のときだけ、変更通知の代わりに5秒ごとに固定データを順に渡す。
+  if (import.meta.env.VITE_OVERVIEW_MOCK === '1') {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    void import('./overview.mock.ts').then(({ overviewMocks }) => {
+      let index = 0;
+      const notify = () => {
+        if (stopped) return;
+        onOverview(overviewMocks[index++ % overviewMocks.length]);
+        timer = setTimeout(notify, 5000);
+      };
+      notify();
+    });
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }
   const source = new EventSource('/api/events');
   let latest = 0;
   const refresh = () => {
