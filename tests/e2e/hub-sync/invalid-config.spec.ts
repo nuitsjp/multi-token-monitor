@@ -48,6 +48,15 @@ function databaseHash(databasePath: string): string {
   return hash.digest('hex');
 }
 
+// .NETのコンソール出力の文字コードは実行環境のコードページで決まる（日本語Windowsの手元はShift_JIS、CIはUTF-8）。
+function decode(bytes: Buffer): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('shift_jis').decode(bytes);
+  }
+}
+
 function run(databasePath: string, hubConfigPath: string | undefined) {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -61,13 +70,7 @@ function run(databasePath: string, hubConfigPath: string | undefined) {
   if (hubConfigPath === undefined) delete env.HUB_CONFIG_PATH;
   else env.HUB_CONFIG_PATH = hubConfigPath;
   const result = spawnSync('dotnet', [serverDll], { env, timeout: 30_000 });
-  // Windowsのコンソール出力はShift_JISで書かれる。
-  const decoder = new TextDecoder(process.platform === 'win32' ? 'shift_jis' : 'utf-8');
-  return {
-    status: result.status,
-    stdout: decoder.decode(result.stdout),
-    stderr: decoder.decode(result.stderr),
-  };
+  return { status: result.status, stdout: decode(result.stdout), stderr: decode(result.stderr) };
 }
 
 test('接続設定が不正なら理由を出力して終了コード1で終わり、DBを変更しない', async ({ app }) => {

@@ -40,6 +40,8 @@ test('再起動しても保存済みの状態を保持し、受信状態を戻�
   alpha.disconnect();
   await expect.poll(() => connected(db, 'alpha')).toBe(0);
   // 認証の拒否を経て、snapshot を受けない接続につながるまで待つ。
+  // 切った接続が数え終わる前に通らないよう、拒否の回数を先に確かめる。
+  await expect.poll(() => alpha.rejected, { timeout: 15_000 }).toBe(1);
   await expect.poll(() => alpha.connected, { timeout: 15_000 }).toBe(1);
   await app.stop();
   await expect.poll(() => alpha.connected).toBe(0);

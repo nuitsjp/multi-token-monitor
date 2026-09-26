@@ -3,7 +3,6 @@ import {
   expect,
   expectPeriod,
   localTime,
-  query,
   receivedAt,
   test,
   TIME_ZONE,
@@ -23,14 +22,6 @@ function indicator(page: Page, name: string) {
   return hubRow(page, name).getByRole('img', { name: /^Reconnecting\./ });
 }
 
-function connected(databasePath: string, hubId: string): number | undefined {
-  return query<{ connected: number }>(
-    databasePath,
-    'SELECT connected FROM hubs WHERE hub_id = ?',
-    hubId,
-  )[0]?.connected;
-}
-
 /** Alphaの利用量を進めた次の状態を作る。 */
 function advance(stats: FakeStats): FakeStats {
   const next = structuredClone(stats);
@@ -47,7 +38,6 @@ test('OVC-1 画面を開いた時点で再接続中のHubだけに目印を付�
   // Arrange: Offline Hubは接続できず、状態を受信しないまま再接続中になる。
   const db = app.databasePath;
   await waitReceived(db);
-  await expect.poll(() => connected(db, 'offline')).toBe(0);
 
   // Act
   await page.goto('/');

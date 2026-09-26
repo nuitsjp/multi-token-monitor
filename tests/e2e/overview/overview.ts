@@ -78,12 +78,23 @@ export function receivedAt(databasePath: string, hubId: string): string | undefi
   )[0]?.received_at;
 }
 
+export function connected(databasePath: string, hubId: string): number | undefined {
+  return query<{ connected: number }>(
+    databasePath,
+    'SELECT connected FROM hubs WHERE hub_id = ?',
+    hubId,
+  )[0]?.connected;
+}
+
+// AlphaとBetaの受信に加え、接続できないHubが再接続中になるまで待ち、同期による以後の書き込みを止める。
+// Windowsでは接続の拒否に2秒ほどかかる。
 export async function waitReceived(databasePath: string) {
   await expect
     .poll(() =>
       [receivedAt(databasePath, 'alpha'), receivedAt(databasePath, 'beta')].every(Boolean),
     )
     .toBe(true);
+  await expect.poll(() => connected(databasePath, 'offline')).toBe(0);
 }
 
 export function dumpDatabase(databasePath: string): string {
