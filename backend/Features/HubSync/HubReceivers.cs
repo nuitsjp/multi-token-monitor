@@ -32,6 +32,10 @@ internal sealed class HubReceivers(
     private static readonly TimeSpan FirstRetryDelay = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(60);
 
+    // 連続して失敗するたびに待ち時間を倍にし、上限で止める。
+    internal static TimeSpan NextRetryDelay(TimeSpan delay) =>
+        TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, MaxRetryDelay.Ticks));
+
     // 受信が止まった理由を問わず、待ち時間を倍にしながら上限なく再接続する。
     private async Task ReceiveAsync(HubConnection hub, CancellationToken stoppingToken)
     {
@@ -90,7 +94,7 @@ internal sealed class HubReceivers(
                 return;
             }
 
-            delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, MaxRetryDelay.Ticks));
+            delay = NextRetryDelay(delay);
         }
     }
 
