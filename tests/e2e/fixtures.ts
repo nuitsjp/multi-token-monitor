@@ -19,6 +19,8 @@ export interface IsolatedApp {
   output: string;
   /** サーバーに通常終了を依頼し、終了を待つ。 */
   stop(): Promise<void>;
+  /** 停止したサーバーを同じDBと設定で起動し直す。 */
+  start(): Promise<void>;
 }
 
 export interface HubConfigEntry {
@@ -229,6 +231,7 @@ export const test = base.extend<{
         return output;
       },
       stop,
+      start,
     };
     try {
       await start();

@@ -1,6 +1,6 @@
 import { test as base, expect, type IsolatedApp } from '../fixtures.ts';
 import { createStats, startFakeHub, type FakeHub } from './fake-hub.ts';
-import { query, watchEvents } from './sync.ts';
+import { connected, query, receivedAt, statsJson, watchEvents } from './sync.ts';
 
 // 拡張シナリオ「受信が止まったHubへ再接続する」を検証する。
 const test = base.extend<{ alpha: FakeHub; beta: FakeHub }>({
@@ -24,30 +24,6 @@ const test = base.extend<{ alpha: FakeHub; beta: FakeHub }>({
   },
 });
 test.use({ serveFrontend: false });
-
-function connected(databasePath: string, hubId: string): number | undefined {
-  return query<{ connected: number }>(
-    databasePath,
-    'SELECT connected FROM hubs WHERE hub_id = ?',
-    hubId,
-  )[0]?.connected;
-}
-
-function statsJson(databasePath: string, hubId: string): string | undefined {
-  return query<{ stats_json: string }>(
-    databasePath,
-    'SELECT stats_json FROM hub_states WHERE hub_id = ?',
-    hubId,
-  )[0]?.stats_json;
-}
-
-function receivedAt(databasePath: string, hubId: string): string | undefined {
-  return query<{ received_at: string }>(
-    databasePath,
-    'SELECT received_at FROM hub_states WHERE hub_id = ?',
-    hubId,
-  )[0]?.received_at;
-}
 
 // 受信が止まるたびに出力する原因の分類と、次の再接続までの待ち時間（秒）。
 function stops(app: IsolatedApp, hubId: string) {

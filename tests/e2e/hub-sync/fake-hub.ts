@@ -179,6 +179,8 @@ export interface FakeHub {
   url: string;
   token: string;
   stats: FakeStats;
+  /** false の間に受け付けた接続には snapshot を送らず、heartbeatだけを送る。 */
+  sendSnapshot: boolean;
   /** 認証を拒否した接続数。 */
   readonly rejected: number;
   /** 受け付けて開いているSSE接続数。 */
@@ -205,6 +207,7 @@ export async function startFakeHub(
     url: '',
     token,
     stats,
+    sendSnapshot: options.sendSnapshot !== false,
     get rejected() {
       return rejected;
     },
@@ -261,7 +264,7 @@ export async function startFakeHub(
     response.writeHead(200, { 'content-type': 'text/event-stream' });
     if (failure === 'invalid-notification') {
       response.write('event: snapshot\ndata: {"type":\n\n');
-    } else if (options.sendSnapshot !== false) {
+    } else if (hub.sendSnapshot) {
       // 端末IDの重複は通知の検証を通り、保存のトランザクションで一意制約に違反する。
       const stats =
         failure === 'save-failure'

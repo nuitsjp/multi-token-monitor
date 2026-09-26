@@ -45,3 +45,27 @@ export async function watchEvents(url: string) {
     close: () => controller.abort(),
   };
 }
+
+export function connected(databasePath: string, hubId: string): number | undefined {
+  return query<{ connected: number }>(
+    databasePath,
+    'SELECT connected FROM hubs WHERE hub_id = ?',
+    hubId,
+  )[0]?.connected;
+}
+
+export function statsJson(databasePath: string, hubId: string): string | undefined {
+  return query<{ stats_json: string }>(
+    databasePath,
+    'SELECT stats_json FROM hub_states WHERE hub_id = ?',
+    hubId,
+  )[0]?.stats_json;
+}
+
+export function receivedAt(databasePath: string, hubId: string): string | undefined {
+  return query<{ received_at: string }>(
+    databasePath,
+    'SELECT received_at FROM hub_states WHERE hub_id = ?',
+    hubId,
+  )[0]?.received_at;
+}

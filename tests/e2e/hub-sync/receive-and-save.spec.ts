@@ -7,7 +7,7 @@ import {
   type FakeHub,
   type FakeStats,
 } from './fake-hub.ts';
-import { query, watchEvents } from './sync.ts';
+import { query, receivedAt, watchEvents } from './sync.ts';
 
 // 主成功シナリオ「設定したHubの最新状態を受信して保存する」と、ユースケース共通の受け入れ条件を検証する。
 const test = base.extend<{ alpha: FakeHub; beta: FakeHub; silent: FakeHub }>({
@@ -42,14 +42,6 @@ const test = base.extend<{ alpha: FakeHub; beta: FakeHub; silent: FakeHub }>({
 test.use({ serveFrontend: false });
 
 const PERIOD_KEYS = { today: 'today', month: 'month', allTime: 'all_time' } as const;
-
-function receivedAt(databasePath: string, hubId: string): string | undefined {
-  return query<{ received_at: string }>(
-    databasePath,
-    'SELECT received_at FROM hub_states WHERE hub_id = ?',
-    hubId,
-  )[0]?.received_at;
-}
 
 function periodTotals(databasePath: string, hubId: string) {
   const rows = query<{ period: string; tokens: number }>(
