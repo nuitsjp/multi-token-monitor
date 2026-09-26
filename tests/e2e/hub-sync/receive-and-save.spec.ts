@@ -1,3 +1,4 @@
+import { DatabaseSync } from 'node:sqlite';
 import { test as base, expect } from '../fixtures.ts';
 import {
   createStats,
@@ -7,7 +8,7 @@ import {
   type FakeHub,
   type FakeStats,
 } from './fake-hub.ts';
-import { query, receivedAt, watchEvents } from './sync.ts';
+import { connected, query, receivedAt, statsJson, watchEvents } from './sync.ts';
 
 // 主成功シナリオ「設定したHubの最新状態を受信して保存する」と、ユースケース共通の受け入れ条件を検証する。
 const test = base.extend<{ alpha: FakeHub; beta: FakeHub; silent: FakeHub }>({
@@ -200,7 +201,7 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
     { limit_key: 'codex', remaining_percent: 80, meter_changed_at: alphaStatsAt },
   ]);
 
-  // --- freshness: 時刻・鮮度情報だけを更新し、利用量と上限は維持する
+  // --- freshness: 時刻・鮮度情報だけを更新し、利用量と上限、受信データは維持する
   const statsMeters = meters(db, 'alpha');
   const freshAt = new Date().toISOString();
   alpha.send('freshness', {
@@ -219,7 +220,7 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
   });
 
   await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(alphaStatsAt);
-  await expect.poll(() => watcher.changed()).toBeGreaterThan(changedAfterStats);
+  expect(watcher.changed()).toBe(changedAfterStats);
   const fresh = JSON.parse(
     query<{ stats_json: string }>(
       db,
@@ -227,16 +228,7 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
       'alpha',
     )[0].stats_json,
   );
-  expect(fresh).toEqual({
-    ...next,
-    updatedAt: freshAt,
-    staleAfterMs: 123_456,
-    limits: { ...next.limits, updatedAt: freshAt },
-    devices: [
-      { ...next.devices[0], updatedAt: freshAt, receivedAt: freshAt, ageMs: 0, stale: true },
-      ...next.devices.slice(1),
-    ],
-  });
+  expect(fresh).toEqual(next);
   expect(query(db, 'SELECT updated_at FROM hub_summaries WHERE hub_id = ?', 'alpha')).toEqual([
     { updated_at: freshAt },
   ]);
@@ -248,8 +240,34 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
       next.devices[0].deviceId,
     ),
   ).toEqual([{ device_id: next.devices[0].deviceId, updated_at: freshAt, stale: 1 }]);
+  // 通知に含まれない端末の時刻と古さは変えない。
+  expect(
+    query(
+      db,
+      'SELECT device_id, updated_at, stale FROM devices WHERE hub_id = ? AND device_id <> ? ORDER BY device_id',
+      'alpha',
+      next.devices[0].deviceId,
+    ),
+  ).toEqual(
+    next.devices.slice(1).map((device) => ({
+      device_id: device.deviceId,
+      updated_at: device.updatedAt,
+      stale: 0,
+    })),
+  );
   expect(periodTotals(db, 'alpha')).toEqual(expectedTotals(next));
   expect(meters(db, 'alpha')).toEqual(statsMeters);
+  // 時刻の更新は変更の合図とは別の種別で受け取り、Hub ID・時刻・古さだけを含む。
+  await expect
+    .poll(() => watcher.events.filter((item) => item.event === 'hub.freshness').length)
+    .toBe(1);
+  const freshness = watcher.events.find((item) => item.event === 'hub.freshness')!;
+  expect(JSON.parse(freshness.data)).toEqual({
+    hubId: 'alpha',
+    receivedAt: receivedAt(db, 'alpha'),
+    updatedAt: freshAt,
+    devices: [{ deviceId: next.devices[0].deviceId, updatedAt: freshAt, stale: true }],
+  });
 
   // heartbeat を受けたHubは、その後も状態が変わっていない。
   expect(receivedAt(db, 'beta')).toBe(betaReceivedAt);
@@ -262,9 +280,13 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
   await expect.poll(() => receivedAt(db, 'silent')).toBeTruthy();
   await expect.poll(() => watcher.changed()).toBeGreaterThan(changedAfterFreshness);
 
-  // 合図には利用データを含めない。
+  // 変更の合図には利用データを含めない。
   watcher.close();
-  expect(new Set(watcher.events.map((item) => item.data))).toEqual(new Set(['{}']));
+  expect(
+    new Set(
+      watcher.events.filter((item) => item.event !== 'hub.freshness').map((item) => item.data),
+    ),
+  ).toEqual(new Set(['{}']));
 
   // --- 共通の受け入れ条件: 失敗したHubは他のHubの受信とWebサーバーへ波及しない
   expect((await request.get('/health')).status()).toBe(200);
@@ -288,4 +310,45 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
     expect(JSON.stringify(watcher.events)).not.toContain(secret);
     expect(app.output).not.toContain(secret);
   }
+});
+
+test('freshnessは保存済みの状態を読まずに、時刻と古さだけを更新する', async ({ app, alpha }) => {
+  const db = app.databasePath;
+  await expect.poll(() => receivedAt(db, 'alpha')).toBeTruthy();
+  const snapshotAt = receivedAt(db, 'alpha');
+
+  // 保存済みの受信データを、freshnessを適用できない内容に書き換える。
+  // 保存済みの状態を読んで適用する実装なら、保存に失敗して再接続し、snapshotで置き換わる。
+  const writer = new DatabaseSync(db, { timeout: 5000 });
+  try {
+    writer.prepare("UPDATE hub_states SET stats_json = '{}' WHERE hub_id = ?").run('alpha');
+  } finally {
+    writer.close();
+  }
+
+  const [device] = alpha.stats.devices;
+  const freshAt = new Date().toISOString();
+  alpha.send('freshness', {
+    updatedAt: freshAt,
+    staleAfterMs: 123_456,
+    limits: { updatedAt: freshAt },
+    devices: [
+      { deviceId: device.deviceId, updatedAt: freshAt, receivedAt: freshAt, ageMs: 0, stale: true },
+    ],
+  });
+
+  await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(snapshotAt);
+  expect(statsJson(db, 'alpha')).toBe('{}');
+  expect(connected(db, 'alpha')).toBe(1);
+  expect(query(db, 'SELECT updated_at FROM hub_summaries WHERE hub_id = ?', 'alpha')).toEqual([
+    { updated_at: freshAt },
+  ]);
+  expect(
+    query(
+      db,
+      'SELECT updated_at, stale FROM devices WHERE hub_id = ? AND device_id = ?',
+      'alpha',
+      device.deviceId,
+    ),
+  ).toEqual([{ updated_at: freshAt, stale: 1 }]);
 });

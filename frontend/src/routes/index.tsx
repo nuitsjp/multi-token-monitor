@@ -424,8 +424,13 @@ function DeviceCard({ overview }: { overview: Overview }) {
           <Table.Tr>
             <Table.Th className="muted">Host</Table.Th>
             <Table.Th className="muted">Hub</Table.Th>
-            <Table.Th className="muted">Last seen</Table.Th>
-            <Table.Th className="muted">Status</Table.Th>
+            {/* 時刻と状態の文字幅で列幅が変わり、更新のたびに列がずれないよう幅を固定する。 */}
+            <Table.Th className="muted" w={130}>
+              Last seen
+            </Table.Th>
+            <Table.Th className="muted" w={96}>
+              Status
+            </Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
