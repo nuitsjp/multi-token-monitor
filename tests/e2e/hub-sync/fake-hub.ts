@@ -180,7 +180,7 @@ export interface FakeHub {
   readonly rejected: number;
   /** 受け付けて開いているSSE接続数。 */
   readonly connected: number;
-  send(event: 'stats' | 'freshness', stats: unknown): void;
+  send(event: 'snapshot' | 'stats' | 'freshness', stats: unknown): void;
   heartbeat(): void;
   close(): Promise<void>;
 }
@@ -203,9 +203,10 @@ export async function startFakeHub(
     get connected() {
       return streams.size;
     },
-    send(event: 'stats' | 'freshness', value: unknown) {
+    send(event: 'snapshot' | 'stats' | 'freshness', value: unknown) {
+      // snapshot の本文は stats と同じ種類で送られる。
       const data = JSON.stringify({
-        type: event,
+        type: event === 'freshness' ? 'freshness' : 'stats',
         reason: 'ingest',
         stats: value,
         at: new Date().toISOString(),
