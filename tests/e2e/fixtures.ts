@@ -21,6 +21,8 @@ export interface IsolatedApp {
   stop(): Promise<void>;
   /** 停止したサーバーを同じDBと設定で起動し直す。 */
   start(): Promise<void>;
+  /** 次の起動で読むHub接続設定を書き換える。 */
+  writeHubs(hubs: HubConfigEntry[]): Promise<void>;
 }
 
 export interface HubConfigEntry {
@@ -232,6 +234,8 @@ export const test = base.extend<{
       },
       stop,
       start,
+      writeHubs: (next: HubConfigEntry[]) =>
+        writeFile(hubConfigPath, JSON.stringify({ hubs: next })),
     };
     try {
       await start();
