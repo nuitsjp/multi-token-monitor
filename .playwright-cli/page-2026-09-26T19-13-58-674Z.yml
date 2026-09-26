@@ -1,0 +1,14 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - heading "Token Monitor Analytics" [level=1] [ref=e5]
+    - radiogroup "Period" [ref=e6]:
+      - generic [ref=e8]:
+        - radio "Today" [checked]
+        - generic [ref=e9] [cursor=pointer]: Today
+      - generic [ref=e10]:
+        - radio "Month"
+        - generic [ref=e11] [cursor=pointer]: Month
+      - generic [ref=e12]:
+        - radio "All time"
+        - generic [ref=e13] [cursor=pointer]: All time
+  - generic "Loading" [ref=e14]
