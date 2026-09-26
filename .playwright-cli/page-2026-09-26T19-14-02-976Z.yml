@@ -1,0 +1,139 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - heading "Token Monitor Analytics" [level=1] [ref=e5]
+    - radiogroup "Period" [ref=e6]:
+      - generic [ref=e8]:
+        - radio "Today"
+        - generic [ref=e9] [cursor=pointer]: Today
+      - generic [ref=e10]:
+        - radio "Month" [checked] [active]
+        - generic [ref=e11] [cursor=pointer]: Month
+      - generic [ref=e12]:
+        - radio "All time"
+        - generic [ref=e13] [cursor=pointer]: All time
+  - generic [ref=e15]:
+    - region "Total" [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - paragraph [ref=e19]: Tokens
+          - paragraph [ref=e20]: 2,100
+        - generic [ref=e21]:
+          - paragraph [ref=e22]: Est. cost
+          - paragraph [ref=e23]: $1.50
+          - paragraph [ref=e24]: USD
+        - generic [ref=e25]:
+          - paragraph [ref=e26]: Hubs
+          - paragraph [ref=e27]: 1 / 2
+          - paragraph [ref=e28]: received
+        - generic [ref=e29]:
+          - paragraph [ref=e30]: Devices
+          - paragraph [ref=e31]: "3"
+          - paragraph [ref=e32]: all live
+    - generic [ref=e34]:
+      - region "By hub" [ref=e36]:
+        - heading "By hub" [level=2] [ref=e38]
+        - generic [ref=e39]:
+          - generic "Alpha" [ref=e40]:
+            - generic [ref=e41]:
+              - paragraph [ref=e43]: Alpha
+              - paragraph [ref=e44]: 2,100$1.50
+            - progressbar "Alpha tokens" [ref=e46]
+            - paragraph [ref=e47]: Received 9/27 04:13 · Updated 9/27 04:13
+          - generic "Lab" [ref=e48]:
+            - generic [ref=e49]:
+              - generic [ref=e50]:
+                - paragraph [ref=e51]: Lab
+                - img "Reconnecting. No data received yet." [ref=e52]:
+                  - img [ref=e53]
+              - generic [ref=e59]: Not received
+      - region "By model" [ref=e61]:
+        - heading "By model" [level=2] [ref=e63]
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - img [ref=e66]
+            - generic [ref=e72]:
+              - paragraph [ref=e73]: 2,100
+              - paragraph [ref=e74]: tokens
+          - table [ref=e75]:
+            - rowgroup [ref=e76]:
+              - row "claude-opus claude 900 $1.00" [ref=e179]:
+                - cell "claude-opus claude" [ref=e78]:
+                  - generic [ref=e81]:
+                    - paragraph [ref=e82]: claude-opus
+                    - paragraph [ref=e83]: claude
+                - cell "900" [ref=e180]
+                - cell "$1.00" [ref=e181]
+              - row "gpt-5-mini codex 700 —" [ref=e182]:
+                - cell "gpt-5-mini codex" [ref=e87]:
+                  - generic [ref=e90]:
+                    - paragraph [ref=e91]: gpt-5-mini
+                    - paragraph [ref=e92]: codex
+                - cell "700" [ref=e183]
+                - cell "—" [ref=e94]
+              - row "gpt-5 codex 500 $0.50" [ref=e184]:
+                - cell "gpt-5 codex" [ref=e96]:
+                  - generic [ref=e99]:
+                    - paragraph [ref=e100]: gpt-5
+                    - paragraph [ref=e101]: codex
+                - cell "500" [ref=e185]
+                - cell "$0.50" [ref=e186]
+      - region "Usage limits" [ref=e105]:
+        - generic [ref=e106]:
+          - heading "Usage limits" [level=2] [ref=e107]
+          - radiogroup "Hub" [ref=e108]:
+            - generic [ref=e110]:
+              - radio "Alpha" [checked]
+              - generic [ref=e111] [cursor=pointer]: Alpha
+            - generic [ref=e112]:
+              - radio "Lab"
+              - generic [ref=e113] [cursor=pointer]: Lab
+        - generic "codex Account 1 · Pro" [ref=e115]:
+          - paragraph [ref=e116]: codex
+          - paragraph [ref=e117]: Account 1 · Pro
+          - generic [ref=e118]:
+            - generic [ref=e119]:
+              - generic [ref=e120]:
+                - img [ref=e121]
+                - paragraph [ref=e125]: 90%
+              - paragraph [ref=e126]: Session
+              - paragraph [ref=e127]: ↻ 9/27 05:13
+            - generic [ref=e128]:
+              - generic [ref=e129]:
+                - img [ref=e130]
+                - paragraph [ref=e134]: 60%
+              - paragraph [ref=e135]: Weekly
+              - paragraph [ref=e136]: —
+      - region "Devices" [ref=e138]:
+        - heading "Devices" [level=2] [ref=e140]
+        - table [ref=e141]:
+          - rowgroup [ref=e142]:
+            - row "Host Hub Last seen Status" [ref=e143]:
+              - columnheader "Host" [ref=e144]
+              - columnheader "Hub" [ref=e145]
+              - columnheader "Last seen" [ref=e146]
+              - columnheader "Status" [ref=e147]
+          - rowgroup [ref=e148]:
+            - row "host-1-1 Windows Alpha 9/27 04:12 Live" [ref=e149]:
+              - cell "host-1-1 Windows" [ref=e150]:
+                - paragraph [ref=e151]: host-1-1
+                - paragraph [ref=e152]: Windows
+              - cell "Alpha" [ref=e153]
+              - cell "9/27 04:12" [ref=e154]
+              - cell "Live" [ref=e155]:
+                - paragraph [ref=e158]: Live
+            - row "host-1-2 Windows Alpha 9/27 02:13 Live" [ref=e159]:
+              - cell "host-1-2 Windows" [ref=e160]:
+                - paragraph [ref=e161]: host-1-2
+                - paragraph [ref=e162]: Windows
+              - cell "Alpha" [ref=e163]
+              - cell "9/27 02:13" [ref=e164]
+              - cell "Live" [ref=e165]:
+                - paragraph [ref=e168]: Live
+            - row "host-1-3 Windows Alpha 9/1 08:00 Live" [ref=e169]:
+              - cell "host-1-3 Windows" [ref=e170]:
+                - paragraph [ref=e171]: host-1-3
+                - paragraph [ref=e172]: Windows
+              - cell "Alpha" [ref=e173]
+              - cell "9/1 08:00" [ref=e174]
+              - cell "Live" [ref=e175]:
+                - paragraph [ref=e178]: Live

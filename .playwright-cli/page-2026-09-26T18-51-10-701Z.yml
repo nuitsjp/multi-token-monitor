@@ -1,0 +1,170 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - heading "Token Monitor Analytics" [level=1] [ref=e5]
+    - radiogroup "Period" [ref=e6]:
+      - generic [ref=e8]:
+        - radio "Today" [checked]
+        - generic [ref=e9] [cursor=pointer]: Today
+      - generic [ref=e10]:
+        - radio "Month"
+        - generic [ref=e11] [cursor=pointer]: Month
+      - generic [ref=e12]:
+        - radio "All time"
+        - generic [ref=e13] [cursor=pointer]: All time
+  - generic [ref=e14]:
+    - region "Total" [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - paragraph [ref=e18]: Tokens
+          - paragraph [ref=e19]: 4,850,000
+        - generic [ref=e20]:
+          - paragraph [ref=e21]: Est. cost
+          - paragraph [ref=e22]: $42.30
+          - paragraph [ref=e23]: USD
+        - generic [ref=e24]:
+          - paragraph [ref=e25]: Hubs
+          - paragraph [ref=e26]: 2 / 3
+          - paragraph [ref=e27]: received
+        - generic [ref=e28]:
+          - paragraph [ref=e29]: Devices
+          - paragraph [ref=e30]: "4"
+          - paragraph [ref=e31]: 1 stale
+    - generic [ref=e33]:
+      - region "By hub" [ref=e35]:
+        - heading "By hub" [level=2] [ref=e37]
+        - generic [ref=e38]:
+          - generic "Personal" [ref=e39]:
+            - generic [ref=e40]:
+              - paragraph [ref=e42]: Personal
+              - paragraph [ref=e43]: 1,500,000$20.50
+            - progressbar "Personal tokens" [ref=e45]
+            - paragraph [ref=e46]: Received 9/25 12:12 · Updated 9/25 12:12
+          - generic "Work" [ref=e47]:
+            - generic [ref=e48]:
+              - paragraph [ref=e50]: Work
+              - paragraph [ref=e51]: 3,350,000$21.80
+            - progressbar "Work tokens" [ref=e53]
+            - paragraph [ref=e54]: Received 9/25 12:10 · Updated 9/25 12:09
+          - generic "Lab" [ref=e55]:
+            - generic [ref=e56]:
+              - paragraph [ref=e58]: Lab
+              - generic [ref=e60]: Not received
+      - region "By model" [ref=e62]:
+        - heading "By model" [level=2] [ref=e64]
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - img [ref=e67]
+            - generic [ref=e74]:
+              - paragraph [ref=e75]: 4,850,000
+              - paragraph [ref=e76]: tokens
+          - table [ref=e77]:
+            - rowgroup [ref=e78]:
+              - row "claude-sonnet-5 claude-code 2,400,000 $9.60" [ref=e79]:
+                - cell "claude-sonnet-5 claude-code" [ref=e80]:
+                  - generic [ref=e83]:
+                    - paragraph [ref=e84]: claude-sonnet-5
+                    - paragraph [ref=e85]: claude-code
+                - cell "2,400,000" [ref=e86]
+                - cell "$9.60" [ref=e87]
+              - row "claude-opus-5-5 claude-code 2,000,000 $30.60" [ref=e88]:
+                - cell "claude-opus-5-5 claude-code" [ref=e89]:
+                  - generic [ref=e92]:
+                    - paragraph [ref=e93]: claude-opus-5-5
+                    - paragraph [ref=e94]: claude-code
+                - cell "2,000,000" [ref=e95]
+                - cell "$30.60" [ref=e96]
+              - row "gpt-5.5 codex 300,000 $2.10" [ref=e97]:
+                - cell "gpt-5.5 codex" [ref=e98]:
+                  - generic [ref=e101]:
+                    - paragraph [ref=e102]: gpt-5.5
+                    - paragraph [ref=e103]: codex
+                - cell "300,000" [ref=e104]
+                - cell "$2.10" [ref=e105]
+              - row "gpt-5.5 copilot 150,000 —" [ref=e106]:
+                - cell "gpt-5.5 copilot" [ref=e107]:
+                  - generic [ref=e110]:
+                    - paragraph [ref=e111]: gpt-5.5
+                    - paragraph [ref=e112]: copilot
+                - cell "150,000" [ref=e113]
+                - cell "—" [ref=e114]
+      - region "Usage limits" [ref=e116]:
+        - generic [ref=e117]:
+          - heading "Usage limits" [level=2] [ref=e118]
+          - radiogroup "Hub" [ref=e119]:
+            - generic [ref=e121]:
+              - radio "Personal" [checked]
+              - generic [ref=e122] [cursor=pointer]: Personal
+            - generic [ref=e123]:
+              - radio "Work"
+              - generic [ref=e124] [cursor=pointer]: Work
+            - generic [ref=e125]:
+              - radio "Lab"
+              - generic [ref=e126] [cursor=pointer]: Lab
+        - generic [ref=e127]:
+          - generic "anthropic Personal · Max 20x" [ref=e128]:
+            - paragraph [ref=e129]: anthropic
+            - paragraph [ref=e130]: Personal · Max 20x
+            - generic [ref=e131]:
+              - generic [ref=e132]:
+                - generic [ref=e133]:
+                  - img [ref=e134]
+                  - paragraph [ref=e138]: 62%
+                - paragraph [ref=e139]: 5h
+                - paragraph [ref=e140]: ↻ 9/25 14:00
+              - generic [ref=e141]:
+                - generic [ref=e142]:
+                  - img [ref=e143]
+                  - paragraph [ref=e147]: 38%
+                - paragraph [ref=e148]: Weekly
+                - paragraph [ref=e149]: ↻ 9/29 09:00
+          - generic "openai Personal · Plus" [ref=e150]:
+            - paragraph [ref=e151]: openai
+            - paragraph [ref=e152]: Personal · Plus
+            - generic [ref=e154]:
+              - generic [ref=e155]:
+                - img [ref=e156]
+                - paragraph [ref=e160]: 12%
+              - paragraph [ref=e161]: weekly
+              - paragraph [ref=e162]: —
+      - region "Devices" [ref=e164]:
+        - heading "Devices" [level=2] [ref=e166]
+        - table [ref=e167]:
+          - rowgroup [ref=e168]:
+            - row "Host Hub Last seen Status" [ref=e169]:
+              - columnheader "Host" [ref=e170]
+              - columnheader "Hub" [ref=e171]
+              - columnheader "Last seen" [ref=e172]
+              - columnheader "Status" [ref=e173]
+          - rowgroup [ref=e174]:
+            - row "desktop-home Windows 11 Personal 9/25 12:12 Live" [ref=e175]:
+              - cell "desktop-home Windows 11" [ref=e176]:
+                - paragraph [ref=e177]: desktop-home
+                - paragraph [ref=e178]: Windows 11
+              - cell "Personal" [ref=e179]
+              - cell "9/25 12:12" [ref=e180]
+              - cell "Live" [ref=e181]:
+                - paragraph [ref=e184]: Live
+            - row "laptop-home macOS Personal 9/22 20:02 Stale" [ref=e185]:
+              - cell "laptop-home macOS" [ref=e186]:
+                - paragraph [ref=e187]: laptop-home
+                - paragraph [ref=e188]: macOS
+              - cell "Personal" [ref=e189]
+              - cell "9/22 20:02" [ref=e190]
+              - cell "Stale" [ref=e191]:
+                - paragraph [ref=e194]: Stale
+            - row "work-pc Windows 11 Work 9/25 12:09 Live" [ref=e195]:
+              - cell "work-pc Windows 11" [ref=e196]:
+                - paragraph [ref=e197]: work-pc
+                - paragraph [ref=e198]: Windows 11
+              - cell "Work" [ref=e199]
+              - cell "9/25 12:09" [ref=e200]
+              - cell "Live" [ref=e201]:
+                - paragraph [ref=e204]: Live
+            - row "work-wsl — Work 9/25 12:05 Live" [ref=e205]:
+              - cell "work-wsl —" [ref=e206]:
+                - paragraph [ref=e207]: work-wsl
+                - paragraph [ref=e208]: —
+              - cell "Work" [ref=e209]
+              - cell "9/25 12:05" [ref=e210]
+              - cell "Live" [ref=e211]:
+                - paragraph [ref=e214]: Live

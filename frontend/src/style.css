@@ -19,3 +19,38 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
 }
+.reconnecting {
+  display: inline-flex;
+  color: #ff922b;
+  cursor: help;
+}
+.reconnecting:focus-visible {
+  outline: 2px solid #9085e9;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.reconnecting .arc {
+  opacity: 0.2;
+  animation: reconnecting-arc 1.5s ease-in-out infinite;
+}
+.reconnecting .arc:nth-of-type(2) {
+  animation-delay: 0.25s;
+}
+.reconnecting .arc:nth-of-type(3) {
+  animation-delay: 0.5s;
+}
+@keyframes reconnecting-arc {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reconnecting .arc {
+    animation: none;
+    opacity: 1;
+  }
+}

@@ -143,6 +143,7 @@
         "required": [
           "hubId",
           "name",
+          "connected",
           "receivedAt",
           "updatedAt"
         ],
@@ -153,6 +154,9 @@
           },
           "name": {
             "type": "string"
+          },
+          "connected": {
+            "type": "boolean"
           },
           "receivedAt": {
             "type": "string",

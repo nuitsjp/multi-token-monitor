@@ -8,8 +8,8 @@ internal sealed record OverviewOutput(
     IReadOnlyList<OverviewLimitWindowOutput> LimitWindows,
     IReadOnlyList<OverviewDeviceOutput> Devices);
 
-/// <summary>未受信のHubは ReceivedAt と UpdatedAt が null。</summary>
-internal sealed record OverviewHubOutput(string HubId, string Name, string? ReceivedAt, string? UpdatedAt);
+/// <summary>未受信のHubは ReceivedAt と UpdatedAt が null。Connected は受信中なら true、再接続中なら false。</summary>
+internal sealed record OverviewHubOutput(string HubId, string Name, bool Connected, string? ReceivedAt, string? UpdatedAt);
 
 internal sealed record OverviewPeriodsOutput(
     OverviewPeriodOutput Today,

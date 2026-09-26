@@ -15,6 +15,7 @@ erDiagram
   hubs {
     TEXT hub_id PK
     TEXT name
+    INTEGER connected
   }
   hub_states {
     TEXT hub_id PK,FK
@@ -73,6 +74,7 @@ erDiagram
 | --- | --- | --- | --- | --- |
 | hub_id | TEXT | 不可 | PK | 設定で指定する安定した識別子 |
 | name | TEXT | 不可 |  | 設定から登録する表示名。一意制約は設けない |
+| connected | INTEGER | 不可 |  | 受信状態が「受信中」なら1、「再接続中」なら0 |
 
 ### hub_states
 
@@ -151,9 +153,10 @@ Hubが報告したアカウントの利用枠。メーターを表示する枠�
 
 ## 保存と変換の規則
 
-- 起動時に、設定にある全Hubの ID と表示名を登録します。同じ ID は表示名だけを更新し、設定から外れたHubとその行は削除しません。
+- 起動時に、設定にある全Hubの ID と表示名を登録し、`connected` を1にします。同じ ID は表示名と `connected` を更新します。設定にないHubは同じトランザクションで `hubs` の行を削除し、`hub_states`・`hub_summaries`・`devices`・`latest_token_usages`・`latest_limit_windows` の行は連鎖削除で消します。続けて、どの `latest_limit_windows` からも参照されない `accounts` の行を削除します。
+- 受信が止まったHubは `connected` を0にします。再接続後の保存で、受信データと同じトランザクションで1に戻します。起動直後の最初の接続中も1です。
 - `snapshot` と `stats` は `hub_states` を全体置換し、`freshness` は既存の stats に時刻・鮮度情報だけを適用して書き戻します。どちらの場合も、同じトランザクションで当該Hubの `hub_summaries`・`devices`・`latest_token_usages`・`latest_limit_windows` を新しい stats から作り直します。`accounts` は報告された行を登録し、ラベルを最新の値で更新します。
 - `latest_token_usages` は端末ごとの期間別 `clientModels`・`clientModelCosts` から作ります。Hub・ツール・モデル単位の合計はこのテーブルの合計で求めます（2026-09-12取得の実測資料で、期限切れの端末がない場合にHub集約の各合計と端末別・ツール×モデル別の合計が一致することを確認）。period は stats の `periods.today`・`month`・`allTime` に対応します。端末の `today`・`month` は、`periodWindows` の当該期間の `endsAt` が受信時刻以前なら期限切れとして行を作りません。`periodWindows` が無い端末は、端末の最終更新時刻と受信時刻のUTCの日付・月が異なる場合に期限切れとします（Hubが自身の集計から期限切れの端末分を除く規則と同じ）。
 - `latest_limit_windows` は Hub集約の `limits.providers` のうち、`showMeter` が真で `remainingPercent` が数値の枠から作ります。同じアカウントの同じ枠を複数のHubが報告した場合は Hub ごとに行を持ち、閲覧ではHubを選んで表示します。`meter_changed_at` は作り直す前の行と残量が同じなら引き継ぎ、変わった場合と新規の場合は今回の受信時刻にします。
 - URLと認証トークンは保存しません。セッション、プロジェクト、日次・月次履歴、トークンの内訳（キャッシュ・出力など）、アカウントのメールアドレス・氏名はドメインモデルに含めません（受信データには含まれます）。
-- 全テーブルの外部キーは連鎖更新・削除を設けません。スキーマ版0から1への移行で全テーブルを作成し、作成と版の更新は同一トランザクションで行います。
+- `hubs` と `devices` を参照する外部キーは連鎖削除を設け、`accounts` を参照する外部キーには設けません。連鎖更新は設けません。スキーマ版0から1への移行で全テーブルを作成し、作成と版の更新は同一トランザクションで行います。
