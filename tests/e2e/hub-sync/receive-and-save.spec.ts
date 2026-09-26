@@ -200,7 +200,7 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
     { limit_key: 'codex', remaining_percent: 80, meter_changed_at: alphaStatsAt },
   ]);
 
-  // --- freshness: 時刻・鮮度情報だけを更新し、利用量と上限は維持する
+  // --- freshness: 時刻・鮮度情報だけを更新し、利用量と上限、受信データは維持する
   const statsMeters = meters(db, 'alpha');
   const freshAt = new Date().toISOString();
   alpha.send('freshness', {
@@ -219,7 +219,7 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
   });
 
   await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(alphaStatsAt);
-  await expect.poll(() => watcher.changed()).toBeGreaterThan(changedAfterStats);
+  expect(watcher.changed()).toBe(changedAfterStats);
   const fresh = JSON.parse(
     query<{ stats_json: string }>(
       db,
@@ -227,16 +227,7 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
       'alpha',
     )[0].stats_json,
   );
-  expect(fresh).toEqual({
-    ...next,
-    updatedAt: freshAt,
-    staleAfterMs: 123_456,
-    limits: { ...next.limits, updatedAt: freshAt },
-    devices: [
-      { ...next.devices[0], updatedAt: freshAt, receivedAt: freshAt, ageMs: 0, stale: true },
-      ...next.devices.slice(1),
-    ],
-  });
+  expect(fresh).toEqual(next);
   expect(query(db, 'SELECT updated_at FROM hub_summaries WHERE hub_id = ?', 'alpha')).toEqual([
     { updated_at: freshAt },
   ]);
@@ -262,9 +253,13 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
   await expect.poll(() => receivedAt(db, 'silent')).toBeTruthy();
   await expect.poll(() => watcher.changed()).toBeGreaterThan(changedAfterFreshness);
 
-  // 合図には利用データを含めない。
+  // 変更の合図には利用データを含めない。
   watcher.close();
-  expect(new Set(watcher.events.map((item) => item.data))).toEqual(new Set(['{}']));
+  expect(
+    new Set(
+      watcher.events.filter((item) => item.event !== 'hub.freshness').map((item) => item.data),
+    ),
+  ).toEqual(new Set(['{}']));
 
   // --- 共通の受け入れ条件: 失敗したHubは他のHubの受信とWebサーバーへ波及しない
   expect((await request.get('/health')).status()).toBe(200);

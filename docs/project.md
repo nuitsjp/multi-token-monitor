@@ -80,7 +80,7 @@ Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（
 
 | 目的 | コマンド | 期待結果 |
 | --- | --- | --- |
-| 通知配信APIの確認 | `curl.exe -N http://127.0.0.1:3000/api/events` | 接続直後に `event: ready` が届き、Hubから受信した状態を保存するたびに `event: overview.changed` が届きます。合図の本文は `{}` だけです |
+| 通知配信APIの確認 | `curl.exe -N http://127.0.0.1:3000/api/events` | 接続直後に `event: ready` が届き、Hubから受信した snapshot・stats を保存するたびに `event: overview.changed`（本文は `{}` だけ）が届きます。freshness を保存したときは `event: hub.freshness` が届き、本文はHub ID・受信時刻・Hubの更新時刻・端末ごとのIDと更新時刻と古さだけです |
 
 保存済みの状態は、アプリケーションの起動中でも別の読み取り専用接続で確認できます（テーブルは [データ設計](design/data.md) を参照）。
 

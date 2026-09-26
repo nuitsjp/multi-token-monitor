@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
 using MultiTokenMonitor.Features.Overview;
@@ -31,20 +32,45 @@ internal static class ApiEndpoints
         var cancellationToken = stopping.Token;
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers.CacheControl = "no-store";
-        // 未送信の合図は1件だけ保持し、続く合図をまとめる。
-        var pending = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
+        // 未送信の合図は、全体の変更を1件、時刻の更新をHubごとに最新の1件だけ保持してまとめる。
+        var signal = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
         {
             FullMode = BoundedChannelFullMode.DropWrite,
             SingleReader = true,
         });
-        using var subscription = notifications.Subscribe(() => pending.Writer.TryWrite(true));
+        var gate = new object();
+        var overviewChanged = false;
+        var freshness = new Dictionary<string, HubFreshnessChanged>(StringComparer.Ordinal);
+        using var subscription = notifications.Subscribe(change =>
+        {
+            lock (gate)
+            {
+                if (change is null) overviewChanged = true;
+                else freshness[change.HubId] = change;
+            }
+
+            signal.Writer.TryWrite(true);
+        });
         try
         {
-            await WriteEventAsync(context.Response, "ready", cancellationToken);
+            await WriteEventAsync(context.Response, "ready", "{}", cancellationToken);
             while (true)
             {
-                await pending.Reader.ReadAsync(cancellationToken);
-                await WriteEventAsync(context.Response, "overview.changed", cancellationToken);
+                await signal.Reader.ReadAsync(cancellationToken);
+                bool changed;
+                HubFreshnessChanged[] changes;
+                lock (gate)
+                {
+                    changed = overviewChanged;
+                    changes = [.. freshness.Values];
+                    overviewChanged = false;
+                    freshness.Clear();
+                }
+
+                if (changed) await WriteEventAsync(context.Response, "overview.changed", "{}", cancellationToken);
+                foreach (var change in changes)
+                    await WriteEventAsync(context.Response, "hub.freshness",
+                        JsonSerializer.Serialize(change, JsonSerializerOptions.Web), cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -53,9 +79,9 @@ internal static class ApiEndpoints
         }
     }
 
-    private static async Task WriteEventAsync(HttpResponse response, string eventName, CancellationToken cancellationToken)
+    private static async Task WriteEventAsync(HttpResponse response, string eventName, string data, CancellationToken cancellationToken)
     {
-        await response.WriteAsync($"event: {eventName}\ndata: {{}}\n\n", cancellationToken);
+        await response.WriteAsync($"event: {eventName}\ndata: {data}\n\n", cancellationToken);
         await response.Body.FlushAsync(cancellationToken);
     }
 }

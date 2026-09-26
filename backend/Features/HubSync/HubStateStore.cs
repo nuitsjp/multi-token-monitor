@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using MultiTokenMonitor.Infrastructure.Configuration;
@@ -46,16 +45,7 @@ internal static class HubStateStore
     internal static Task SaveAsync(Database database, string hubId, HubNotification notification, string receivedAt) =>
         database.InTransactionAsync(async connection =>
         {
-            var statsJson = notification.Stats;
-            if (notification.Kind == HubNotificationKind.Freshness)
-            {
-                var current = await connection.QuerySingleOrDefaultAsync<string>(
-                    "SELECT stats_json FROM hub_states WHERE hub_id = @hubId", new { hubId })
-                    ?? throw new InvalidOperationException("freshnessを適用する保存済みの状態がありません。");
-                statsJson = HubNotification.ApplyFreshness(JsonNode.Parse(current)!.AsObject(), notification.Stats);
-            }
-
-            var stats = HubNotification.ReadStats(statsJson);
+            var stats = HubNotification.ReadStats(notification.Stats);
             await connection.ExecuteAsync(
                 """
                 INSERT INTO hub_states (hub_id, stats_json, received_at)
@@ -64,10 +54,32 @@ internal static class HubStateStore
                     stats_json = excluded.stats_json,
                     received_at = excluded.received_at
                 """,
-                new { hubId, statsJson = statsJson.ToJsonString(), receivedAt });
+                new { hubId, statsJson = notification.Stats.ToJsonString(), receivedAt });
             // 保存できた接続は受信中。再接続後の最初の保存で受信中に戻る。
             await connection.ExecuteAsync("UPDATE hubs SET connected = 1 WHERE hub_id = @hubId", new { hubId });
             await ReplaceDomainAsync(connection, hubId, stats, receivedAt);
+        });
+
+    // freshness は保存済みの状態を読まず、受信時刻とHub・端末の時刻・古さだけを更新する。
+    // 利用量・利用枠と受信データ（stats全体）は次の snapshot・stats で置き換わるまで維持する。
+    internal static Task SaveFreshnessAsync(Database database, string hubId, HubFreshness freshness, string receivedAt) =>
+        database.InTransactionAsync(async connection =>
+        {
+            await connection.ExecuteAsync(
+                """
+                UPDATE hub_states SET received_at = @receivedAt WHERE hub_id = @hubId;
+                UPDATE hub_summaries SET updated_at = @updatedAt WHERE hub_id = @hubId;
+                """,
+                new { hubId, receivedAt, updatedAt = freshness.UpdatedAt });
+            await connection.ExecuteAsync(
+                "UPDATE devices SET updated_at = @UpdatedAt, stale = @Stale WHERE hub_id = @HubId AND device_id = @DeviceId",
+                freshness.Devices.Select(device => new
+                {
+                    HubId = hubId,
+                    device.DeviceId,
+                    device.UpdatedAt,
+                    Stale = device.Stale ? 1 : 0,
+                }));
         });
 
     private static async Task ReplaceDomainAsync(SqliteConnection connection, string hubId, HubStats stats, string receivedAt)

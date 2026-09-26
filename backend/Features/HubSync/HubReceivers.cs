@@ -166,15 +166,25 @@ internal sealed class HubReceivers(
             try
             {
                 // 保存は終了要求で中断せず、COMMITまたはロールバックまで進める。
-                await HubStateStore.SaveAsync(database, hub.Id, notification, receivedAt);
+                if (notification.Freshness is { } freshness)
+                    await HubStateStore.SaveFreshnessAsync(database, hub.Id, freshness, receivedAt);
+                else
+                    await HubStateStore.SaveAsync(database, hub.Id, notification, receivedAt);
             }
             catch (Exception)
             {
                 return "database";
             }
 
-            // COMMIT後にだけ、保存の種類を問わず閲覧側へ合図する。
-            notifications.Publish();
+            // COMMIT後にだけ閲覧側へ合図する。freshness は時刻の更新として内容ごと渡す。
+            if (notification.Freshness is { } fresh)
+                notifications.PublishFreshness(new HubFreshnessChanged(
+                    hub.Id,
+                    receivedAt,
+                    fresh.UpdatedAt,
+                    [.. fresh.Devices.Select(device => new DeviceFreshnessChanged(device.DeviceId, device.UpdatedAt, device.Stale))]));
+            else
+                notifications.Publish();
             saved();
             snapshotReceived = true;
             logger.LogInformation("Hubの最新状態を保存しました。HubId={HubId} Event={Event} ReceivedAt={ReceivedAt}",
