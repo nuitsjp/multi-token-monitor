@@ -4,9 +4,9 @@
 
 | 役割 | 責務 | 実装パス（段階4完了時に記入） |
 | --- | --- | --- |
-| Hub受信処理 | 保存の COMMIT 完了後に、保存の種類を問わず変更を発行する。画面の表示内容は参照しない |  |
-| 変更通知 | プロセス内で購読者を保持し、発行時に全購読者へ合図する。購読者の失敗は記録するだけで、発行元へ伝えない。利用者は1人のため購読者を区別しない |  |
-| 通知配信API | `GET /api/events` を SSE で提供する。接続時に `ready`、変更の発行を受けたら `overview.changed` を送る。未送信の合図は1回にまとめる。Hostヘッダーをループバックの名前に限定する |  |
+| Hub受信処理 | 保存の COMMIT 完了後に、保存の種類を問わず変更を発行する。画面の表示内容は参照しない | `backend/Features/HubSync/HubReceivers.cs`、`backend/Hosting/AppHost.cs` |
+| 変更通知 | プロセス内で購読者を保持し、発行時に全購読者へ合図する。購読者の失敗は記録するだけで、発行元へ伝えない。利用者は1人のため購読者を区別しない | `backend/Infrastructure/Notifications/ChangeNotifications.cs` |
+| 通知配信API | `GET /api/events` を SSE で提供する。接続時に `ready`、変更の発行を受けたら `overview.changed` を送る。未送信の合図は1回にまとめる。Hostヘッダーをループバックの名前に限定する | `backend/Presentation/Http/ApiEndpoints.cs` |
 | 画面 | 表示中は通知配信APIへ接続し、`ready` と `overview.changed` を受けるたびに閲覧用APIを呼び直す |  |
 
 ```mermaid

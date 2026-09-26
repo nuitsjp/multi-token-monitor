@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using MultiTokenMonitor.Infrastructure.Configuration;
+using MultiTokenMonitor.Infrastructure.Notifications;
 using MultiTokenMonitor.Infrastructure.Persistence;
 
 namespace MultiTokenMonitor.Features.HubSync;
@@ -11,6 +12,7 @@ namespace MultiTokenMonitor.Features.HubSync;
 internal sealed class HubReceivers(
     IReadOnlyList<HubConnection> hubs,
     Database database,
+    ChangeNotifications notifications,
     ILogger<HubReceivers> logger) : BackgroundService
 {
     private readonly HttpClient client = new(new SocketsHttpHandler { AllowAutoRedirect = false })
@@ -120,6 +122,8 @@ internal sealed class HubReceivers(
                 return "database";
             }
 
+            // COMMIT後にだけ、保存の種類を問わず閲覧側へ合図する。
+            notifications.Publish();
             snapshotReceived = true;
             logger.LogInformation("Hubの最新状態を保存しました。HubId={HubId} Event={Event} ReceivedAt={ReceivedAt}",
                 hub.Id, eventName, receivedAt);

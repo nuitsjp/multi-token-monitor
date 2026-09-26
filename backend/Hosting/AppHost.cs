@@ -1,5 +1,6 @@
 using MultiTokenMonitor.Features.HubSync;
 using MultiTokenMonitor.Infrastructure.Configuration;
+using MultiTokenMonitor.Infrastructure.Notifications;
 using MultiTokenMonitor.Infrastructure.Persistence;
 using MultiTokenMonitor.Presentation.Http;
 
@@ -43,8 +44,12 @@ internal static class AppHost
             await database.InitializeAsync();
             await HubStateStore.RegisterHubsAsync(database, hubs);
             builder.Services.AddSingleton(database);
-            builder.Services.AddHostedService(services =>
-                new HubReceivers(hubs, database, services.GetRequiredService<ILogger<HubReceivers>>()));
+            builder.Services.AddSingleton<ChangeNotifications>();
+            builder.Services.AddHostedService(services => new HubReceivers(
+                hubs,
+                database,
+                services.GetRequiredService<ChangeNotifications>(),
+                services.GetRequiredService<ILogger<HubReceivers>>()));
         }
 
         var contractSources = builder.AddHttpPresentation(exportOpenApi: !initializeDatabase);
