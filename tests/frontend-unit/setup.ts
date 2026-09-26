@@ -17,3 +17,9 @@ Object.defineProperty(window, 'matchMedia', {
     },
   }),
 });
+// MantineのSegmentedControlが使う。jsdomには無い。
+globalThis.ResizeObserver = class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};

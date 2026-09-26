@@ -23,6 +23,7 @@ export default defineConfig(() => {
       strictPort: true,
       proxy: {
         '/health': { target: apiTarget, changeOrigin: true },
+        '/api': { target: apiTarget, changeOrigin: true },
       },
     },
     build: { outDir: 'dist', target: 'es2022', sourcemap: false, emptyOutDir: true },

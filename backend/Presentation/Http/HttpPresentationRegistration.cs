@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using MultiTokenMonitor.Infrastructure.Configuration;
 
 namespace MultiTokenMonitor.Presentation.Http;
@@ -6,7 +7,12 @@ internal static class HttpPresentationRegistration
 {
     internal static List<EndpointDataSource>? AddHttpPresentation(this WebApplicationBuilder builder, bool exportOpenApi)
     {
+        // ループバック以外の名前を拒み、DNSリバインディング経由の閲覧を防ぐ。
+        builder.Configuration["AllowedHosts"] = "localhost;127.0.0.1;[::1]";
         builder.Services.AddProblemDetails();
+        // 数値を文字列でも受け付ける既定を外し、契約の数値型を number だけにする。
+        builder.Services.ConfigureHttpJsonOptions(options =>
+            options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
         builder.Services.AddOpenApi();
 
         if (!exportOpenApi) return null;
