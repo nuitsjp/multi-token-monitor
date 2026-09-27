@@ -142,7 +142,7 @@ test('OVW-4 閲覧はURLと認証トークンを含まず、保存済みの状�
   expect(dumpDatabase(db)).toBe(before);
 });
 
-test('OVW-5 推定上限額は2つの計測点から求め、条件を満たさない枠は Estimating と表示する', async ({
+test('OVW-9 推定上限額は2つの計測点から求め、条件を満たさない枠は Estimating と表示する', async ({
   page,
   app,
   alpha,
