@@ -56,7 +56,8 @@ internal static class OverviewQuery
                     w.limit_key AS LimitKey,
                     w.label AS Label,
                     w.remaining_percent AS RemainingPercent,
-                    w.resets_at AS ResetsAt
+                    w.resets_at AS ResetsAt,
+                    NULL AS EstimatedLimitUsd
                 FROM
                     latest_limit_windows w
                     JOIN accounts a USING (provider, account_key)

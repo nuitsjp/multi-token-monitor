@@ -80,6 +80,8 @@ export interface components {
             /** Format: double */
             remainingPercent: number;
             resetsAt: string | null;
+            /** Format: double */
+            estimatedLimitUsd: number | null;
         };
         OverviewOutput: {
             hubs: components["schemas"]["OverviewHubOutput"][];
