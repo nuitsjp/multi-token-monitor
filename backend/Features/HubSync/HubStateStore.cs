@@ -155,6 +155,7 @@ internal static class HubStateStore
                 new { hubId }))
             .ToDictionary(row => row.Tool, row => row.CostUsd);
 
+        var now = DateTimeOffset.Parse(receivedAt, CultureInfo.InvariantCulture);
         var windows = stats.Limits.Providers
             .SelectMany(provider => provider.Windows
                 .Where(window => window.ShowMeter && window.RemainingPercent is not null)
@@ -199,8 +200,11 @@ internal static class HubStateStore
                 var meterChangedAt = found && previous!.RemainingPercent == remaining && previous.UsedPercent == window.UsedPercent
                     ? previous.MeterChangedAt
                     : receivedAt;
-                // 同じリセット周期で使用率が減っていなければ、1つ目の計測点を引き継ぐ。それ以外は今回の値を1つ目にする。
-                var keepBase = found && previous!.ResetsAt == window.ResetsAt && remaining <= previous.RemainingPercent;
+                // 前回のリセット時刻を過ぎておらず、使用率が減っていなければ、1つ目の計測点を引き継ぐ。それ以外は今回の値を1つ目にする。
+                // リセット時刻は取り直すたびにミリ秒単位で揺れるため、値の一致では同じ周期かを判定しない。
+                var keepBase = found &&
+                    (previous!.ResetsAt is null || now < DateTimeOffset.Parse(previous.ResetsAt, CultureInfo.InvariantCulture)) &&
+                    remaining <= previous.RemainingPercent;
                 return new LimitWindowRow(
                     hubId, provider.Provider, provider.AccountKey, window.Kind, limitKey, window.Label,
                     remaining, window.UsedPercent, window.ResetsAt, meterChangedAt,
