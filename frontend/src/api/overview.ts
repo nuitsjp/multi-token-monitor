@@ -39,16 +39,6 @@ export function watchOverview(
   onOverview: (overview: Overview) => void,
   onError: (reason: unknown) => void,
 ): () => void {
-  // 段階3の動作合意用。VITE_OVERVIEW_MOCK=1 のときだけ、変更通知と閲覧用APIの代わりに固定の全体状態を表示する。
-  if (import.meta.env.VITE_OVERVIEW_MOCK === '1') {
-    let stopped = false;
-    void import('./overview.mock.ts').then(({ overviewMock }) => {
-      if (!stopped) onOverview(overviewMock);
-    });
-    return () => {
-      stopped = true;
-    };
-  }
   const source = new EventSource('/api/events');
   let current: Overview | undefined;
   // 取得し直した応答が時刻の更新より前の保存状態でも古い時刻へ戻さないよう、Hubごとに最新の更新を覚えておく。

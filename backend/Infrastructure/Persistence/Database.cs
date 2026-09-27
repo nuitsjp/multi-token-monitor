@@ -29,18 +29,20 @@ internal sealed class Database
         try
         {
             var version = await connection.ExecuteScalarAsync<int>("PRAGMA user_version;");
-            if (version is < 0 or > 1)
+            string[] migrations = ["001-hub-sync.sql", "002-limit-estimate.sql"];
+            if (version < 0 || version > migrations.Length)
             {
                 throw new InvalidOperationException("未対応のDBスキーマです。");
             }
 
-            if (version == 0)
+            // 現在の版より後の移行を順に適用し、同じトランザクションで版を更新する。
+            for (var next = version; next < migrations.Length; next++)
             {
-                using var stream = typeof(Database).Assembly.GetManifestResourceStream("MultiTokenMonitor.Migrations.001-hub-sync.sql")
+                using var stream = typeof(Database).Assembly.GetManifestResourceStream($"MultiTokenMonitor.Migrations.{migrations[next]}")
                     ?? throw new InvalidOperationException("DB migrationが見つかりません。");
                 using var reader = new StreamReader(stream);
                 await connection.ExecuteAsync(await reader.ReadToEndAsync());
-                await connection.ExecuteAsync("PRAGMA user_version = 1;");
+                await connection.ExecuteAsync($"PRAGMA user_version = {next + 1};");
             }
 
             await connection.ExecuteAsync("COMMIT;");
