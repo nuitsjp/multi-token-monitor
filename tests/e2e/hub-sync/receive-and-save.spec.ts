@@ -312,6 +312,113 @@ test('設定した全Hubから独立して受信し、最新状態を別のDB接
   }
 });
 
+interface Point {
+  limit_key: string;
+  resets_at: string | null;
+  base_received_at: string;
+  base_remaining_percent: number;
+  base_cost_usd: number;
+  remaining_percent: number;
+  cost_usd: number;
+}
+
+function points(databasePath: string, hubId: string) {
+  return query<Point>(
+    databasePath,
+    `SELECT limit_key, resets_at, base_received_at, base_remaining_percent, base_cost_usd, remaining_percent, cost_usd
+     FROM latest_limit_windows WHERE hub_id = ? ORDER BY limit_key`,
+    hubId,
+  );
+}
+
+// 枠の提供元（codex）と同じツールの、全端末の累計の推定コスト。
+function codexCost(stats: FakeStats) {
+  return stats.devices
+    .flatMap((device) => Object.values(device.periods.allTime.clientModelCosts.codex ?? {}))
+    .reduce((sum, cost) => sum + cost, 0);
+}
+
+test('利用枠ごとに計測点を2つだけ保持し、周期の区切りか使用率の減少で1つ目を記録し直す', async ({
+  app,
+  alpha,
+}) => {
+  const db = app.databasePath;
+  await expect.poll(() => receivedAt(db, 'alpha')).toBeTruthy();
+  const snapshotAt = receivedAt(db, 'alpha')!;
+  let stats = alpha.stats;
+  const session = (value: FakeStats) => value.limits.providers[0].windows[0];
+  // 残量・リセット時刻・コストの増加を指定して stats を送り、保存を待つ。
+  const send = async (remaining: number, resetsAt: string | null, cost: number) => {
+    const before = receivedAt(db, 'alpha');
+    stats = structuredClone(stats);
+    session(stats).remainingPercent = remaining;
+    session(stats).usedPercent = 100 - remaining;
+    session(stats).resetsAt = resetsAt;
+    stats.devices[0].periods.allTime.clientModelCosts.codex['gpt-5'] += cost;
+    alpha.send('stats', stats);
+    await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(before);
+    return receivedAt(db, 'alpha')!;
+  };
+  const sessionPoint = () => points(db, 'alpha').find((row) => row.limit_key === 'codex')!;
+  const expectPoint = (
+    actual: Point,
+    base: { at: string; remaining: number; cost: number },
+    remaining: number,
+    cost: number,
+  ) => {
+    expect(actual.base_received_at).toBe(base.at);
+    expect(actual.base_remaining_percent).toBe(base.remaining);
+    expect(actual.base_cost_usd).toBeCloseTo(base.cost, 9);
+    expect(actual.remaining_percent).toBe(remaining);
+    expect(actual.cost_usd).toBeCloseTo(cost, 9);
+  };
+
+  // --- snapshot: 新しい枠は、今回の受信を1つ目の計測点にする
+  const first = { at: snapshotAt, remaining: 90, cost: codexCost(stats) };
+  expectPoint(sessionPoint(), first, 90, first.cost);
+
+  // --- stats を3回以上受けても、1つ目は最初の受信のまま、2つ目は最新の受信になる
+  // リセット時刻の値だけが揺れても、前回のリセット時刻を過ぎていなければ同じ周期とする。
+  const hour = Date.now() + 60 * 60 * 1000;
+  await send(85, new Date(hour + 5).toISOString(), 1);
+  await send(80, new Date(hour + 11).toISOString(), 2);
+  expectPoint(sessionPoint(), first, 80, codexCost(stats));
+  expect(sessionPoint().resets_at).toBe(new Date(hour + 11).toISOString());
+  // リセット時刻が無い枠（Weekly）も、残量が減っていなければ1つ目を引き継ぐ。
+  const weekly = points(db, 'alpha').find((row) => row.limit_key === 'Weekly')!;
+  expectPoint(weekly, { ...first, remaining: 60 }, 60, codexCost(stats));
+
+  // --- freshness では計測点を変えない
+  const beforeFreshness = points(db, 'alpha');
+  const statsAt = receivedAt(db, 'alpha');
+  const freshAt = new Date().toISOString();
+  alpha.send('freshness', {
+    updatedAt: freshAt,
+    staleAfterMs: 123_456,
+    limits: { updatedAt: freshAt },
+    devices: [],
+  });
+  await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(statsAt);
+  expect(points(db, 'alpha')).toEqual(beforeFreshness);
+
+  // --- 使用率が減った場合は、その受信を1つ目にする
+  const decreasedAt = await send(82, new Date(hour + 11).toISOString(), 1);
+  const decreased = { at: decreasedAt, remaining: 82, cost: codexCost(stats) };
+  expectPoint(sessionPoint(), decreased, 82, decreased.cost);
+
+  // --- 受信時刻が前回のリセット時刻を過ぎた場合は、その受信を1つ目にする
+  // 過ぎる前の受信は、リセット時刻が変わっても1つ目を引き継ぐ。
+  await send(80, new Date(Date.now() - 1000).toISOString(), 1);
+  expectPoint(sessionPoint(), decreased, 80, codexCost(stats));
+  const resetAt = await send(80, new Date(hour).toISOString(), 1);
+  expectPoint(
+    sessionPoint(),
+    { at: resetAt, remaining: 80, cost: codexCost(stats) },
+    80,
+    codexCost(stats),
+  );
+});
+
 test('freshnessは保存済みの状態を読まずに、時刻と古さだけを更新する', async ({ app, alpha }) => {
   const db = app.databasePath;
   await expect.poll(() => receivedAt(db, 'alpha')).toBeTruthy();
