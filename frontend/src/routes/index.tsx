@@ -20,7 +20,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { watchOverview, type Overview } from '../api/overview.ts';
-import { CostUsd, SpinContext, TokenCount } from '../components/SlotNumber.tsx';
+import { CostUsd, TokenCount } from '../components/SlotNumber.tsx';
 import { full } from '../format.ts';
 export const Route = createFileRoute('/')({ component: Home });
 
@@ -53,19 +53,13 @@ export function Home() {
   const [overview, setOverview] = useState<Overview>();
   const [error, setError] = useState<string>();
   const [period, setPeriod] = useState<Period>('today');
-  // 最初の表示と期間の切り替えだけ数値を回す。以後の同期による表示では回さない。
-  const [spin, setSpin] = useState(true);
-  useEffect(() => {
-    let shown = false;
-    return watchOverview(
-      (next) => {
-        setSpin(!shown);
-        shown = true;
-        setOverview(next);
-      },
-      (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)),
-    );
-  }, []);
+  useEffect(
+    () =>
+      watchOverview(setOverview, (reason: unknown) =>
+        setError(reason instanceof Error ? reason.message : String(reason)),
+      ),
+    [],
+  );
 
   return (
     <Container component="main" size="xl" py="xl">
@@ -78,10 +72,7 @@ export function Home() {
           color="violet"
           data={periods}
           value={period}
-          onChange={(value) => {
-            setPeriod(value as Period);
-            setSpin(true);
-          }}
+          onChange={(value) => setPeriod(value as Period)}
         />
       </Group>
       {error !== undefined ? (
@@ -91,9 +82,7 @@ export function Home() {
       ) : overview === undefined ? (
         <Loader aria-label="Loading" />
       ) : (
-        <SpinContext value={spin}>
-          <Dashboard overview={overview} period={period} />
-        </SpinContext>
+        <Dashboard overview={overview} period={period} />
       )}
     </Container>
   );

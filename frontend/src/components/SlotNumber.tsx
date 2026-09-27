@@ -1,9 +1,5 @@
-import { createContext, useContext, useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { cost, full } from '../format.ts';
-
-// 値の変化をリールで回して見せるかどうか。画面を開いたときと期間を切り替えたときだけ true にし、
-// 同期による変化では回さずに新しい値をそのまま表示する。
-export const SpinContext = createContext(false);
 
 const isDigit = (char: string | undefined) => char !== undefined && char >= '0' && char <= '9';
 const cell = (index: number) => `translateY(${-index}lh)`;
@@ -11,7 +7,6 @@ const cell = (index: number) => `translateY(${-index}lh)`;
 // 整形済みの文字列を表示し、変わった数字の桁だけを1周以上回して左の桁から順に止める。
 // 見た目の文字は擬似要素で描き、DOMのテキストには値を1回だけ置く（読み上げと textContent 用）。
 export function SlotNumber({ text }: { text: string }) {
-  const spin = useContext(SpinContext);
   // 桁は右端からの位置で対応づける。桁数が変わっても下位の桁は同じリールのまま回る。
   const chars = [...text].reverse();
   const strips = useRef(new Map<number, HTMLSpanElement>());
@@ -19,12 +14,12 @@ export function SlotNumber({ text }: { text: string }) {
 
   useLayoutEffect(() => {
     const before = previous.current;
-    // 同じ値での再実行（StrictModeの再実行や spin だけの変化）では、回転中のリールをそのまま回す。
+    // 同じ値での再実行（StrictModeの再実行）では、回転中のリールをそのまま回す。
     if (before === text) return;
     previous.current = text;
     for (const strip of strips.current.values())
       for (const animation of strip.getAnimations()) animation.cancel();
-    if (!spin || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const old = before === null ? [] : [...before].reverse();
     const next = [...text].reverse();
@@ -59,7 +54,7 @@ export function SlotNumber({ text }: { text: string }) {
       );
       animation.onfinish = animation.oncancel = () => delete reel.dataset.spinning;
     });
-  }, [text, spin]);
+  }, [text]);
 
   return (
     <span className="slot">
