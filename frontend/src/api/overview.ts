@@ -39,27 +39,6 @@ export function watchOverview(
   onOverview: (overview: Overview) => void,
   onError: (reason: unknown) => void,
 ): () => void {
-  // 段階3の動作合意用。VITE_OVERVIEW_MOCK=1 のときだけ、変更通知の代わりに固定の全体状態を表示し、
-  // 以後5秒ごとに同期による保存を模した状態を順に表示する。一巡したら全体状態から繰り返す。
-  if (import.meta.env.VITE_OVERVIEW_MOCK === '1') {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let stopped = false;
-    void import('./overview.mock.ts').then(({ overviewMock, syncMocks }) => {
-      const states = [overviewMock, ...syncMocks];
-      let index = 0;
-      const notify = () => {
-        if (stopped) return;
-        onOverview(states[index]!);
-        index = (index + 1) % states.length;
-        timer = setTimeout(notify, 5000);
-      };
-      notify();
-    });
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-    };
-  }
   const source = new EventSource('/api/events');
   let current: Overview | undefined;
   // 取得し直した応答が時刻の更新より前の保存状態でも古い時刻へ戻さないよう、Hubごとに最新の更新を覚えておく。
