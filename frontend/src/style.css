@@ -54,3 +54,42 @@ body {
     opacity: 1;
   }
 }
+/* トークン数と金額のリール。見た目の文字は擬似要素で描き、値は .slot-text に1回だけ置く。 */
+.slot {
+  display: inline-block;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.slot-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.slot-visual {
+  display: inline-flex;
+  vertical-align: top;
+}
+.slot-char::before {
+  content: attr(data-char);
+}
+.slot-reel {
+  display: inline-block;
+  height: 1lh;
+  overflow: hidden;
+}
+/* 回転中は上下の端をぼかし、隣の数字がリールの窓から覗いて見えるようにする。 */
+.slot-reel[data-spinning] {
+  mask-image: linear-gradient(transparent, #000 22%, #000 78%, transparent);
+}
+.slot-strip {
+  display: block;
+  text-align: center;
+}
+/* 0〜9を3周並べる。回転は1周を足して回し、減少は3周目から下へ回す。 */
+.slot-strip::before {
+  content: '0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9';
+  white-space: pre;
+}

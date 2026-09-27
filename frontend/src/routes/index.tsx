@@ -20,6 +20,8 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { watchOverview, type Overview } from '../api/overview.ts';
+import { CostUsd, TokenCount } from '../components/SlotNumber.tsx';
+import { full } from '../format.ts';
 export const Route = createFileRoute('/')({ component: Home });
 
 type Period = keyof Overview['periods'];
@@ -37,13 +39,6 @@ const accent = '#9085e9';
 const statusGood = '#0ca30c';
 const statusWarning = '#fab219';
 
-const full = new Intl.NumberFormat('en-US');
-const usd = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-});
-const cost = (value: number | null) => (value === null ? '—' : usd.format(value));
 const time = (value: string | null) =>
   value === null
     ? '—'
@@ -141,8 +136,8 @@ function Dashboard({ overview, period }: { overview: Overview; period: Period })
     <Stack gap="lg">
       <section aria-label="Total">
         <SimpleGrid cols={{ base: 2, md: 4 }}>
-          <Stat label="Tokens" value={full.format(usage.total.tokens)} />
-          <Stat label="Est. cost" value={cost(usage.total.costUsd)} hint="USD" />
+          <Stat label="Tokens" value={<TokenCount value={usage.total.tokens} />} />
+          <Stat label="Est. cost" value={<CostUsd value={usage.total.costUsd} />} hint="USD" />
           <Stat label="Hubs" value={`${received} / ${overview.hubs.length}`} hint="received" />
           <Stat
             label="Devices"
@@ -190,9 +185,9 @@ function HubCard({ overview, usage }: { overview: Overview; usage: Usage }) {
                   </Badge>
                 ) : (
                   <Text className="num">
-                    {full.format(row?.tokens ?? 0)}
+                    <TokenCount value={row?.tokens ?? 0} />
                     <Text span className="muted" ml="sm">
-                      {cost(row?.costUsd ?? null)}
+                      <CostUsd value={row?.costUsd ?? null} />
                     </Text>
                   </Text>
                 )}
@@ -307,7 +302,7 @@ function ModelCard({ usage }: { usage: Usage }) {
           label={
             <Stack gap={0} align="center">
               <Text fz={15} fw={600} className="num">
-                {full.format(usage.total.tokens)}
+                <TokenCount value={usage.total.tokens} />
               </Text>
               <Text size="xs" className="muted">
                 tokens
@@ -331,10 +326,10 @@ function ModelCard({ usage }: { usage: Usage }) {
                   </Group>
                 </Table.Td>
                 <Table.Td ta="right" className="num">
-                  {full.format(slice.tokens)}
+                  <TokenCount value={slice.tokens} />
                 </Table.Td>
                 <Table.Td ta="right" className="num muted">
-                  {cost(slice.costUsd)}
+                  <CostUsd value={slice.costUsd} />
                 </Table.Td>
               </Table.Tr>
             ))}
