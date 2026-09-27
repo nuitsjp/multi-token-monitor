@@ -59,7 +59,7 @@ public sealed class DatabaseTests
     public sealed class InitializeAsync
     {
         [Fact]
-        public async Task NewFile_MigratesToSchemaVersionOneWithWalAsync()
+        public async Task NewFile_MigratesToSchemaVersionTwoWithWalAsync()
         {
             // -------------------------------------------------------------
             // Arrange
@@ -75,7 +75,7 @@ public sealed class DatabaseTests
             // Assert
             // -------------------------------------------------------------
             await using var connection = await fixture.Database.OpenAsync();
-            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(1);
+            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(2);
             (await connection.ExecuteScalarAsync<string>("PRAGMA journal_mode")).ShouldBe("wal");
         }
 
@@ -182,7 +182,7 @@ public sealed class DatabaseTests
             // -------------------------------------------------------------
             // Assert
             // -------------------------------------------------------------
-            result.Version.ShouldBe(1);
+            result.Version.ShouldBe(2);
             result.IsHealthy.ShouldBeTrue();
         }
     }

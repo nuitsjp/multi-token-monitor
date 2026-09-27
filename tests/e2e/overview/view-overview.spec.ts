@@ -141,3 +141,53 @@ test('OVW-4 閲覧はURLと認証トークンを含まず、保存済みの状�
   }
   expect(dumpDatabase(db)).toBe(before);
 });
+
+test('OVW-9 推定上限額は2つの計測点から求め、条件を満たさない枠は Estimating と表示する', async ({
+  page,
+  app,
+  alpha,
+  beta,
+}) => {
+  // Arrange
+  const db = app.databasePath;
+  await waitReceived(db);
+  await page.goto('/');
+  const limits = page.getByRole('region', { name: 'Usage limits' });
+  // 残量とコストの増加を指定して、Hubに stats を送らせる。
+  const send = async (
+    hub: typeof alpha,
+    hubId: string,
+    remaining: number,
+    cost: number,
+  ): Promise<void> => {
+    const before = receivedAt(db, hubId);
+    const next = structuredClone(hub.stats);
+    const session = next.limits.providers[0].windows[0];
+    session.remainingPercent = remaining;
+    session.usedPercent = 100 - remaining;
+    next.devices[0].periods.allTime.clientModelCosts.codex['gpt-5'] += cost;
+    hub.stats = next;
+    hub.send('stats', next);
+    await expect.poll(() => receivedAt(db, hubId)).not.toBe(before);
+  };
+
+  // Assert: 受信が1回だけの枠は、計測点が1つなので推定しない。
+  await expect(limits.getByText('Limit: Estimating')).toHaveCount(2);
+
+  // Act & Assert: 使用率の増加が5ポイント未満なら推定しない。
+  await send(alpha, 'alpha', 86, 1.5);
+  await expect(limits).toContainText('86%Session');
+  await expect(limits.getByText('Limit: Estimating')).toHaveCount(2);
+
+  // Act & Assert: 5ポイント以上増えたら、コストの増加 ÷ 使用率の増加 × 100 を表示する。
+  // 残量が変わらない Weekly は推定しない。
+  await send(alpha, 'alpha', 85, 0.5);
+  await expect(limits.getByText('Limit ≈ $40.00')).toBeVisible();
+  await expect(limits.getByText('Limit: Estimating')).toHaveCount(1);
+
+  // Act & Assert: 使用率が5ポイント以上増えても、コストが増えていなければ推定しない。
+  await send(beta, 'beta', 80, 0);
+  await limits.getByText('Beta Hub', { exact: true }).click();
+  await expect(limits).toContainText('80%Session');
+  await expect(limits.getByText('Limit: Estimating')).toHaveCount(2);
+});

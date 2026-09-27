@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { watchOverview, type Overview } from '../api/overview.ts';
 import { CostUsd, TokenCount } from '../components/SlotNumber.tsx';
-import { full } from '../format.ts';
+import { cost, full } from '../format.ts';
 export const Route = createFileRoute('/')({ component: Home });
 
 type Period = keyof Overview['periods'];
@@ -398,6 +398,11 @@ function LimitCard({ overview }: { overview: Overview }) {
                     <Text size="xs">{row.label || row.kind}</Text>
                     <Text size="xs" className="muted">
                       {row.resetsAt === null ? '—' : `↻ ${time(row.resetsAt)}`}
+                    </Text>
+                    <Text size="xs" className="muted">
+                      {row.estimatedLimitUsd === null
+                        ? 'Limit: Estimating'
+                        : `Limit ≈ ${cost(row.estimatedLimitUsd)}`}
                     </Text>
                   </Stack>
                 ))}

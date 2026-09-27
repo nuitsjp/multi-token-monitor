@@ -179,7 +179,8 @@
           "limitKey",
           "label",
           "remainingPercent",
-          "resetsAt"
+          "resetsAt",
+          "estimatedLimitUsd"
         ],
         "type": "object",
         "properties": {
@@ -216,6 +217,11 @@
           },
           "resetsAt": {
             "type": "string",
+            "nullable": true
+          },
+          "estimatedLimitUsd": {
+            "type": "number",
+            "format": "double",
             "nullable": true
           }
         }

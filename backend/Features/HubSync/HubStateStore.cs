@@ -96,7 +96,11 @@ internal static class HubStateStore
                     remaining_percent AS RemainingPercent,
                     used_percent AS UsedPercent,
                     resets_at AS ResetsAt,
-                    meter_changed_at AS MeterChangedAt
+                    meter_changed_at AS MeterChangedAt,
+                    base_received_at AS BaseReceivedAt,
+                    base_remaining_percent AS BaseRemainingPercent,
+                    base_cost_usd AS BaseCostUsd,
+                    cost_usd AS CostUsd
                 FROM
                     latest_limit_windows
                 WHERE
@@ -140,6 +144,18 @@ internal static class HubStateStore
             """,
             stats.Devices.SelectMany(device => TokenUsages(hubId, device, DateTimeOffset.Parse(receivedAt, CultureInfo.InvariantCulture))));
 
+        // 利用枠の計測点に使う、ツールごとの累計の推定コスト。枠の提供元とツールは同じ識別子で対応する。
+        var costs = (await connection.QueryAsync<(string Tool, double CostUsd)>(
+                """
+                SELECT tool, TOTAL(cost_usd)
+                FROM latest_token_usages
+                WHERE hub_id = @hubId AND period = 'all_time'
+                GROUP BY tool
+                """,
+                new { hubId }))
+            .ToDictionary(row => row.Tool, row => row.CostUsd);
+
+        var now = DateTimeOffset.Parse(receivedAt, CultureInfo.InvariantCulture);
         var windows = stats.Limits.Providers
             .SelectMany(provider => provider.Windows
                 .Where(window => window.ShowMeter && window.RemainingPercent is not null)
@@ -166,25 +182,36 @@ internal static class HubStateStore
             """
             INSERT INTO latest_limit_windows (
                 hub_id, provider, account_key, kind, limit_key, label,
-                remaining_percent, used_percent, resets_at, meter_changed_at)
+                remaining_percent, used_percent, resets_at, meter_changed_at,
+                base_received_at, base_remaining_percent, base_cost_usd, cost_usd)
             VALUES (
                 @HubId, @Provider, @AccountKey, @Kind, @LimitKey, @Label,
-                @RemainingPercent, @UsedPercent, @ResetsAt, @MeterChangedAt)
+                @RemainingPercent, @UsedPercent, @ResetsAt, @MeterChangedAt,
+                @BaseReceivedAt, @BaseRemainingPercent, @BaseCostUsd, @CostUsd)
             """,
             windows.Select(item =>
             {
                 var (provider, window) = item;
                 var limitKey = (string.IsNullOrEmpty(window.LimitId) ? window.Label : window.LimitId) ?? "";
                 var remaining = window.RemainingPercent!.Value;
+                var cost = costs.GetValueOrDefault(provider.Provider);
+                var found = previousMeters.TryGetValue((provider.Provider, provider.AccountKey, window.Kind, limitKey), out var previous);
                 // 残量・使用量が前回の行と同じなら、最後に変わった時刻を引き継ぐ。
-                var meterChangedAt =
-                    previousMeters.TryGetValue((provider.Provider, provider.AccountKey, window.Kind, limitKey), out var previous) &&
-                    previous.RemainingPercent == remaining && previous.UsedPercent == window.UsedPercent
-                        ? previous.MeterChangedAt
-                        : receivedAt;
+                var meterChangedAt = found && previous!.RemainingPercent == remaining && previous.UsedPercent == window.UsedPercent
+                    ? previous.MeterChangedAt
+                    : receivedAt;
+                // 前回のリセット時刻を過ぎておらず、使用率が減っていなければ、1つ目の計測点を引き継ぐ。それ以外は今回の値を1つ目にする。
+                // リセット時刻は取り直すたびにミリ秒単位で揺れるため、値の一致では同じ周期かを判定しない。
+                var keepBase = found &&
+                    (previous!.ResetsAt is null || now < DateTimeOffset.Parse(previous.ResetsAt, CultureInfo.InvariantCulture)) &&
+                    remaining <= previous.RemainingPercent;
                 return new LimitWindowRow(
                     hubId, provider.Provider, provider.AccountKey, window.Kind, limitKey, window.Label,
-                    remaining, window.UsedPercent, window.ResetsAt, meterChangedAt);
+                    remaining, window.UsedPercent, window.ResetsAt, meterChangedAt,
+                    keepBase ? previous!.BaseReceivedAt : receivedAt,
+                    keepBase ? previous!.BaseRemainingPercent : remaining,
+                    keepBase ? previous!.BaseCostUsd : cost,
+                    cost);
             }));
     }
 
@@ -237,5 +264,9 @@ internal static class HubStateStore
         double RemainingPercent,
         double? UsedPercent,
         string? ResetsAt,
-        string MeterChangedAt);
+        string MeterChangedAt,
+        string BaseReceivedAt,
+        double BaseRemainingPercent,
+        double BaseCostUsd,
+        double CostUsd);
 }
