@@ -29,13 +29,42 @@ test('OVW-1 全Hubへ到達でき、期間の切り替えで合計・Hub別・�
   // Act
   await page.goto('/');
 
-  // Assert: 初期表示は Today。先頭ページは受信済みの2件。未受信のHubは次のページから到達する。
+  // Assert: 初期表示は Today の先頭ページ。合計はトークン数と推定コストだけで、Hubは2件見える。
   await expectPeriod(page, stats, 'today');
+  const total = page.getByRole('region', { name: 'Total' });
+  await expect(total).not.toContainText('Hubs');
+  await expect(total).not.toContainText('Devices');
   const byHub = page.getByRole('region', { name: 'By hub' });
   const hubPage = page.getByLabel('Hub page');
+  await expect(byHub.locator('.hub-slot[aria-label]')).toHaveCount(2);
+  await expect(byHub.locator('.hub-slot[aria-hidden]')).toHaveCount(0);
+  await expect(byHub.locator('[aria-label="Offline Hub"]')).toHaveCount(0);
+
+  // Act: 次のページへ送る。
   await hubPage.getByRole('button', { name: '2', exact: true }).click();
+
+  // Assert: 未受信のHubと空の2件目だけが見え、期間は変わらない。空枠はHub行と同じ高さを保つ。
   await expect(byHub.locator('[aria-label="Offline Hub"]')).toContainText('Not received');
-  await hubPage.getByRole('button', { name: '1', exact: true }).click();
+  await expect(byHub.locator('.hub-slot[aria-label]')).toHaveCount(1);
+  await expect(byHub.locator('[aria-label="Alpha Hub"]')).toHaveCount(0);
+  const slotHeight = await byHub
+    .locator('.hub-slot')
+    .evaluateAll((slots) => slots.map((slot) => getComputedStyle(slot).minHeight));
+  expect(slotHeight).toEqual(['76px', '76px']);
+  await expect(page.getByRole('radio', { name: 'Today' })).toBeChecked();
+
+  // Act & Assert: 期間を切り替えてもHubのページは維持する。
+  await page.getByText('Month', { exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Month' })).toBeChecked();
+  await expect(byHub.locator('[aria-label="Offline Hub"]')).toBeVisible();
+  await expect(byHub.locator('[aria-label="Alpha Hub"]')).toHaveCount(0);
+
+  // Act & Assert: 再読み込みで Today の先頭ページに戻る。
+  await page.reload();
+  await expect(page.getByRole('radio', { name: 'Today' })).toBeChecked();
+  await expect(byHub.locator('[aria-label="Alpha Hub"]')).toBeVisible();
+  await expect(byHub.locator('[aria-label="Beta Hub"]')).toBeVisible();
+  await expect(byHub.locator('[aria-label="Offline Hub"]')).toHaveCount(0);
   // 時刻はブラウザーのローカル時刻で表示する。
   await expect(byHub.locator('[aria-label="Alpha Hub"]')).toContainText(
     `Received ${localTime(receivedAt(db, 'alpha')!)} · Updated ${localTime(alpha.stats.updatedAt)}`,
@@ -191,4 +220,57 @@ test('OVW-9 推定上限額は2つの計測点から求め、条件を満たさ�
   await limits.getByText('Beta Hub', { exact: true }).click();
   await expect(limits).toContainText('80%Session');
   await expect(limits.getByText('Limit: Estimating')).toHaveCount(2);
+});
+
+const twoHubs = test.extend({
+  hubs: async ({ alpha, beta }, use) => {
+    await use([
+      { id: 'alpha', name: 'Alpha Hub', url: alpha.url, token: alpha.token },
+      { id: 'beta', name: 'Beta Hub', url: beta.url, token: beta.token },
+    ]);
+  },
+});
+
+twoHubs('OVW-10 Hubが2件のときはページを送らず、両方を表示する', async ({ page, app }) => {
+  // Arrange
+  const db = app.databasePath;
+  await expect
+    .poll(() => [receivedAt(db, 'alpha'), receivedAt(db, 'beta')].every(Boolean))
+    .toBe(true);
+
+  // Act
+  await page.goto('/');
+
+  // Assert
+  const byHub = page.getByRole('region', { name: 'By hub' });
+  await expect(page.getByRole('radio', { name: 'Today' })).toBeChecked();
+  await expect(page.getByLabel('Hub page')).toHaveCount(0);
+  await expect(byHub.locator('[aria-label="Alpha Hub"]')).toBeVisible();
+  await expect(byHub.locator('[aria-label="Beta Hub"]')).toBeVisible();
+  await expect(byHub.locator('.hub-slot[aria-hidden]')).toHaveCount(0);
+});
+
+const oneHub = test.extend({
+  hubs: async ({ alpha }, use) => {
+    await use([{ id: 'alpha', name: 'Alpha Hub', url: alpha.url, token: alpha.token }]);
+  },
+});
+
+oneHub('OVW-11 Hubが1件のときはページを送らず、空の2件目で高さを保つ', async ({ page, app }) => {
+  // Arrange
+  const db = app.databasePath;
+  await expect.poll(() => Boolean(receivedAt(db, 'alpha'))).toBe(true);
+
+  // Act
+  await page.goto('/');
+
+  // Assert
+  const byHub = page.getByRole('region', { name: 'By hub' });
+  await expect(page.getByLabel('Hub page')).toHaveCount(0);
+  await expect(byHub.locator('.hub-slot[aria-label]')).toHaveCount(1);
+  await expect(byHub.locator('[aria-label="Alpha Hub"]')).toBeVisible();
+  const slotHeight = await byHub
+    .locator('.hub-slot')
+    .evaluateAll((slots) => slots.map((slot) => getComputedStyle(slot).minHeight));
+  expect(slotHeight).toEqual(['76px', '76px']);
 });
