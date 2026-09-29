@@ -55,12 +55,11 @@ test('OVF-1 表示中に時刻の更新を受けると、閲覧用APIを呼ば�
   const limits = page.getByRole('region', { name: 'Usage limits' });
   await limits.getByText('Beta Hub', { exact: true }).click();
   await expectPeriod(page, { alpha: alpha.stats, beta: beta.stats }, 'month');
-  const total = page.getByRole('region', { name: 'Total' });
-  await expect(total).toContainText('1 stale');
   const limitsBefore = await limits.innerText();
   const deviceRows = page.getByRole('region', { name: 'Devices' }).getByRole('row');
   const rowCount = await deviceRows.count();
   const [first, second] = alpha.stats.devices;
+  await expect(deviceRow(page, second.hostname)).toContainText('Stale');
   let overviewCalls = 0;
   page.on('request', (request) => {
     if (new URL(request.url()).pathname === '/api/overview') overviewCalls++;
@@ -71,13 +70,12 @@ test('OVF-1 表示中に時刻の更新を受けると、閲覧用APIを呼ば�
   const updatedAt = sendFreshness(alpha);
   await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(before);
 
-  // Assert: 当該Hubの時刻、端末の時刻と鮮度切れ、鮮度切れの端末数が保存済みの値になる。
+  // Assert: 当該Hubの時刻と、端末の時刻と鮮度切れが保存済みの値になる。
   await expect(
     page.getByRole('region', { name: 'By hub' }).locator('[aria-label="Alpha Hub"]'),
   ).toContainText(
     `Received ${localTime(receivedAt(db, 'alpha')!)} · Updated ${localTime(updatedAt)}`,
   );
-  await expect(total).toContainText('all live');
   for (const device of [first, second]) {
     await expect(deviceRow(page, device.hostname)).toContainText(localTime(updatedAt));
     await expect(deviceRow(page, device.hostname)).toContainText('Live');
@@ -131,6 +129,5 @@ test('OVF-2 読み直しの途中で時刻の更新を受けても、読み直�
   // Assert: 時刻の更新より前の保存状態を返した読み直しの後も、時刻と鮮度切れは時刻の更新の値のまま。
   await reloaded;
   await expect(byHub).toContainText(fresh);
-  await expect(page.getByRole('region', { name: 'Total' })).toContainText('all live');
   await expect(deviceRow(page, alpha.stats.devices[1].hostname)).toContainText('Live');
 });

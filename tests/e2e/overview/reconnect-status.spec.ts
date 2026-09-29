@@ -42,11 +42,12 @@ test('OVC-1 画面を開いた時点で再接続中のHubだけに目印を付�
   // Act
   await page.goto('/');
 
-  // Assert: 再接続中のHubだけに目印が付き、未受信の表示と併せて示す。
-  await expect(indicator(page, 'Offline Hub')).toBeVisible();
-  await expect(hubRow(page, 'Offline Hub')).toContainText('Not received');
+  // Assert: 先頭ページの受信済みHubには目印を付けない。未受信の再接続中Hubは次のページにあり、目印と未受信を併せて示す。
   await expect(indicator(page, 'Alpha Hub')).toHaveCount(0);
   await expect(indicator(page, 'Beta Hub')).toHaveCount(0);
+  await page.getByLabel('Hub page').getByRole('button', { name: '2', exact: true }).click();
+  await expect(indicator(page, 'Offline Hub')).toBeVisible();
+  await expect(hubRow(page, 'Offline Hub')).toContainText('Not received');
   // 全体の合計、利用枠、端末の区画には目印を付けない。
   for (const name of ['Total', 'Usage limits', 'Devices'])
     await expect(
