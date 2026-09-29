@@ -80,6 +80,13 @@ Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（
 | --- | --- | --- |
 | 閲覧用APIの確認 | `curl.exe -s http://127.0.0.1:3000/api/overview` | 設定した全Hubと、期間別の合計・Hub別・モデル別の値、利用枠、端末をJSONで返します。URLと認証トークンは含みません |
 
+閲覧画面のモックは、環境変数 `VITE_OVERVIEW_MOCK=1` を付けた開発起動で有効になります。画面は閲覧用APIと変更通知を使わず、`frontend/src/api/overview.mock.ts` の固定の全体状態を表示します。既定（未設定）は実APIを呼び、APIが失敗しても固定データは表示しません。
+
+| 目的 | コマンド | 期待結果 |
+| --- | --- | --- |
+| モック有効で開発起動 | PowerShellで `$env:VITE_OVERVIEW_MOCK='1'; mise run dev` | `http://127.0.0.1:5173/` に Tokens・Est. cost と By hub が左、By model が右に並びます。先頭ページに Personal と Work、次のページに未受信の Lab が表示されます |
+| モック無効の確認 | 環境変数を外して `mise run dev` | 画面は `GET /api/overview` を呼び、固定データのHub名は表示されません |
+
 画面は表示中、通知配信API `GET /api/events`（SSE）を購読し、接続時の `ready` と保存確定ごとの `overview.changed` を受けるたびに閲覧用APIから取得し直します。`hub.freshness` を受けたときは取得し直さず、表示中のHubの受信時刻と更新時刻、端末の送信時刻と鮮度切れを本文の値で書き換えます。
 
 | 目的 | コマンド | 期待結果 |

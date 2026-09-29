@@ -13,6 +13,10 @@ body {
   padding: 20px;
   height: 100%;
 }
+/* 受信済みHub（名前・進捗・時刻）2件分の高さをページ間で揃える。 */
+.hub-slot {
+  min-height: 4.75rem;
+}
 .muted {
   color: #8b8e99;
 }

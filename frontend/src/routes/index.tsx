@@ -9,6 +9,7 @@ import {
   Grid,
   Group,
   Loader,
+  Pagination,
   Progress,
   RingProgress,
   SegmentedControl,
@@ -130,25 +131,23 @@ function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: 
 
 function Dashboard({ overview, period }: { overview: Overview; period: Period }) {
   const usage = overview.periods[period];
-  const received = overview.hubs.filter((hub) => hub.receivedAt !== null).length;
-  const stale = overview.devices.filter((device) => device.stale).length;
   return (
     <Stack gap="lg">
-      <section aria-label="Total">
-        <SimpleGrid cols={{ base: 2, md: 4 }}>
-          <Stat label="Tokens" value={<TokenCount value={usage.total.tokens} />} />
-          <Stat label="Est. cost" value={<CostUsd value={usage.total.costUsd} />} hint="USD" />
-          <Stat label="Hubs" value={`${received} / ${overview.hubs.length}`} hint="received" />
-          <Stat
-            label="Devices"
-            value={overview.devices.length}
-            hint={stale > 0 ? `${stale} stale` : 'all live'}
-          />
-        </SimpleGrid>
-      </section>
       <Grid gutter="lg">
         <Grid.Col span={{ base: 12, md: 5 }}>
-          <HubCard overview={overview} usage={usage} />
+          <Stack gap="lg" h="100%">
+            <section aria-label="Total">
+              <SimpleGrid cols={2}>
+                <Stat label="Tokens" value={<TokenCount value={usage.total.tokens} />} />
+                <Stat
+                  label="Est. cost"
+                  value={<CostUsd value={usage.total.costUsd} />}
+                  hint="USD"
+                />
+              </SimpleGrid>
+            </section>
+            <HubCard overview={overview} usage={usage} />
+          </Stack>
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 7 }}>
           <ModelCard usage={usage} />
@@ -164,54 +163,92 @@ function Dashboard({ overview, period }: { overview: Overview; period: Period })
   );
 }
 
+const hubsPerPage = 2;
+
 function HubCard({ overview, usage }: { overview: Overview; usage: Usage }) {
+  const [page, setPage] = useState(1);
   const byHub = new Map(usage.hubs.map((row) => [row.hubId, row]));
   const max = Math.max(1, ...usage.hubs.map((row) => row.tokens));
+  const pageCount = Math.max(1, Math.ceil(overview.hubs.length / hubsPerPage));
+  const current = Math.min(page, pageCount);
+  const start = (current - 1) * hubsPerPage;
+  const visible = overview.hubs.slice(start, start + hubsPerPage);
   return (
-    <Card title="By hub">
+    <Card
+      title="By hub"
+      control={
+        pageCount > 1 ? (
+          <Pagination
+            total={pageCount}
+            value={current}
+            onChange={setPage}
+            size="xs"
+            color="violet"
+            withEdges={false}
+            aria-label="Hub page"
+          />
+        ) : undefined
+      }
+    >
       <Stack gap="lg">
-        {overview.hubs.map((hub) => {
-          const row = byHub.get(hub.hubId);
-          return (
-            <div key={hub.hubId} aria-label={hub.name}>
-              <Group justify="space-between" mb={6} wrap="nowrap">
-                <Group gap="xs" wrap="nowrap">
-                  <Text fw={500}>{hub.name}</Text>
-                  {!hub.connected && <Reconnecting received={hub.receivedAt !== null} />}
-                </Group>
-                {hub.receivedAt === null ? (
-                  <Badge color="gray" variant="light">
-                    Not received
-                  </Badge>
-                ) : (
-                  <Text className="num">
-                    <TokenCount value={row?.tokens ?? 0} />
-                    <Text span className="muted" ml="sm">
-                      <CostUsd value={row?.costUsd ?? null} />
-                    </Text>
-                  </Text>
-                )}
-              </Group>
-              {hub.receivedAt !== null && (
-                <>
-                  <Tooltip label={`${full.format(row?.tokens ?? 0)} tokens`}>
-                    <Progress
-                      value={((row?.tokens ?? 0) / max) * 100}
-                      color={accent}
-                      size="md"
-                      aria-label={`${hub.name} tokens`}
-                    />
-                  </Tooltip>
-                  <Text size="xs" className="muted" mt={6}>
-                    Received {time(hub.receivedAt)} · Updated {time(hub.updatedAt)}
-                  </Text>
-                </>
-              )}
-            </div>
+        {Array.from({ length: hubsPerPage }, (_, index) => {
+          const hub = visible[index];
+          return hub ? (
+            <HubRow key={hub.hubId} hub={hub} row={byHub.get(hub.hubId)} max={max} />
+          ) : (
+            <div key={`empty-${index}`} className="hub-slot" aria-hidden />
           );
         })}
       </Stack>
     </Card>
+  );
+}
+
+function HubRow({
+  hub,
+  row,
+  max,
+}: {
+  hub: Overview['hubs'][number];
+  row: Usage['hubs'][number] | undefined;
+  max: number;
+}) {
+  return (
+    <div className="hub-slot" aria-label={hub.name}>
+      <Group justify="space-between" mb={6} wrap="nowrap">
+        <Group gap="xs" wrap="nowrap">
+          <Text fw={500}>{hub.name}</Text>
+          {!hub.connected && <Reconnecting received={hub.receivedAt !== null} />}
+        </Group>
+        {hub.receivedAt === null ? (
+          <Badge color="gray" variant="light">
+            Not received
+          </Badge>
+        ) : (
+          <Text className="num">
+            <TokenCount value={row?.tokens ?? 0} />
+            <Text span className="muted" ml="sm">
+              <CostUsd value={row?.costUsd ?? null} />
+            </Text>
+          </Text>
+        )}
+      </Group>
+      {hub.receivedAt !== null && (
+        <>
+          <Tooltip label={`${full.format(row?.tokens ?? 0)} tokens`}>
+            <Progress
+              value={((row?.tokens ?? 0) / max) * 100}
+              color={accent}
+              size="md"
+              aria-label={`${hub.name} tokens`}
+            />
+          </Tooltip>
+          <Text size="xs" className="muted" mt={6}>
+            Received {time(hub.receivedAt)} · Updated {time(hub.updatedAt)}
+          </Text>
+        </>
+      )}
+    </div>
   );
 }
 
