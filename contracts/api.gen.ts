@@ -82,6 +82,8 @@ export interface components {
             resetsAt: string | null;
             /** Format: double */
             estimatedLimitUsd: number | null;
+            /** Format: double */
+            windowMinutes: number | null;
         };
         OverviewOutput: {
             hubs: components["schemas"]["OverviewHubOutput"][];

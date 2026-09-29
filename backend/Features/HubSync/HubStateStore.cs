@@ -100,7 +100,8 @@ internal static class HubStateStore
                     base_received_at AS BaseReceivedAt,
                     base_remaining_percent AS BaseRemainingPercent,
                     base_cost_usd AS BaseCostUsd,
-                    cost_usd AS CostUsd
+                    cost_usd AS CostUsd,
+                    window_minutes AS WindowMinutes
                 FROM
                     latest_limit_windows
                 WHERE
@@ -183,11 +184,11 @@ internal static class HubStateStore
             INSERT INTO latest_limit_windows (
                 hub_id, provider, account_key, kind, limit_key, label,
                 remaining_percent, used_percent, resets_at, meter_changed_at,
-                base_received_at, base_remaining_percent, base_cost_usd, cost_usd)
+                base_received_at, base_remaining_percent, base_cost_usd, cost_usd, window_minutes)
             VALUES (
                 @HubId, @Provider, @AccountKey, @Kind, @LimitKey, @Label,
                 @RemainingPercent, @UsedPercent, @ResetsAt, @MeterChangedAt,
-                @BaseReceivedAt, @BaseRemainingPercent, @BaseCostUsd, @CostUsd)
+                @BaseReceivedAt, @BaseRemainingPercent, @BaseCostUsd, @CostUsd, @WindowMinutes)
             """,
             windows.Select(item =>
             {
@@ -211,7 +212,8 @@ internal static class HubStateStore
                     keepBase ? previous!.BaseReceivedAt : receivedAt,
                     keepBase ? previous!.BaseRemainingPercent : remaining,
                     keepBase ? previous!.BaseCostUsd : cost,
-                    cost);
+                    cost,
+                    window.WindowMinutes);
             }));
     }
 
@@ -268,5 +270,6 @@ internal static class HubStateStore
         string BaseReceivedAt,
         double BaseRemainingPercent,
         double BaseCostUsd,
-        double CostUsd);
+        double CostUsd,
+        double? WindowMinutes);
 }
