@@ -28,7 +28,7 @@ internal sealed record HubUsageOutput(string HubId, long Tokens, double? CostUsd
 
 internal sealed record ModelUsageOutput(string Tool, string Model, long Tokens, double? CostUsd);
 
-/// <summary>EstimatedLimitUsd は推定上限額。推定できない枠は null。</summary>
+/// <summary>EstimatedLimitUsd は推定上限額。推定できない枠は null。WindowMinutes は枠の長さ（分）で、Hubが送らない枠は null。</summary>
 internal sealed record OverviewLimitWindowOutput(
     string HubId,
     string Provider,
@@ -40,7 +40,8 @@ internal sealed record OverviewLimitWindowOutput(
     string? Label,
     double RemainingPercent,
     string? ResetsAt,
-    double? EstimatedLimitUsd);
+    double? EstimatedLimitUsd,
+    double? WindowMinutes);
 
 internal sealed record OverviewDeviceOutput(
     string HubId,

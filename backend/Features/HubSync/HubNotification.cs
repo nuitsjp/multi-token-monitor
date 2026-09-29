@@ -91,7 +91,8 @@ internal sealed record HubLimitWindow(
     double? UsedPercent,
     string? ResetsAt,
     string? LimitId = null,
-    string? Label = null);
+    string? Label = null,
+    double? WindowMinutes = null);
 
 internal sealed record HubHistoryPreview(HubHistorySummary Summary);
 

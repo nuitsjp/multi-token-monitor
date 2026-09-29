@@ -21,8 +21,10 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { watchOverview, type Overview } from '../api/overview.ts';
+import { LimitCircle } from '../components/LimitCircle.tsx';
 import { CostUsd, TokenCount } from '../components/SlotNumber.tsx';
-import { cost, full } from '../format.ts';
+import { full } from '../format.ts';
+import { buildAccounts } from '../limits.ts';
 export const Route = createFileRoute('/')({ component: Home });
 
 type Period = keyof Overview['periods'];
@@ -377,77 +379,124 @@ function ModelCard({ usage }: { usage: Usage }) {
   );
 }
 
-// Hubによってはラベルが空文字で届くため、空でないものだけを並べる。
-const labels = (row: Overview['limitWindows'][number]) =>
-  [row.accountLabel, row.planLabel].filter(Boolean).join(' · ');
+// 名前はデータの値をそのまま表示する。Hubによっては空文字で届くため、空でないものだけを並べる。
+const labels = (...values: (string | null)[]) => values.filter(Boolean).join(' · ');
 
-// 利用枠は選択したHubが報告したものだけを表示する。
+const tooltipStyles = {
+  tooltip: { background: '#111215', color: '#e4e5e9', border: '1px solid #3a3d48' },
+};
+
+const paceLegend = [
+  {
+    color: '#9085e9',
+    text: '≥0.8',
+    tip: '正常：残量が理想の80%以上。リセットまでの時間に対して、使うペースに問題はありません。',
+  },
+  {
+    color: '#fab219',
+    text: '≥0.5',
+    tip: '注意：残量が理想の50%以上80%未満。時間の割に、やや速く使っています。',
+  },
+  {
+    color: '#f0616d',
+    text: '<0.5',
+    tip: '危険：残量が理想の50%未満。このペースだと、リセットまでに使い切る恐れがあります。',
+  },
+];
+
+function PaceLegend() {
+  return (
+    <Group gap="sm" wrap="nowrap" aria-label="Pace legend">
+      <Tooltip
+        multiline
+        w={240}
+        withArrow
+        styles={tooltipStyles}
+        label="Pace（ペース）＝ 残量 ÷ 理想の残量。理想の残量は、リセットまでの残り時間の割合（残り時間 ÷ 枠の長さ）です。"
+      >
+        <Text size="xs" className="muted" fw={500}>
+          Pace
+        </Text>
+      </Tooltip>
+      {paceLegend.map((item) => (
+        <Tooltip
+          key={item.text}
+          multiline
+          w={240}
+          withArrow
+          styles={tooltipStyles}
+          label={item.tip}
+        >
+          <Group gap={5} wrap="nowrap">
+            <Box w={9} h={9} bg={item.color} style={{ borderRadius: '50%' }} />
+            <Text size="xs">{item.text}</Text>
+          </Group>
+        </Tooltip>
+      ))}
+    </Group>
+  );
+}
+
+// 利用枠は選択したHubが報告したものだけを表示する。表示中は1分ごとに残り時間とペースを再計算する。
 function LimitCard({ overview }: { overview: Overview }) {
   const [hubId, setHubId] = useState(overview.hubs[0]?.hubId ?? '');
-  const accounts = new Map<string, Overview['limitWindows']>();
-  for (const row of overview.limitWindows.filter((row) => row.hubId === hubId)) {
-    const key = `${row.provider}/${row.accountKey}`;
-    accounts.set(key, [...(accounts.get(key) ?? []), row]);
-  }
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const accounts = buildAccounts(overview.limitWindows.filter((row) => row.hubId === hubId));
   return (
     <Card
       title="Usage limits"
       control={
-        <SegmentedControl
-          aria-label="Hub"
-          color="violet"
-          size="xs"
-          data={overview.hubs.map((hub) => ({ value: hub.hubId, label: hub.name }))}
-          value={hubId}
-          onChange={setHubId}
-        />
+        <Group gap="md" wrap="nowrap">
+          <PaceLegend />
+          <SegmentedControl
+            aria-label="Hub"
+            color="violet"
+            size="xs"
+            data={overview.hubs.map((hub) => ({ value: hub.hubId, label: hub.name }))}
+            value={hubId}
+            onChange={setHubId}
+          />
+        </Group>
       }
     >
-      {accounts.size === 0 && (
+      {accounts.length === 0 && (
         <Text size="sm" className="muted">
           No limits
         </Text>
       )}
-      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
-        {[...accounts].map(([key, windows]) => {
-          const first = windows[0]!;
+      <div className="limit-accounts">
+        {accounts.map((account) => {
+          const multiple = new Set(account.circles.map((circle) => circle.group)).size > 1;
+          const heading = labels(account.provider, account.planLabel);
           return (
-            <div key={key} aria-label={`${first.provider} ${labels(first)}`}>
-              <Text fw={500}>{first.provider}</Text>
-              <Text size="xs" className="muted" mb="sm">
-                {labels(first) || '—'}
-              </Text>
-              <Group gap="md">
-                {windows.map((row) => (
-                  <Stack key={`${row.kind}/${row.limitKey}`} gap={2} align="center">
-                    <RingProgress
-                      size={84}
-                      thickness={8}
-                      roundCaps
-                      sections={[{ value: row.remainingPercent, color: accent }]}
-                      rootColor="#2c2e36"
-                      label={
-                        <Text ta="center" size="sm" fw={600}>
-                          {Math.round(row.remainingPercent)}%
-                        </Text>
-                      }
-                    />
-                    <Text size="xs">{row.label || row.kind}</Text>
-                    <Text size="xs" className="muted">
-                      {row.resetsAt === null ? '—' : `↻ ${time(row.resetsAt)}`}
-                    </Text>
-                    <Text size="xs" className="muted">
-                      {row.estimatedLimitUsd === null
-                        ? 'Limit: Estimating'
-                        : `Limit ≈ ${cost(row.estimatedLimitUsd)}`}
-                    </Text>
-                  </Stack>
+            <div
+              key={account.key}
+              aria-label={labels(account.provider, account.accountLabel, account.planLabel)}
+            >
+              {multiple && (
+                <Text size="sm" fw={500} mb={4}>
+                  {heading}
+                </Text>
+              )}
+              <div className="limit-circles">
+                {account.circles.map((circle) => (
+                  <LimitCircle
+                    key={circle.key}
+                    provider={account.provider}
+                    name={multiple ? labels(account.provider, circle.group) : heading}
+                    circle={circle}
+                    now={now}
+                  />
                 ))}
-              </Group>
+              </div>
             </div>
           );
         })}
-      </SimpleGrid>
+      </div>
     </Card>
   );
 }

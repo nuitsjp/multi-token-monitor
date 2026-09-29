@@ -57,6 +57,7 @@ internal static class OverviewQuery
                     w.label AS Label,
                     w.remaining_percent AS RemainingPercent,
                     w.resets_at AS ResetsAt,
+                    w.window_minutes AS WindowMinutes,
                     w.base_remaining_percent AS BaseRemainingPercent,
                     w.base_cost_usd AS BaseCostUsd,
                     w.cost_usd AS CostUsd
@@ -68,7 +69,7 @@ internal static class OverviewQuery
                 """))
                 .Select(row => new OverviewLimitWindowOutput(
                     row.HubId, row.Provider, row.AccountKey, row.AccountLabel, row.PlanLabel, row.Kind, row.LimitKey,
-                    row.Label, row.RemainingPercent, row.ResetsAt, EstimateLimit(row)))
+                    row.Label, row.RemainingPercent, row.ResetsAt, EstimateLimit(row), row.WindowMinutes))
                 .ToList();
 
             var devices = (await connection.QueryAsync<DeviceRow>(
@@ -157,6 +158,7 @@ internal static class OverviewQuery
         string? Label,
         double RemainingPercent,
         string? ResetsAt,
+        double? WindowMinutes,
         double BaseRemainingPercent,
         double BaseCostUsd,
         double CostUsd);

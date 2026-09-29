@@ -180,7 +180,8 @@
           "label",
           "remainingPercent",
           "resetsAt",
-          "estimatedLimitUsd"
+          "estimatedLimitUsd",
+          "windowMinutes"
         ],
         "type": "object",
         "properties": {
@@ -220,6 +221,11 @@
             "nullable": true
           },
           "estimatedLimitUsd": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "windowMinutes": {
             "type": "number",
             "format": "double",
             "nullable": true

@@ -75,7 +75,7 @@ public sealed class DatabaseTests
             // Assert
             // -------------------------------------------------------------
             await using var connection = await fixture.Database.OpenAsync();
-            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(2);
+            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(3);
             (await connection.ExecuteScalarAsync<string>("PRAGMA journal_mode")).ShouldBe("wal");
         }
 
@@ -182,7 +182,7 @@ public sealed class DatabaseTests
             // -------------------------------------------------------------
             // Assert
             // -------------------------------------------------------------
-            result.Version.ShouldBe(2);
+            result.Version.ShouldBe(3);
             result.IsHealthy.ShouldBeTrue();
         }
     }

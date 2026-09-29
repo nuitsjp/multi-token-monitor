@@ -32,6 +32,7 @@ export interface FakeLimitWindow {
   remainingPercent: number | null;
   resetsAt: string | null;
   showMeter: boolean;
+  windowMinutes?: number;
 }
 
 export interface FakeStats {

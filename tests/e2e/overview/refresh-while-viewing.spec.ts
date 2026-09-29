@@ -76,7 +76,7 @@ test('OVR-1 表示中に同期が保存を確定すると、選択を保った�
 
   // Act & Assert: 更新後に利用枠のHubを切り替えると、読み直した値を表示する。
   await limits.getByText('Alpha Hub', { exact: true }).click();
-  await expect(limits).toContainText('70%Session');
+  await expect(limits).toContainText('70% 5h');
   await expect(page.getByRole('radio', { name: 'Month' })).toBeChecked();
 });
 
