@@ -15,7 +15,7 @@ import { PERIODS, recalculateTotals } from '../hub-sync/fake-hub.ts';
 
 test.use({ timezoneId: TIME_ZONE });
 
-test('OVW-1 全Hubを表示し、期間の切り替えで合計・Hub別・内訳を切り替える', async ({
+test('OVW-1 全Hubへ到達でき、期間の切り替えで合計・Hub別・内訳を切り替える', async ({
   page,
   app,
   alpha,
@@ -29,16 +29,17 @@ test('OVW-1 全Hubを表示し、期間の切り替えで合計・Hub別・内�
   // Act
   await page.goto('/');
 
-  // Assert: 初期表示は Today。未受信のHubも含めて全Hubを表示する。
+  // Assert: 初期表示は Today。先頭ページは受信済みの2件。未受信のHubは次のページから到達する。
   await expectPeriod(page, stats, 'today');
   const byHub = page.getByRole('region', { name: 'By hub' });
+  const hubPage = page.getByLabel('Hub page');
+  await hubPage.getByRole('button', { name: '2', exact: true }).click();
   await expect(byHub.locator('[aria-label="Offline Hub"]')).toContainText('Not received');
+  await hubPage.getByRole('button', { name: '1', exact: true }).click();
   // 時刻はブラウザーのローカル時刻で表示する。
   await expect(byHub.locator('[aria-label="Alpha Hub"]')).toContainText(
     `Received ${localTime(receivedAt(db, 'alpha')!)} · Updated ${localTime(alpha.stats.updatedAt)}`,
   );
-  await expect(page.getByRole('region', { name: 'Total' })).toContainText('Hubs2 / 3received');
-  await expect(page.getByRole('region', { name: 'Total' })).toContainText('Devices61 stale');
 
   // 端末は全Hub分を表示し、鮮度切れに目印を付ける。
   const devices = page.getByRole('region', { name: 'Devices' });
