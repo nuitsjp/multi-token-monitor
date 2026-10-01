@@ -98,20 +98,51 @@ body {
   white-space: pre;
 }
 
-/* 利用枠: 契約ごとの円と、円の下の枠ごとの行（列幅は全契約で揃える） */
+/* 利用枠: 契約ごとのパネルを、固定幅の列（--cell）で折り返して並べる。列数はUsage limitsの幅に合わせて増減する（最大4列）。 */
 .limit-accounts {
+  --cell: 200px;
+  --gap: 12px;
   display: flex;
   flex-wrap: wrap;
-  gap: 20px 24px;
+  gap: var(--gap);
+  align-items: flex-start;
+  max-width: calc(4 * var(--cell) + 3 * var(--gap));
 }
+/* 契約ごとのパネル。円の数だけ列を使う（--n）。幅が足りなければ、パネルの中で円が折り返す */
+.limit-account {
+  flex: none;
+  width: min(100%, calc(var(--n) * var(--cell) + (var(--n) - 1) * var(--gap)));
+  background: #1f2126;
+  /* 枠線は幅に含めない（円の列幅の計算を単純にする） */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 10px 10px 10px;
+}
+/* 円の幅はパネルの余白（左右10px）を除いたセル幅。列間は余白と列間の和にして、1個のパネルとも円の位置を揃える */
 .limit-circles {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  column-gap: calc(var(--gap) + 20px);
+}
+.limit-heading {
+  min-width: 0;
+  padding-left: 2px;
+}
+.limit-heading svg,
+.limit-heading img {
+  flex: none;
+}
+/* 契約名（Pro・Team など）は、長いときだけ省略して見出しを1行に収める */
+.limit-plan {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .limit-circle {
+  width: calc(var(--cell) - 20px);
   position: relative;
-  padding-top: 16px;
+  padding-top: 17px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -149,9 +180,14 @@ body {
 
 .limit-monthly {
   position: absolute;
-  top: 0;
-  right: -6px;
+  top: 1px;
+  right: 0;
   font-size: 12px;
-  color: #b4b6bf;
+  color: #e4e5e9;
   cursor: help;
+}
+
+/* 全体の枠を持たない区画。右隣のカードのタイトルと見出しの高さを揃える */
+.section-bare {
+  padding-top: 20px;
 }

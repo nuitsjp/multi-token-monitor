@@ -96,17 +96,21 @@ export function buildAccounts(windows: LimitWindow[]): LimitAccount[] {
   });
 }
 
-const MONTH = 43200;
+const MONTH = 31 * DAY;
 
-// 円で最も長い枠の推定上限額を30日に換算する。約1か月の枠はそのまま。求められなければ null。
+// 推定上限額が求められている枠のうち最も長い枠を、31日に比例換算する。約1か月の枠はそのまま。該当する枠がなければ null。
 export function monthlyLimitUsd(windows: LimitWindow[]): number | null {
-  let widest: { usd: number | null; minutes: number } | undefined;
+  let widest: { usd: number; minutes: number } | undefined;
   for (const window of windows) {
     const minutes = lengthOf(window);
-    if (minutes !== null && (widest === undefined || minutes > widest.minutes))
+    if (
+      minutes !== null &&
+      window.estimatedLimitUsd !== null &&
+      (widest === undefined || minutes > widest.minutes)
+    )
       widest = { usd: window.estimatedLimitUsd, minutes };
   }
-  if (widest === undefined || widest.usd === null) return null;
+  if (widest === undefined) return null;
   return widest.minutes >= 28 * DAY && widest.minutes <= 31 * DAY
     ? widest.usd
     : (widest.usd / widest.minutes) * MONTH;
