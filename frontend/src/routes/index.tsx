@@ -104,7 +104,7 @@ function Card({
   children: ReactNode;
 }) {
   return (
-    <section className={bare ? undefined : 'card'} aria-label={title}>
+    <section className={bare ? 'section-bare' : 'card'} aria-label={title}>
       <Group justify="space-between" mb="md">
         <Title order={2} size="h5" fw={500}>
           {title}
@@ -443,7 +443,8 @@ function PaceLegend() {
 function ProviderIcon({ provider }: { provider: string }) {
   const icon = providerIcons[provider];
   const image = providerImages[provider];
-  if (image !== undefined) return <img src={image} width={16} height={16} alt="" />;
+  if (image !== undefined)
+    return <img src={image} width={20} height={20} alt="" style={{ borderRadius: 4 }} />;
   if (icon === undefined) return null;
   return (
     <svg width={16} height={16} viewBox="0 0 24 24" aria-hidden>

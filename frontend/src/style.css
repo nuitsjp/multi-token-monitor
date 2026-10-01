@@ -105,6 +105,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: var(--gap);
+  align-items: flex-start;
   max-width: calc(4 * var(--cell) + 3 * var(--gap));
 }
 /* 契約ごとのパネル。円の数だけ列を使う（--n）。幅が足りなければ、パネルの中で円が折り返す */
@@ -184,4 +185,9 @@ body {
   font-size: 12px;
   color: #e4e5e9;
   cursor: help;
+}
+
+/* 全体の枠を持たない区画。右隣のカードのタイトルと見出しの高さを揃える */
+.section-bare {
+  padding-top: 20px;
 }
