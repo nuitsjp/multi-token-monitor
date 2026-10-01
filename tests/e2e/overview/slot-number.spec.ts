@@ -33,10 +33,11 @@ async function recordSpins(page: Page) {
     Element.prototype.animate = function (keyframes, options) {
       const frames = keyframes as Keyframe[];
       if (this.classList.contains('slot-strip') && 'transform' in frames[0]!) {
-        const y = (frame: Keyframe) => Number(/-?[\d.]+/.exec(String(frame.transform))![0]);
+        const y = (frame: Keyframe) =>
+          (Number(/-?[\d.]+/.exec(String(frame.transform))![0]) * 30) / 100;
         spins.push({
           strip: this,
-          from: -y(frames[0]!) % 10,
+          from: Math.round(-y(frames[0]!)) % 10,
           up: y(frames.at(-1)!) < y(frames[0]!),
           duration: Number((options as KeyframeAnimationOptions).duration),
         });
@@ -104,6 +105,43 @@ function advance(stats: FakeStats): FakeStats {
 }
 
 const TOTAL = '[aria-label="Total"]';
+
+test('小さい数字も初回表示と期間切り替えの停止後に同じ縦位置へ揃う', async ({ page, app }) => {
+  await waitReceived(app.databasePath);
+  await page.goto('/');
+  await expect(page.locator(`${TOTAL} .slot`)).toHaveCount(2);
+  // 小さい文字で端数のある行高を再現する。
+  await page.addStyleTag({ content: '.slot { font-size: 14px; line-height: 1.55; }' });
+
+  for (const period of [null, periodLabels.month, periodLabels.today]) {
+    if (period !== null) {
+      const tokens = page.locator(`${TOTAL} .slot-text`).first();
+      const before = await tokens.textContent();
+      await page.getByText(period, { exact: true }).click();
+      await expect(tokens).not.toHaveText(before!);
+    }
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('.slot-strip')].every(
+        (strip) => strip.getAnimations().length === 0,
+      ),
+    );
+    const offsets = await page.locator('.slot').evaluateAll((slots) =>
+      slots.flatMap((slot) => {
+        const digits = [...slot.querySelector('.slot-text')!.textContent!].filter((char) =>
+          /\d/.test(char),
+        );
+        return [...slot.querySelectorAll('.slot-strip')].map((strip, index) => {
+          const track = strip.getBoundingClientRect();
+          const reel = strip.parentElement!.getBoundingClientRect();
+          // 30行のうち、表示する数字の行頭と表示窓の上端を比較する。
+          return Math.abs(track.top + (Number(digits[index]) * track.height) / 30 - reel.top);
+        });
+      }),
+    );
+    expect(offsets.length).toBeGreaterThan(0);
+    expect(Math.max(...offsets)).toBeLessThan(0.01);
+  }
+});
 
 test('OVW-5 画面を開くと、トークン数と推定コストの全桁が0から回って左の桁から順に止まる', async ({
   page,
