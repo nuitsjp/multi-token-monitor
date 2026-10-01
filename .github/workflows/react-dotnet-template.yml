@@ -1,5 +1,6 @@
 name: React .NET project
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches: [main]
@@ -43,6 +44,19 @@ jobs:
         run: mise run setup:browser
       - name: Verify product project
         run: mise run verify
+      - name: Package verified Linux distribution
+        if: runner.os == 'Linux'
+        env:
+          RELEASE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: bash scripts/package-linux.sh
+      - name: Upload verified Linux distribution
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: token-monitor-analytics-linux-x64
+          path: dist/package/*
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload failed-test diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

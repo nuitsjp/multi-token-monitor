@@ -1,0 +1,43 @@
+name: Publish release
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate stable version tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: '[[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]'
+  verify:
+    needs: validate
+    uses: ./.github/workflows/react-dotnet-template.yml
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: token-monitor-analytics-linux-x64
+          path: dist/package
+      - name: Publish verified distribution and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd dist/package
+          sha256sum --check token-monitor-analytics-linux-x64.tar.gz.sha256
+          gh release create "$RELEASE_TAG" \
+            token-monitor-analytics-linux-x64.tar.gz \
+            token-monitor-analytics-linux-x64.tar.gz.sha256 \
+            --verify-tag --generate-notes --draft
+          gh release edit "$RELEASE_TAG" --draft=false

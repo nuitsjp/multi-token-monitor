@@ -13,7 +13,7 @@
 
 ## 2. 制約・品質要求・受け入れ条件
 
-- Windows上で、ループバックアドレス（127.0.0.1）だけで待ち受けます。単一の利用者が使い、利用者向けの認証は設けません。
+- WindowsまたはUbuntu 24.04上で、アプリケーションはループバックアドレス（127.0.0.1）だけで待ち受けます。単一の利用者が使い、利用者向けの認証は設けません。UbuntuでのLAN・TailscaleへのHTTP公開はManageMediaServerのnginxとホスト側ファイアウォールで行います。
 - Hubの接続情報（URL・認証トークン）はGit管理外の設定ファイルに置きます。DB、ログ、閲覧用のAPIと画面には含めません。アプリケーションは設定ファイルを更新しません。
 - Hubごとに保存するのは最新状態だけです。受信履歴は保存しません。
 - あるHubで障害が起きても、他のHubの受信とWebサーバーは止めません。
@@ -55,6 +55,13 @@
 | 停止 | 起動したターミナルで Ctrl+C | 開発起動ではViteと.NETの両方が停止します |
 | 全体検証 | `mise run verify` | API契約の一致、型検査、Lint、整形、文書検査、.NETとフロントエンドの単体テスト、開発構成と配布構成のE2Eがすべて合格します。環境変数 `E2E_MODES`（`dev`、`hosted`、またはカンマ区切り。既定は両方）でE2Eの構成を絞れます。CIはLinuxで両方、Windowsで `hosted` だけを実行します |
 | 文書検査 | `python scripts/doc_check.py .` | NGが0件です |
+| Linux配布物の作成 | `bash scripts/package-linux.sh`（Linux x64で全体検証後） | `dist/package/` に画面を同梱した配布物とSHA-256を作成します。版とコミットを配布物に含めます。CIではUbuntuの全体検証に合格した場合だけ同じ成果物をアップロードします |
+| 正式版の自動採番と発行 | `mise run release` | コミット済みのHEADへ `vX.Y.Z` の注釈付きタグを付け、originへpushします。取得した正式版タグと `package.json` の大きい版を基準に、パッチ番号を1つ増やします |
+| 指定した版の発行 | `mise run release 0.2.0`（`v0.2.0` も可） | 指定版のタグをpushします。未コミットの変更、既存タグ、現在の版より古い指定は拒否します |
+
+正式版タグのpushで発行ワークフローが起動し、Linux・Windowsの全体検証に合格してからLinux配布物とSHA-256をGitHub Releaseへ添付します。配布物の版はタグの値を使います。添付が完了するまではdraftにし、完了後に公開します。`package.json` の版は書き換えません。タグのpushが失敗した場合はローカルタグを保持し、表示したpushコマンドで再試行します。
+
+Ubuntuホストでの直接配置、LAN・TailscaleへのHTTP公開、systemdによる起動、手動・日次更新は [ManageMediaServer](https://github.com/nuitsjp/ManageMediaServer) で管理します。アプリ本体はループバックで起動し、公開側のnginxで到達元とHostを制限して中継します。ホスト上ではビルドせず、検証済みのLinux配布物を使います。
 
 Hub同期のE2E（`tests/e2e/hub-sync/`）は、テストごとにBearerトークンを検証する偽Hubを立て、接続設定のURLをそこへ向けて本番の受信・保存処理を通し、別の読み取り専用接続から保存値を照合します。
 freshnessは、時刻と古さだけが変わることと `hub.freshness` の本文を照合し、保存済みの受信データを適用できない内容に書き換えても保存できることで、保存済みの状態を読まないことを確かめます。
