@@ -13,7 +13,8 @@ internal sealed class HubReceivers(
     IReadOnlyList<HubConnection> hubs,
     Database database,
     ChangeNotifications notifications,
-    ILogger<HubReceivers> logger) : BackgroundService
+    ILogger<HubReceivers> logger,
+    double retryTimeScale = 1) : BackgroundService
 {
     private readonly HttpClient client = new(new SocketsHttpHandler { AllowAutoRedirect = false })
     {
@@ -87,7 +88,8 @@ internal sealed class HubReceivers(
 
             try
             {
-                await Task.Delay(delay, stoppingToken);
+                // ログには本来の待ち時間を出力し、実際の待機だけを倍率で縮める。
+                await Task.Delay(delay * retryTimeScale, stoppingToken);
             }
             catch (OperationCanceledException)
             {

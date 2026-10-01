@@ -53,7 +53,7 @@
 | 開発起動 | `mise run dev` | `http://127.0.0.1:5173/` でVite（HMR）の画面を開けます。.NETは `.env` の `HOST`・`PORT`（既定 `127.0.0.1:3000`）で起動します |
 | 配布物のビルドと起動 | `mise run start` | 起動のたびに `mise run build` で `dist/server` に配布物を作り直してから、`http://127.0.0.1:3000/`（`.env` の `HOST`・`PORT`）で画面とAPIを同じポートから配信します |
 | 停止 | 起動したターミナルで Ctrl+C | 開発起動ではViteと.NETの両方が停止します |
-| 全体検証 | `mise run verify` | API契約の一致、型検査、Lint、整形、文書検査、.NETとフロントエンドの単体テスト、開発構成と配布構成のE2Eがすべて合格します |
+| 全体検証 | `mise run verify` | API契約の一致、型検査、Lint、整形、文書検査、.NETとフロントエンドの単体テスト、開発構成と配布構成のE2Eがすべて合格します。環境変数 `E2E_MODES`（`dev`、`hosted`、またはカンマ区切り。既定は両方）でE2Eの構成を絞れます。CIはLinuxで両方、Windowsで `hosted` だけを実行します |
 | 文書検査 | `python scripts/doc_check.py .` | NGが0件です |
 
 Hub同期のE2E（`tests/e2e/hub-sync/`）は、テストごとにBearerトークンを検証する偽Hubを立て、接続設定のURLをそこへ向けて本番の受信・保存処理を通し、別の読み取り専用接続から保存値を照合します。
@@ -72,7 +72,7 @@ freshnessは、時刻と古さだけが変わることと `hub.freshness` の本
 
 設定は `mise run setup` が作る `.env` に置きます。`HOST` は `127.0.0.1` または `::1` だけを受け付けます。DBは `DB_PATH`（既定 `./data/app.sqlite`）のSQLiteファイルで、起動時に作成・移行します。
 
-Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（Git管理外）へ複製し、各Hubの `id`・`name`・`url`（`http(s)://ホスト[:ポート]` の形式）・`token` を記入して作ります。`.env` の `HUB_CONFIG_PATH`（`.env.example` では `./data/hubs.local.json`）がこのファイルを指します。設定が不正な場合は起動せず、理由を標準エラーに出力して終了します。設定から外したHubは、起動時に保存済みの状態ごと削除し、そのHub IDをログに出力します。起動後はHubごとに受信を開始し、保存と受信停止をHub IDと原因の分類だけでログに出力します。受信が止まったHubへは、待ち時間を1秒から倍にしながら（上限60秒）再接続を続けます。
+Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（Git管理外）へ複製し、各Hubの `id`・`name`・`url`（`http(s)://ホスト[:ポート]` の形式）・`token` を記入して作ります。`.env` の `HUB_CONFIG_PATH`（`.env.example` では `./data/hubs.local.json`）がこのファイルを指します。設定が不正な場合は起動せず、理由を標準エラーに出力して終了します。設定から外したHubは、起動時に保存済みの状態ごと削除し、そのHub IDをログに出力します。起動後はHubごとに受信を開始し、保存と受信停止をHub IDと原因の分類だけでログに出力します。受信が止まったHubへは、待ち時間を1秒から倍にしながら（上限60秒）再接続を続けます。環境変数 `HUB_RETRY_TIME_SCALE`（0より大きく1以下、既定1）は、実際の待機だけに倍率をかけます。ログの待ち時間は変わりません。E2Eが待ち時間を縮めるための設定で、通常は指定しません。
 
 閲覧画面は `http://127.0.0.1:5173/`（開発起動）または `http://127.0.0.1:3000/`（配布物）で開き、閲覧用API `GET /api/overview` から保存済みの状態を読みます。APIはHostヘッダーが `localhost`・`127.0.0.1`・`[::1]` 以外の要求を400で拒否します。
 

@@ -54,11 +54,14 @@ export const test = base.extend<{
   app: IsolatedApp;
   serveFrontend: boolean;
   hubs: HubConfigEntry[];
+  /** Hub再接続の待ち時間にかける倍率。再接続の待機を検証するテストだけ縮める。 */
+  retryTimeScale: number;
 }>({
   serveFrontend: [true, { option: true }],
+  retryTimeScale: [1, { option: true }],
   // 利用者のHub接続設定を読まないよう、既定では接続先のない専用設定を渡す。
   hubs: [[{ id: 'e2e', name: 'E2E', url: 'http://127.0.0.1:9', token: 'e2e' }], { option: true }],
-  app: async ({ serveFrontend, hubs }, use, testInfo) => {
+  app: async ({ serveFrontend, hubs, retryTimeScale }, use, testInfo) => {
     // worker番号だけでなくmkdtempで分けるので、再試行・shard・複数コマンド同時実行でも衝突しない。
     const directory = await mkdtemp(join(tmpdir(), `aidd-e2e-${mode}-w${testInfo.workerIndex}-`));
     const databasePath = join(directory, 'app.sqlite');
@@ -155,6 +158,7 @@ export const test = base.extend<{
           PORT: '0',
           DB_PATH: databasePath,
           HUB_CONFIG_PATH: hubConfigPath,
+          HUB_RETRY_TIME_SCALE: String(retryTimeScale),
           AIDD_CONTROL_STDIN: '1',
           Logging__LogLevel__Default: 'Warning',
         },

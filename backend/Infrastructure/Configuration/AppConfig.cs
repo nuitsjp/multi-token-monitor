@@ -7,7 +7,8 @@ internal sealed record AppConfig(
     int Port,
     string DatabasePath,
     string WebRootPath,
-    string? HubConfigPath)
+    string? HubConfigPath,
+    double RetryTimeScale = 1)
 {
     internal static AppConfig FromEnvironment() => FromValues(Environment.GetEnvironmentVariable);
 
@@ -33,7 +34,16 @@ internal sealed record AppConfig(
         }
 
         var hubConfigPath = value("HUB_CONFIG_PATH") is { } path ? Path.GetFullPath(path) : null;
-        return new AppConfig(host, port, databasePath, webRoot, hubConfigPath);
+        // Hub再接続の待ち時間にかける倍率。E2Eが待ち時間を縮めるための設定で、通常は指定しない。
+        var retryTimeScale = 1.0;
+        if (value("HUB_RETRY_TIME_SCALE") is { } scale &&
+            (!double.TryParse(scale, System.Globalization.CultureInfo.InvariantCulture, out retryTimeScale) ||
+             retryTimeScale is <= 0 or > 1))
+        {
+            throw new InvalidOperationException("HUB_RETRY_TIME_SCALEは0より大きく1以下で指定してください。");
+        }
+
+        return new AppConfig(host, port, databasePath, webRoot, hubConfigPath, retryTimeScale);
     }
 
     internal static string DatabasePathFromEnvironment() =>

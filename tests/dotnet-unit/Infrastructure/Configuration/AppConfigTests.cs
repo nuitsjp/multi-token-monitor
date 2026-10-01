@@ -110,6 +110,50 @@ public sealed class AppConfigTests
         }
 
         [Theory]
+        [InlineData("1", 1.0)]
+        [InlineData("0.1", 0.1)]
+        public void RetryTimeScale_IsMapped(string scale, double expected)
+        {
+            // -------------------------------------------------------------
+            // Arrange
+            // -------------------------------------------------------------
+            var values = AppConfigTests.Values(("HUB_RETRY_TIME_SCALE", scale));
+
+            // -------------------------------------------------------------
+            // Act
+            // -------------------------------------------------------------
+            var result = AppConfig.FromValues(values);
+
+            // -------------------------------------------------------------
+            // Assert
+            // -------------------------------------------------------------
+            result.RetryTimeScale.ShouldBe(expected);
+        }
+
+        [Theory]
+        [InlineData("0")]
+        [InlineData("-1")]
+        [InlineData("1.5")]
+        [InlineData("fast")]
+        public void InvalidRetryTimeScale_ThrowsInvalidOperationException(string scale)
+        {
+            // -------------------------------------------------------------
+            // Arrange
+            // -------------------------------------------------------------
+            var values = AppConfigTests.Values(("HUB_RETRY_TIME_SCALE", scale));
+
+            // -------------------------------------------------------------
+            // Act
+            // -------------------------------------------------------------
+            var error = Record.Exception(() => AppConfig.FromValues(values));
+
+            // -------------------------------------------------------------
+            // Assert
+            // -------------------------------------------------------------
+            error.ShouldBeOfType<InvalidOperationException>().Message.ShouldContain("HUB_RETRY_TIME_SCALE");
+        }
+
+        [Theory]
         [InlineData("0.0.0.0")]
         [InlineData("localhost")]
         public void NonLoopbackHost_ThrowsInvalidOperationException(string host)
