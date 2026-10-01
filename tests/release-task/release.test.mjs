@@ -13,11 +13,15 @@ test('mise forwards the optional version and supports automatic numbering', (t) 
   mkdirSync(join(repository, 'scripts'));
   copyFileSync(source, join(repository, 'scripts/release.mjs'));
   const task = readFileSync(new URL('../../mise.toml', import.meta.url), 'utf8')
-    .split('[tasks.release]')[1].split('\n[tasks.')[0];
+    .split('[tasks.release]')[1]
+    .split('\n[tasks.')[0];
   writeFileSync(join(repository, 'mise.toml'), `[tasks.release]${task}`);
   git('add', '.');
   git('commit', '-m', 'Mise task');
-  for (const [args, tag] of [[['0.3.0'], 'v0.3.0'], [[], 'v0.3.1']]) {
+  for (const [args, tag] of [
+    [['0.3.0'], 'v0.3.0'],
+    [[], 'v0.3.1'],
+  ]) {
     const result = spawnSync('mise', ['run', 'release', ...args], {
       cwd: repository,
       env: { ...process.env, MISE_TRUSTED_CONFIG_PATHS: repository },
@@ -59,7 +63,11 @@ function fixture(t) {
 
 test('automatic patch versions and explicit versions publish annotated tags at HEAD', (t) => {
   const { git, release } = fixture(t);
-  for (const [args, tag] of [[[], 'v0.1.1'], [['0.2.0'], 'v0.2.0'], [[], 'v0.2.1']]) {
+  for (const [args, tag] of [
+    [[], 'v0.1.1'],
+    [['0.2.0'], 'v0.2.0'],
+    [[], 'v0.2.1'],
+  ]) {
     const result = release(...args);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(git('cat-file', '-t', tag), 'tag');
@@ -83,7 +91,14 @@ test('invalid, duplicate and older versions do not publish extra tags', (t) => {
   const { git, release } = fixture(t);
   assert.equal(release('v0.1.0').status, 0);
   const before = git('ls-remote', '--tags', 'origin');
-  for (const args of [['v0.1.0'], ['0.0.9'], ['01.2.3'], ['0.1.1-rc.1'], ['--force'], ['1.2.3', 'extra']]) {
+  for (const args of [
+    ['v0.1.0'],
+    ['0.0.9'],
+    ['01.2.3'],
+    ['0.1.1-rc.1'],
+    ['--force'],
+    ['1.2.3', 'extra'],
+  ]) {
     assert.notEqual(release(...args).status, 0);
     assert.equal(git('ls-remote', '--tags', 'origin'), before);
   }
@@ -107,28 +122,42 @@ test('a rejected push preserves the local tag and reports how to retry', (t) => 
   assert.equal(git('ls-remote', '--tags', 'origin'), '');
 });
 
-test('Linux package uses the release tag and rejects a tag pointing elsewhere', { skip: process.platform !== 'linux' }, (t) => {
-  const { repository, git } = fixture(t);
-  git('tag', 'v0.1.0');
-  mkdirSync(join(repository, 'scripts'));
-  copyFileSync(new URL('../../scripts/package-linux.sh', import.meta.url), join(repository, 'scripts/package-linux.sh'));
-  writeFileSync(join(repository, 'LICENSE'), 'Test license');
-  git('add', '.');
-  git('commit', '-m', 'Packaging');
-  git('tag', 'v0.2.0');
-  mkdirSync(join(repository, 'dist/server/wwwroot'), { recursive: true });
-  writeFileSync(join(repository, 'dist/server/MultiTokenMonitor.dll'), 'Fixture');
-  writeFileSync(join(repository, 'dist/server/wwwroot/index.html'), '<html></html>');
-  const pack = (version) => spawnSync('bash', ['scripts/package-linux.sh'], {
-    cwd: repository, env: { ...process.env, RELEASE_VERSION: version }, encoding: 'utf8',
-  });
-  const result = pack('v0.2.0');
-  assert.equal(result.status, 0, result.stderr);
-  const archive = join(repository, 'dist/package/token-monitor-analytics-linux-x64.tar.gz');
-  const manifest = spawnSync('tar', ['-xOf', archive, './release.json'], { encoding: 'utf8' });
-  assert.equal(manifest.status, 0, manifest.stderr);
-  assert.deepEqual(JSON.parse(manifest.stdout), { version: 'v0.2.0', revision: git('rev-parse', 'HEAD'), platform: 'linux-x64' });
-  const checksum = readFileSync(`${archive}.sha256`, 'utf8').split(' ')[0];
-  assert.equal(checksum, createHash('sha256').update(readFileSync(archive)).digest('hex'));
-  assert.notEqual(pack('v0.1.0').status, 0);
-});
+test(
+  'Linux package uses the release tag and rejects a tag pointing elsewhere',
+  { skip: process.platform !== 'linux' },
+  (t) => {
+    const { repository, git } = fixture(t);
+    git('tag', 'v0.1.0');
+    mkdirSync(join(repository, 'scripts'));
+    copyFileSync(
+      new URL('../../scripts/package-linux.sh', import.meta.url),
+      join(repository, 'scripts/package-linux.sh'),
+    );
+    writeFileSync(join(repository, 'LICENSE'), 'Test license');
+    git('add', '.');
+    git('commit', '-m', 'Packaging');
+    git('tag', 'v0.2.0');
+    mkdirSync(join(repository, 'dist/server/wwwroot'), { recursive: true });
+    writeFileSync(join(repository, 'dist/server/MultiTokenMonitor.dll'), 'Fixture');
+    writeFileSync(join(repository, 'dist/server/wwwroot/index.html'), '<html></html>');
+    const pack = (version) =>
+      spawnSync('bash', ['scripts/package-linux.sh'], {
+        cwd: repository,
+        env: { ...process.env, RELEASE_VERSION: version },
+        encoding: 'utf8',
+      });
+    const result = pack('v0.2.0');
+    assert.equal(result.status, 0, result.stderr);
+    const archive = join(repository, 'dist/package/token-monitor-analytics-linux-x64.tar.gz');
+    const manifest = spawnSync('tar', ['-xOf', archive, './release.json'], { encoding: 'utf8' });
+    assert.equal(manifest.status, 0, manifest.stderr);
+    assert.deepEqual(JSON.parse(manifest.stdout), {
+      version: 'v0.2.0',
+      revision: git('rev-parse', 'HEAD'),
+      platform: 'linux-x64',
+    });
+    const checksum = readFileSync(`${archive}.sha256`, 'utf8').split(' ')[0];
+    assert.equal(checksum, createHash('sha256').update(readFileSync(archive)).digest('hex'));
+    assert.notEqual(pack('v0.1.0').status, 0);
+  },
+);
