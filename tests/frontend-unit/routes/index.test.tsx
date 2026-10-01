@@ -3,9 +3,9 @@ import { it, expect } from 'vitest';
 import { MantineProvider } from '@mantine/core';
 import { Home } from '../../../frontend/src/routes/index.tsx';
 
-it('トップページに製品名の見出しを表示する', () => {
+it('トップページにHomeの見出しを表示する', () => {
   // Arrange
-  const name = 'Token Monitor Analytics';
+  const name = 'Home';
 
   // Act
   render(
