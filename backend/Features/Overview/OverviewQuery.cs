@@ -121,12 +121,12 @@ internal static class OverviewQuery
                 .ToList());
     }
 
-    // 2つの計測点の使用率の差が5ポイント未満か、推定コストが増えていなければ推定しない。
+    // 2つの計測点の使用率の差が1ポイント未満か、推定コストが増えていなければ推定しない。
     private static double? EstimateLimit(LimitWindowRow row)
     {
         var usedPercent = row.BaseRemainingPercent - row.RemainingPercent;
         var costUsd = row.CostUsd - row.BaseCostUsd;
-        return usedPercent >= 5 && costUsd > 0 ? costUsd / usedPercent * 100 : null;
+        return usedPercent >= 1 && costUsd > 0 ? costUsd / usedPercent * 100 : null;
     }
 
     // 推定コストの無い実績は合計に含めない。1件も無ければ null。
