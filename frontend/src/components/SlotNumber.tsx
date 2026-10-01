@@ -2,7 +2,8 @@ import { useLayoutEffect, useRef } from 'react';
 import { cost, full } from '../format.ts';
 
 const isDigit = (char: string | undefined) => char !== undefined && char >= '0' && char <= '9';
-const cell = (index: number) => `translateY(${-index}lh)`;
+// 改行の行高はブラウザーが丸めるため、30行の実際の高さから移動量を求める。
+const cell = (index: number) => `translateY(${(-index * 100) / 30}%)`;
 
 // 整形済みの文字列を表示し、変わった数字の桁だけを1周以上回して左の桁から順に止める。
 // 見た目の文字は擬似要素で描き、DOMのテキストには値を1回だけ置く（読み上げと textContent 用）。
