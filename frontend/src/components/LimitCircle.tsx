@@ -9,7 +9,6 @@ import {
   type LimitWindow,
   type Pace,
 } from '../limits.ts';
-import { providerIcons, providerImages } from './providerIcons.ts';
 
 const track = '#2c2e36';
 const paceColors: Record<Pace, string> = {
@@ -58,19 +57,17 @@ const clock = (
 const windowKey = (window: LimitWindow) => `${window.kind}/${window.limitKey}`;
 
 export function LimitCircle({
-  provider,
   name,
+  label,
   circle,
   now,
 }: {
-  provider: string;
   name: string;
+  label: string;
   circle: Circle;
   now: number;
 }) {
   const [outer, inner] = circle.windows;
-  const icon = providerIcons[provider];
-  const image = providerImages[provider];
   const monthly = monthlyLimitUsd(circle.windows);
   const line = (window: LimitWindow, y: number) => (
     <text
@@ -78,12 +75,12 @@ export function LimitCircle({
       x={100}
       y={y}
       textAnchor="middle"
-      fontSize={19}
+      fontSize={25}
       fontWeight={600}
       fill="#e4e5e9"
     >
       {Math.round(window.remainingPercent)}%{' '}
-      <tspan fontSize={14} fontWeight={500} fill="#8b8e99">
+      <tspan fontSize={16} fontWeight={500} fill="#8b8e99">
         {windowLabel(window)}
       </tspan>
     </text>
@@ -103,7 +100,7 @@ export function LimitCircle({
           <span className="limit-monthly">{costWhole(monthly)}/mo</span>
         </Tooltip>
       )}
-      <svg viewBox="0 2 200 174" width={176} height={153} role="img" aria-label={name}>
+      <svg viewBox="0 2 200 180" width={176} height={158} role="img" aria-label={name}>
         {circle.windows.map((window, index) => (
           <Arc
             key={windowKey(window)}
@@ -112,24 +109,18 @@ export function LimitCircle({
             color={paceColors[paceOf(window, now)]}
           />
         ))}
-        {image !== undefined && <image x={87} y={49} width={26} height={26} href={image} />}
-        {icon !== undefined && (
-          <svg x={90} y={52} width={20} height={20} viewBox="0 0 24 24">
-            <path fill="#b4b6bf" d={icon} />
-          </svg>
-        )}
         <text
           x={100}
-          y={96}
+          y={inner === undefined ? 178 : 174}
           textAnchor="middle"
-          fontSize={name.length > 18 ? 11 : 16}
+          fontSize={14}
           fontWeight={500}
           fill="#e4e5e9"
         >
-          {name}
+          {label}
         </text>
-        {outer !== undefined && line(outer, inner === undefined ? 134 : 123)}
-        {inner !== undefined && line(inner, 148)}
+        {outer !== undefined && line(outer, inner === undefined ? 108 : 92)}
+        {inner !== undefined && line(inner, 123)}
       </svg>
       <div className="limit-rows">
         {circle.windows.map((window) => (

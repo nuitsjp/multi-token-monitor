@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import {
   Alert,
@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { watchOverview, type Overview } from '../api/overview.ts';
 import { LimitCircle } from '../components/LimitCircle.tsx';
+import { providerIcons, providerImages } from '../components/providerIcons.ts';
 import { CostUsd, TokenCount } from '../components/SlotNumber.tsx';
 import { full } from '../format.ts';
 import { buildAccounts } from '../limits.ts';
@@ -154,10 +155,10 @@ function Dashboard({ overview, period }: { overview: Overview; period: Period })
         <Grid.Col span={{ base: 12, md: 7 }}>
           <ModelCard usage={usage} />
         </Grid.Col>
-        <Grid.Col span={{ base: 12, md: 7 }}>
+        <Grid.Col span={{ base: 12, md: 8 }}>
           <LimitCard overview={overview} />
         </Grid.Col>
-        <Grid.Col span={{ base: 12, md: 5 }}>
+        <Grid.Col span={{ base: 12, md: 4 }}>
           <DeviceCard overview={overview} />
         </Grid.Col>
       </Grid>
@@ -437,6 +438,18 @@ function PaceLegend() {
   );
 }
 
+function ProviderIcon({ provider }: { provider: string }) {
+  const icon = providerIcons[provider];
+  const image = providerImages[provider];
+  if (image !== undefined) return <img src={image} width={16} height={16} alt="" />;
+  if (icon === undefined) return null;
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" aria-hidden>
+      <path fill="#b4b6bf" d={icon} />
+    </svg>
+  );
+}
+
 // 利用枠は選択したHubが報告したものだけを表示する。表示中は1分ごとに残り時間とペースを再計算する。
 function LimitCard({ overview }: { overview: Overview }) {
   const [hubId, setHubId] = useState(overview.hubs[0]?.hubId ?? '');
@@ -475,19 +488,25 @@ function LimitCard({ overview }: { overview: Overview }) {
           return (
             <div
               key={account.key}
+              className="limit-account"
+              style={{ '--n': Math.min(account.circles.length, 4) } as CSSProperties}
               aria-label={labels(account.provider, account.accountLabel, account.planLabel)}
             >
-              {multiple && (
-                <Text size="sm" fw={500} mb={4}>
+              <Group gap={6} wrap="nowrap">
+                <ProviderIcon provider={account.provider} />
+                <Text size="sm" fw={500}>
                   {heading}
                 </Text>
-              )}
-              <div className="limit-circles">
+              </Group>
+              <div
+                className="limit-circles"
+                style={{ '--n': Math.min(account.circles.length, 4) } as CSSProperties}
+              >
                 {account.circles.map((circle) => (
                   <LimitCircle
                     key={circle.key}
-                    provider={account.provider}
                     name={multiple ? labels(account.provider, circle.group) : heading}
+                    label={multiple ? circle.group : ''}
                     circle={circle}
                     now={now}
                   />
