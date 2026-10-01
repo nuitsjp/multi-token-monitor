@@ -35,7 +35,7 @@ test('OVC-1 画面を開いた時点で再接続中のHubだけに目印を付�
   page,
   app,
 }) => {
-  // Arrange: Offline Hubは接続できず、状態を受信しないまま再接続中になる。
+  // Arrange: Offline Hubは接続を拒否され、状態を受信しないまま再接続中になる。
   const db = app.databasePath;
   await waitReceived(db);
 
