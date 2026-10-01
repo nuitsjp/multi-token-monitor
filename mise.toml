@@ -59,6 +59,11 @@ run = "node scripts/verify.mjs"
 description = "全検証後にrelease/appへ配布物を配置する"
 run = ["node scripts/verify.mjs", "node scripts/package.mjs"]
 
+[tasks.release]
+description = "指定版または次のパッチ版のGitタグをpushし、GitHub Releaseを発行する"
+usage = 'arg "[version]" help="正式版のバージョン（例: 0.2.0）。省略時はパッチ番号を増やす"'
+run = "node scripts/release.mjs"
+
 [tasks."db:backup"]
 description = "指定パスへSQLiteをバックアップする"
 run = "node --env-file-if-exists=.env scripts/db.mjs backup"

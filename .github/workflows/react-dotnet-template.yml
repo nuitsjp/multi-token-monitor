@@ -1,5 +1,6 @@
 name: React .NET project
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches: [main]
@@ -31,6 +32,8 @@ jobs:
         run: mise run verify
       - name: Package verified Linux distribution
         if: runner.os == 'Linux'
+        env:
+          RELEASE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: bash scripts/package-linux.sh
       - name: Upload verified Linux distribution
         if: runner.os == 'Linux'

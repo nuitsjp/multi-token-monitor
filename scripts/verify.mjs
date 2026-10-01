@@ -1,4 +1,5 @@
 import { npm, run } from './lib.mjs';
+await run(process.execPath, ['--test', 'tests/release/release.test.mjs']);
 await npm('run', 'contracts:check');
 await npm('run', 'typecheck');
 await npm('run', 'lint');

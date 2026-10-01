@@ -6,10 +6,18 @@ cd "$(dirname "$0")/.."
 mkdir -p dist/package
 cp LICENSE dist/server/LICENSE
 python3 - <<'PY'
-import json, pathlib, subprocess
+import json, os, pathlib, re, subprocess
 root = pathlib.Path('.')
+version = os.environ.get('RELEASE_VERSION') or 'v' + json.loads((root / 'package.json').read_text())['version']
+if not re.fullmatch(r'v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version):
+    raise ValueError('Invalid release version')
+if os.environ.get('RELEASE_VERSION'):
+    tagged_revision = subprocess.check_output(['git', 'rev-parse', f'refs/tags/{version}^{{commit}}'], text=True).strip()
+    revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+    if tagged_revision != revision:
+        raise ValueError('Release tag does not point to HEAD')
 manifest = {
-    'version': 'v' + json.loads((root / 'package.json').read_text())['version'],
+    'version': version,
     'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
     'platform': 'linux-x64',
 }
