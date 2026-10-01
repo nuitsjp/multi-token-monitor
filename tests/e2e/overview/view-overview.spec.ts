@@ -141,6 +141,7 @@ test('OVW-4 閲覧はURLと認証トークンを含まず、保存済みの状�
   app,
   alpha,
   beta,
+  refusing,
 }) => {
   // Arrange
   const db = app.databasePath;
@@ -161,7 +162,8 @@ test('OVW-4 閲覧はURLと認証トークンを含まず、保存済みの状�
     beta.url,
     new URL(alpha.url).host,
     new URL(beta.url).host,
-    '127.0.0.1:9',
+    refusing.url,
+    new URL(refusing.url).host,
     alpha.token,
     beta.token,
     'offline-token',

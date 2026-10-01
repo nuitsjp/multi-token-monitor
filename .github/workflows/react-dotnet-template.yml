@@ -11,18 +11,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          # 開発構成（Vite）のE2EはOSによる差が小さいため、Linuxだけで実行する。
+          - os: ubuntu-latest
+            e2e-modes: dev,hosted
+          - os: windows-latest
+            e2e-modes: hosted
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     env:
       CI: 'true'
       E2E_WORKERS: '4'
+      E2E_MODES: ${{ matrix.e2e-modes }}
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v4
         with:
           version: '2026.9.5'
       - run: mise trust
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/AppData/Local/npm-cache
+            ~/.nuget/packages
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json', '**/packages.lock.json') }}
+          restore-keys: deps-${{ runner.os }}-
       - name: Install dependencies and generate routes
         run: mise run setup
       - name: Install Chromium and platform dependencies

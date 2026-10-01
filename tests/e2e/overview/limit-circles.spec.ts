@@ -171,13 +171,19 @@ test.describe('残り時間とペース', () => {
       {
         provider: 'claude',
         accountKey: 'cl',
-        // 5h: 残り2h30m、残量5%（理想は50%）。7d: リセット時刻なし。
-        windows: [limitWindow('session', '', 5, 150), limitWindow('weekly', '', 50, null)],
+        // 5h: 残り2h30m、残量5%（理想は50%）。7d: リセット時刻なし、残量35%。
+        windows: [limitWindow('session', '', 5, 150), limitWindow('weekly', '', 35, null)],
+      },
+      {
+        provider: 'codex',
+        accountKey: 'cy',
+        // 5h: 残り4h10m、残量55%（理想は約83%、ペース約0.66）。7d: 残り1h、残量45%（ペースは大きい）。
+        windows: [limitWindow('session', '', 55, 250), limitWindow('weekly', '', 45, 60)],
       },
     ]),
   );
 
-  test('LMT-2 残り時間は Xh Ym・Xd Yh で示し、円弧の色をペースの閾値で紫・黄・赤に変える', async ({
+  test('LMT-2 残り時間は Xh Ym・Xd Yh で示し、円弧の色をペースと残量の悪い方で紫・黄・赤に変える', async ({
     page,
     app,
   }) => {
@@ -194,9 +200,12 @@ test.describe('残り時間とペース', () => {
     await expect(codex.locator('.limit-row .c3')).toHaveText(['1h 5m', '2d 3h']);
     await expect(claude.locator('.limit-row .c3')).toHaveText(['2h 30m', '—']);
 
-    // Assert: ペース0.8以上は紫、0.5以上0.8未満は黄、0.5未満は赤。判定しない枠は紫のまま。
-    await expect.poll(() => arcColors(codex)).toEqual([PURPLE, YELLOW]);
-    await expect.poll(() => arcColors(claude)).toEqual([RED, PURPLE]);
+    // Assert: ペースと残量の悪い方の色。codexの7dはペース黄・残量20%で赤、claudeの7dはペース判定なし・残量35%で黄。
+    await expect.poll(() => arcColors(codex)).toEqual([PURPLE, RED]);
+    await expect.poll(() => arcColors(claude)).toEqual([RED, YELLOW]);
+    // Assert: codex cy の5hはペース約0.66（黄）・残量55%、7dはペースが大きく残量45%で紫。
+    const codexCy = limits.locator('[aria-label="codex · Account cy · Pro"]');
+    await expect.poll(() => arcColors(codexCy)).toEqual([YELLOW, PURPLE]);
   });
 
   test('LMT-3 画面を開いたままでも1分ごとに残り時間を再計算し、閲覧用APIは呼び直さない', async ({
@@ -289,7 +298,7 @@ test.describe('凡例', () => {
     ]),
   );
 
-  test('LMT-5 切り替えの左に Pace の凡例を英語で示し、マウスオーバーで日本語の説明を示す', async ({
+  test('LMT-5 切り替えの左に色の点だけの凡例を示し、マウスオーバーで2つの規則を示す', async ({
     page,
     app,
   }) => {
@@ -299,23 +308,17 @@ test.describe('凡例', () => {
     // Act
     await page.goto('/');
 
-    // Assert
-    const legend = page.getByLabel('Pace legend');
-    await expect(legend).toContainText('Pace');
-    await expect(legend).toContainText('≥0.8');
-    await expect(legend).toContainText('≥0.5');
-    await expect(legend).toContainText('<0.5');
+    // Assert: 文字は無く、色の点が3つ。
+    const legend = page.getByLabel('Color legend');
+    await expect(legend).toHaveText('');
+    await expect(legend.locator('> *')).toHaveCount(3);
 
-    // Act & Assert: 各項目のマウスオーバー。
-    const tips: [string, string][] = [
-      ['Pace', '残量 ÷ 理想の残量'],
-      ['≥0.8', '正常'],
-      ['≥0.5', '注意'],
-      ['<0.5', '危険'],
-    ];
-    for (const [text, description] of tips) {
-      await legend.getByText(text, { exact: true }).hover();
-      await expect(page.getByRole('tooltip').filter({ hasText: description })).toBeVisible();
-    }
+    // Act & Assert: マウスオーバーでペースの規則と残量の規則を示す。
+    await legend.hover();
+    const tooltip = page.getByRole('tooltip');
+    await expect(tooltip).toContainText('残量 ÷ 理想の残量');
+    await expect(tooltip).toContainText('40%超');
+    await expect(tooltip).toContainText('25%未満');
+    await expect(tooltip).toContainText('悪い方');
   });
 });

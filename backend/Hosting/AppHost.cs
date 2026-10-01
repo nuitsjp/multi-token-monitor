@@ -50,7 +50,8 @@ internal static class AppHost
                 hubs,
                 database,
                 services.GetRequiredService<ChangeNotifications>(),
-                services.GetRequiredService<ILogger<HubReceivers>>()));
+                services.GetRequiredService<ILogger<HubReceivers>>(),
+                config.RetryTimeScale));
         }
 
         var contractSources = builder.AddHttpPresentation(exportOpenApi: !initializeDatabase);

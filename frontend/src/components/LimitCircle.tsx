@@ -2,7 +2,7 @@ import { Tooltip } from '@mantine/core';
 import { cost, costWhole } from '../format.ts';
 import {
   monthlyLimitUsd,
-  paceOf,
+  stateOf,
   remainingText,
   windowLabel,
   type LimitCircle as Circle,
@@ -106,7 +106,7 @@ export function LimitCircle({
             key={windowKey(window)}
             radius={index === 0 ? 90 : 72}
             percent={window.remainingPercent}
-            color={paceColors[paceOf(window, now)]}
+            color={paceColors[stateOf(window, now)]}
           />
         ))}
         <text

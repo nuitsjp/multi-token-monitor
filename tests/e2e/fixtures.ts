@@ -50,21 +50,77 @@ function updateViteProxyTarget(server: ViteDevServer, target: string) {
   }
 }
 
-export const test = base.extend<{
-  app: IsolatedApp;
-  serveFrontend: boolean;
-  hubs: HubConfigEntry[];
-}>({
+/** worker内のテストで使い回すViteサーバー。最初に必要になったときに作り、workerの終了時に閉じる。 */
+interface SharedVite {
+  ensure(): Promise<ViteDevServer>;
+  readonly address: string;
+}
+
+export const test = base.extend<
+  {
+    app: IsolatedApp;
+    serveFrontend: boolean;
+    hubs: HubConfigEntry[];
+    /** Hub再接続の待ち時間にかける倍率。再接続の待機を検証するテストだけ縮める。 */
+    retryTimeScale: number;
+  },
+  { sharedVite: SharedVite }
+>({
+  // 依存の事前バンドルをテストごとにやり直さないよう、Viteはworkerごとに1つだけ作る。各テストは自分のバックエンドへプロキシ先を向ける。
+  sharedVite: [
+    // eslint-disable-next-line no-empty-pattern -- Playwrightはworker fixtureにも分割代入を要求する
+    async ({}, use) => {
+      let server: ViteDevServer | undefined;
+      let address = '';
+      let cacheDirectory = '';
+      await use({
+        async ensure() {
+          if (server) {
+            if (!server.httpServer?.listening)
+              throw new Error('Viteサーバーが予期せず停止しました。');
+            return server;
+          }
+          cacheDirectory = await mkdtemp(join(tmpdir(), 'aidd-e2e-vite-'));
+          server = await createServer({
+            configFile: resolve('frontend/vite.config.ts'),
+            cacheDir: join(cacheDirectory, 'node_modules/.vite'),
+            server: { host: '127.0.0.1', port: 0, strictPort: true },
+          });
+          // Viteのlisten(0)は既定ポートになるため、NodeのHTTPサーバーに直接空きポートを割り当てる。
+          const httpServer = server.httpServer!;
+          await new Promise<void>((ready, reject) => {
+            httpServer.once('error', reject);
+            httpServer.listen(0, '127.0.0.1', () => {
+              httpServer.off('error', reject);
+              ready();
+            });
+          });
+          const serverAddress = httpServer.address();
+          if (!serverAddress || typeof serverAddress === 'string')
+            throw new Error('Viteの起動URLを取得できません。');
+          address = `http://127.0.0.1:${serverAddress.port}`;
+          return server;
+        },
+        get address() {
+          return address;
+        },
+      });
+      await server?.close();
+      if (cacheDirectory)
+        await rm(cacheDirectory, { recursive: true, force: true, maxRetries: 6, retryDelay: 100 });
+    },
+    { scope: 'worker' },
+  ],
   serveFrontend: [true, { option: true }],
+  retryTimeScale: [1, { option: true }],
   // 利用者のHub接続設定を読まないよう、既定では接続先のない専用設定を渡す。
   hubs: [[{ id: 'e2e', name: 'E2E', url: 'http://127.0.0.1:9', token: 'e2e' }], { option: true }],
-  app: async ({ serveFrontend, hubs }, use, testInfo) => {
+  app: async ({ serveFrontend, hubs, retryTimeScale, sharedVite }, use, testInfo) => {
     // worker番号だけでなくmkdtempで分けるので、再試行・shard・複数コマンド同時実行でも衝突しない。
     const directory = await mkdtemp(join(tmpdir(), `aidd-e2e-${mode}-w${testInfo.workerIndex}-`));
     const databasePath = join(directory, 'app.sqlite');
     const hubConfigPath = join(directory, 'hubs.json');
     await writeFile(hubConfigPath, JSON.stringify({ hubs }));
-    const viteCacheDirectory = join(directory, 'node_modules/.vite');
     let child: ChildProcess | undefined;
     let vite: ViteDevServer | undefined;
     let output = '';
@@ -78,28 +134,8 @@ export const test = base.extend<{
 
     async function startVite() {
       if (mode !== 'dev' || !serveFrontend) return;
-      if (vite) {
-        if (!vite.httpServer?.listening) throw new Error('Viteサーバーが予期せず停止しました。');
-        return;
-      }
-      vite = await createServer({
-        configFile: resolve('frontend/vite.config.ts'),
-        cacheDir: viteCacheDirectory,
-        server: { host: '127.0.0.1', port: 0, strictPort: true },
-      });
-      // Viteのlisten(0)は既定ポートになるため、NodeのHTTPサーバーに直接空きポートを割り当てる。
-      const httpServer = vite.httpServer!;
-      await new Promise<void>((ready, reject) => {
-        httpServer.once('error', reject);
-        httpServer.listen(0, '127.0.0.1', () => {
-          httpServer.off('error', reject);
-          ready();
-        });
-      });
-      const serverAddress = vite.httpServer?.address();
-      if (!serverAddress || typeof serverAddress === 'string')
-        throw new Error('Viteの起動URLを取得できません。');
-      viteAddress = `http://127.0.0.1:${serverAddress.port}`;
+      vite = await sharedVite.ensure();
+      viteAddress = sharedVite.address;
     }
 
     async function stop() {
@@ -155,6 +191,7 @@ export const test = base.extend<{
           PORT: '0',
           DB_PATH: databasePath,
           HUB_CONFIG_PATH: hubConfigPath,
+          HUB_RETRY_TIME_SCALE: String(retryTimeScale),
           AIDD_CONTROL_STDIN: '1',
           Logging__LogLevel__Default: 'Warning',
         },
@@ -244,10 +281,9 @@ export const test = base.extend<{
         await stop();
       } finally {
         try {
-          await vite?.close();
-        } finally {
           if (testInfo.status !== testInfo.expectedStatus)
             await testInfo.attach('server-output', { body: output, contentType: 'text/plain' });
+        } finally {
           await rm(directory, { recursive: true, force: true, maxRetries: 6, retryDelay: 100 });
         }
       }

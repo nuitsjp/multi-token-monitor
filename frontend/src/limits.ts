@@ -49,6 +49,21 @@ export function paceOf(window: LimitWindow, now: number): Pace {
   return pace >= 0.8 ? 'normal' : pace >= 0.5 ? 'caution' : 'danger';
 }
 
+// 残量の規則: 40%超は normal、25%以上40%以下は caution、25%未満は danger。
+export function remainingStateOf(window: LimitWindow): Pace {
+  const remaining = window.remainingPercent;
+  return remaining > 40 ? 'normal' : remaining >= 25 ? 'caution' : 'danger';
+}
+
+const severity: Record<Pace, number> = { normal: 0, caution: 1, danger: 2 };
+
+// 円弧の色の状態 = ペースの規則と残量の規則のうち悪い方。
+export function stateOf(window: LimitWindow, now: number): Pace {
+  const pace = paceOf(window, now);
+  const remaining = remainingStateOf(window);
+  return severity[pace] >= severity[remaining] ? pace : remaining;
+}
+
 export type LimitCircle = { key: string; group: string; windows: LimitWindow[] };
 export type LimitAccount = {
   key: string;

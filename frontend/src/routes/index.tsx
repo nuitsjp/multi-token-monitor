@@ -20,9 +20,11 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { watchOverview, type Overview } from '../api/overview.ts';
+import { type Overview } from '../api/overview.ts';
+import { useOverview } from '../app/overview.tsx';
 import { LimitCircle } from '../components/LimitCircle.tsx';
-import { providerIcons, providerImages } from '../components/providerIcons.ts';
+import { MenuIcon, type MenuIconName } from '../components/MenuIcon.tsx';
+import { ProviderIcon } from '../components/ProviderIcon.tsx';
 import { CostUsd, TokenCount } from '../components/SlotNumber.tsx';
 import { full } from '../format.ts';
 import { buildAccounts } from '../limits.ts';
@@ -54,23 +56,20 @@ const time = (value: string | null) =>
       });
 
 export function Home() {
-  const [overview, setOverview] = useState<Overview>();
-  const [error, setError] = useState<string>();
+  const { overview, error } = useOverview();
   const [period, setPeriod] = useState<Period>('today');
-  useEffect(
-    () =>
-      watchOverview(setOverview, (reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : String(reason)),
-      ),
-    [],
-  );
 
   return (
     <Container component="main" size="xl" py="xl">
       <Group justify="space-between" mb="xl">
-        <Title order={1} size="h2" fw={600}>
-          Token Monitor Analytics
-        </Title>
+        <Group gap={10} wrap="nowrap">
+          <span className="page-icon">
+            <MenuIcon name="home" size={26} />
+          </span>
+          <Title order={1} fz={26} lh={1} fw={600}>
+            Home
+          </Title>
+        </Group>
         <SegmentedControl
           aria-label="Period"
           color="violet"
@@ -94,11 +93,13 @@ export function Home() {
 
 function Card({
   title,
+  icon,
   control,
   bare = false,
   children,
 }: {
   title: string;
+  icon: MenuIconName;
   control?: ReactNode;
   bare?: boolean;
   children: ReactNode;
@@ -106,9 +107,12 @@ function Card({
   return (
     <section className={bare ? 'section-bare' : 'card'} aria-label={title}>
       <Group justify="space-between" mb="md">
-        <Title order={2} size="h5" fw={500}>
-          {title}
-        </Title>
+        <Group gap={8} wrap="nowrap" className="panel-title">
+          <MenuIcon name={icon} size={18} />
+          <Title order={2} fz={17} lh={1} fw={500}>
+            {title}
+          </Title>
+        </Group>
         {control}
       </Group>
       {children}
@@ -181,6 +185,7 @@ function HubCard({ overview, usage }: { overview: Overview; usage: Usage }) {
   return (
     <Card
       title="By hub"
+      icon="hub"
       control={
         pageCount > 1 ? (
           <Pagination
@@ -330,7 +335,7 @@ function ModelCard({ usage }: { usage: Usage }) {
   ];
   const total = Math.max(1, usage.total.tokens);
   return (
-    <Card title="By model">
+    <Card title="By model" icon="model">
       <Flex direction={{ base: 'column', sm: 'row' }} align="center" gap="xl">
         <RingProgress
           size={200}
@@ -389,67 +394,63 @@ const tooltipStyles = {
   tooltip: { background: '#111215', color: '#e4e5e9', border: '1px solid #3a3d48' },
 };
 
-const paceLegend = [
+const [PURPLE, YELLOW, RED] = ['#9085e9', '#fab219', '#f0616d'];
+
+const legendRules = [
   {
-    color: '#9085e9',
-    text: '≥0.8',
-    tip: '正常：残量が理想の80%以上。リセットまでの時間に対して、使うペースに問題はありません。',
+    title: 'ペース（残量 ÷ 理想の残量）',
+    note: '理想の残量 ＝ 残り時間 ÷ 枠の長さ',
+    rows: [
+      [PURPLE, '0.8以上', '正常'],
+      [YELLOW, '0.5以上 0.8未満', '注意'],
+      [RED, '0.5未満', '危険'],
+    ],
   },
   {
-    color: '#fab219',
-    text: '≥0.5',
-    tip: '注意：残量が理想の50%以上80%未満。時間の割に、やや速く使っています。',
-  },
-  {
-    color: '#f0616d',
-    text: '<0.5',
-    tip: '危険：残量が理想の50%未満。このペースだと、リセットまでに使い切る恐れがあります。',
+    title: '残量',
+    note: '枠の残量（%）そのもの',
+    rows: [
+      [PURPLE, '40%超', '正常'],
+      [YELLOW, '25%以上 40%以下', '注意'],
+      [RED, '25%未満', '危険'],
+    ],
   },
 ];
 
+const legendTip = (
+  <Stack gap={10}>
+    <Text size="xs">円弧の色は、2つの規則のうち悪い方の状態です。</Text>
+    {legendRules.map((rule) => (
+      <Stack key={rule.title} gap={3}>
+        <Text size="xs" fw={600}>
+          {rule.title}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {rule.note}
+        </Text>
+        {rule.rows.map(([color, range, state]) => (
+          <Group key={range} gap={8} wrap="nowrap">
+            <Box w={9} h={9} bg={color} style={{ borderRadius: '50%', flexShrink: 0 }} />
+            <Text size="xs" w={110}>
+              {range}
+            </Text>
+            <Text size="xs">{state}</Text>
+          </Group>
+        ))}
+      </Stack>
+    ))}
+  </Stack>
+);
+
 function PaceLegend() {
   return (
-    <Group gap="sm" wrap="nowrap" aria-label="Pace legend">
-      <Tooltip
-        multiline
-        w={240}
-        withArrow
-        styles={tooltipStyles}
-        label="Pace（ペース）＝ 残量 ÷ 理想の残量。理想の残量は、リセットまでの残り時間の割合（残り時間 ÷ 枠の長さ）です。"
-      >
-        <Text size="xs" className="muted" fw={500}>
-          Pace
-        </Text>
-      </Tooltip>
-      {paceLegend.map((item) => (
-        <Tooltip
-          key={item.text}
-          multiline
-          w={240}
-          withArrow
-          styles={tooltipStyles}
-          label={item.tip}
-        >
-          <Group gap={5} wrap="nowrap">
-            <Box w={9} h={9} bg={item.color} style={{ borderRadius: '50%' }} />
-            <Text size="xs">{item.text}</Text>
-          </Group>
-        </Tooltip>
-      ))}
-    </Group>
-  );
-}
-
-function ProviderIcon({ provider }: { provider: string }) {
-  const icon = providerIcons[provider];
-  const image = providerImages[provider];
-  if (image !== undefined)
-    return <img src={image} width={20} height={20} alt="" style={{ borderRadius: 4 }} />;
-  if (icon === undefined) return null;
-  return (
-    <svg width={16} height={16} viewBox="0 0 24 24" aria-hidden>
-      <path fill="#b4b6bf" d={icon} />
-    </svg>
+    <Tooltip w={260} withArrow styles={tooltipStyles} label={legendTip}>
+      <Group gap="sm" wrap="nowrap" aria-label="Color legend">
+        {[PURPLE, YELLOW, RED].map((color) => (
+          <Box key={color} w={9} h={9} bg={color} style={{ borderRadius: '50%' }} />
+        ))}
+      </Group>
+    </Tooltip>
   );
 }
 
@@ -466,6 +467,7 @@ function LimitCard({ overview }: { overview: Overview }) {
     <Card
       bare
       title="Usage limits"
+      icon="limits"
       control={
         <Group gap="md" wrap="nowrap">
           <PaceLegend />
@@ -529,7 +531,7 @@ function LimitCard({ overview }: { overview: Overview }) {
 function DeviceCard({ overview }: { overview: Overview }) {
   const hubName = new Map(overview.hubs.map((hub) => [hub.hubId, hub.name]));
   return (
-    <Card title="Devices">
+    <Card title="Devices" icon="devices">
       <Table verticalSpacing="xs">
         <Table.Thead>
           <Table.Tr>

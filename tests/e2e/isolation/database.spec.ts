@@ -10,7 +10,8 @@ for (let i = 1; i <= 4; i++)
     await page.goto(path);
 
     // Assert
-    await expect(page.getByRole('heading', { name: 'Token Monitor Analytics' })).toBeVisible();
+    await expect(page.getByRole('banner')).toContainText('Token Monitor Analytics');
+    await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
     // 検証は別の読取専用接続。
     const db = new DatabaseSync(app.databasePath, { readOnly: true });
     try {

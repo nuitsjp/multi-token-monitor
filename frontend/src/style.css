@@ -191,3 +191,66 @@ body {
 .section-bare {
   padding-top: 20px;
 }
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 24px;
+  background: #1f2126;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.brand-logo {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #9085e9, #6f63d6);
+  color: #fff;
+}
+.brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.app-shell {
+  display: flex;
+  min-height: calc(100vh - 56px);
+}
+.side-menu {
+  flex: none;
+  width: 232px;
+  padding: 20px 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+.side-menu .mantine-NavLink-root {
+  border-radius: 10px;
+  color: #b4b6bf;
+}
+.side-menu .mantine-NavLink-root[data-active] {
+  background: rgba(144, 133, 233, 0.16);
+  color: #fff;
+}
+.side-menu .mantine-NavLink-root[data-active] .mantine-NavLink-section {
+  color: #9085e9;
+}
+.side-menu .mantine-NavLink-section {
+  color: #8b8e99;
+}
+.side-menu .mantine-NavLink-children {
+  margin-left: 19px;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+}
+.panel-title svg,
+.page-icon {
+  color: #9085e9;
+}
+.page-icon {
+  display: flex;
+}
+.app-content {
+  flex: 1;
+  min-width: 0;
+}

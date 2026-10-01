@@ -38,7 +38,7 @@ function alphaStats(): FakeStats {
   return stats;
 }
 
-export const test = base.extend<{ alpha: FakeHub; beta: FakeHub }>({
+export const test = base.extend<{ alpha: FakeHub; beta: FakeHub; refusing: FakeHub }>({
   // eslint-disable-next-line no-empty-pattern -- Playwrightは依存のないfixtureにも分割代入を要求する
   alpha: async ({}, use) => {
     const hub = await startFakeHub('alpha-secret-token', alphaStats());
@@ -51,12 +51,19 @@ export const test = base.extend<{ alpha: FakeHub; beta: FakeHub }>({
     await use(hub);
     await hub.close();
   },
-  hubs: async ({ alpha, beta }, use) => {
+  // 接続設定のトークンと一致しないため、すべての接続を即座に401で拒否するHub。
+  // eslint-disable-next-line no-empty-pattern
+  refusing: async ({}, use) => {
+    const hub = await startFakeHub('offline-secret-token', createStats(3));
+    await use(hub);
+    await hub.close();
+  },
+  hubs: async ({ alpha, beta, refusing }, use) => {
     await use([
       { id: 'alpha', name: 'Alpha Hub', url: alpha.url, token: alpha.token },
       { id: 'beta', name: 'Beta Hub', url: beta.url, token: beta.token },
-      // 接続できないHub。状態を受信しないまま表示される。
-      { id: 'offline', name: 'Offline Hub', url: 'http://127.0.0.1:9', token: 'offline-token' },
+      // 受信できないHub。状態を受信しないまま表示される。
+      { id: 'offline', name: 'Offline Hub', url: refusing.url, token: 'offline-token' },
     ]);
   },
 });
