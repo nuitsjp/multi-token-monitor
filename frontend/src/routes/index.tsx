@@ -497,9 +497,14 @@ function LimitCard({ overview }: { overview: Overview }) {
             >
               <Group gap={6} wrap="nowrap" className="limit-heading">
                 <ProviderIcon provider={account.provider} />
-                <Text size="sm" fw={500}>
+                <Text size="sm" fw={500} style={{ flex: 'none' }}>
                   {heading}
                 </Text>
+                {account.accountLabel && (
+                  <Text size="sm" className="muted limit-plan" title={account.accountLabel}>
+                    {account.accountLabel}
+                  </Text>
+                )}
               </Group>
               <div className="limit-circles">
                 {account.circles.map((circle) => (

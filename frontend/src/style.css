@@ -124,7 +124,19 @@ body {
   column-gap: calc(var(--gap) + 20px);
 }
 .limit-heading {
+  min-width: 0;
   padding-left: 2px;
+}
+.limit-heading svg,
+.limit-heading img {
+  flex: none;
+}
+/* 契約名（Pro・Team など）は、長いときだけ省略して見出しを1行に収める */
+.limit-plan {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .limit-circle {
   width: calc(var(--cell) - 20px);
