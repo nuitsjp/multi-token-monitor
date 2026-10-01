@@ -95,14 +95,16 @@ export function Home() {
 function Card({
   title,
   control,
+  bare = false,
   children,
 }: {
   title: string;
   control?: ReactNode;
+  bare?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section className="card" aria-label={title}>
+    <section className={bare ? undefined : 'card'} aria-label={title}>
       <Group justify="space-between" mb="md">
         <Title order={2} size="h5" fw={500}>
           {title}
@@ -461,6 +463,7 @@ function LimitCard({ overview }: { overview: Overview }) {
   const accounts = buildAccounts(overview.limitWindows.filter((row) => row.hubId === hubId));
   return (
     <Card
+      bare
       title="Usage limits"
       control={
         <Group gap="md" wrap="nowrap">
@@ -492,16 +495,13 @@ function LimitCard({ overview }: { overview: Overview }) {
               style={{ '--n': Math.min(account.circles.length, 4) } as CSSProperties}
               aria-label={labels(account.provider, account.accountLabel, account.planLabel)}
             >
-              <Group gap={6} wrap="nowrap">
+              <Group gap={6} wrap="nowrap" className="limit-heading">
                 <ProviderIcon provider={account.provider} />
                 <Text size="sm" fw={500}>
                   {heading}
                 </Text>
               </Group>
-              <div
-                className="limit-circles"
-                style={{ '--n': Math.min(account.circles.length, 4) } as CSSProperties}
-              >
+              <div className="limit-circles">
                 {account.circles.map((circle) => (
                   <LimitCircle
                     key={circle.key}
