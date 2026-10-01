@@ -241,7 +241,7 @@ test.describe('月換算上限額', () => {
     ]),
   );
 
-  test('LMT-4 最も長い枠の推定上限額を30日に換算して円の右上に示し、求められない円には出さない', async ({
+  test('LMT-4 推定上限額が求められている最も長い枠を31日に換算して円の右上に示し、求められない円には出さない', async ({
     page,
     app,
     alpha,
@@ -252,7 +252,7 @@ test.describe('月換算上限額', () => {
     await page.goto('/');
     const limits = page.getByRole('region', { name: 'Usage limits' });
 
-    // Assert: 最も長い枠がどれも Estimating の間は、どの円にも出ない。
+    // Assert: どの枠も Estimating の間は、どの円にも出ない。
     await expect(limits.getByText('Estimating', { exact: true })).toHaveCount(3);
     await expect(limits.locator('.limit-monthly')).toHaveCount(0);
 
@@ -269,15 +269,15 @@ test.describe('月換算上限額', () => {
     alpha.send('stats', next);
     await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(before);
 
-    // Assert: 週次の推定上限額 $30 は 30 ÷ 10,080 × 43,200 を整数のドルで、月次の $30 は換算せずに示す。
+    // Assert: 週次の推定上限額 $30 は 30 ÷ 10,080 × 44,640 を整数のドルで、月次の $30 は換算せずに示す。
     const circles = limits.locator('.limit-circle');
-    await expect(circles.nth(0).locator('.limit-monthly')).toHaveText('$129/mo');
+    await expect(circles.nth(0).locator('.limit-monthly')).toHaveText('$133/mo');
     await expect(circles.nth(1).locator('.limit-monthly')).toHaveText('$30/mo');
 
     // Act & Assert: マウスオーバーで、換算した参考値であることを日本語で示す。
     await circles.nth(0).locator('.limit-monthly').hover();
     await expect(
-      page.getByRole('tooltip').filter({ hasText: '30日に換算した参考値' }),
+      page.getByRole('tooltip').filter({ hasText: '31日に換算した参考値' }),
     ).toBeVisible();
   });
 });

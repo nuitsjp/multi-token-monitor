@@ -204,18 +204,18 @@ test('OVW-9 推定上限額は2つの計測点から求め、条件を満たさ�
   // Assert: 受信が1回だけの枠は、計測点が1つなので推定しない。
   await expect(limits.getByText('Estimating', { exact: true })).toHaveCount(2);
 
-  // Act & Assert: 使用率の増加が5ポイント未満なら推定しない。
-  await send(alpha, 'alpha', 86, 1.5);
-  await expect(limits).toContainText('86% 5h');
+  // Act & Assert: 使用率の増加が1ポイント未満なら推定しない。
+  await send(alpha, 'alpha', 89.4, 1.5);
+  await expect(limits).toContainText('89% 5h');
   await expect(limits.getByText('Estimating', { exact: true })).toHaveCount(2);
 
-  // Act & Assert: 5ポイント以上増えたら、コストの増加 ÷ 使用率の増加 × 100 を表示する。
+  // Act & Assert: 1ポイント以上増えたら、コストの増加 ÷ 使用率の増加 × 100 を表示する。
   // 残量が変わらない Weekly は推定しない。
-  await send(alpha, 'alpha', 85, 0.5);
-  await expect(limits.getByText('$40.00', { exact: true })).toBeVisible();
+  await send(alpha, 'alpha', 89, 0.5);
+  await expect(limits.getByText('$200.00', { exact: true })).toBeVisible();
   await expect(limits.getByText('Estimating', { exact: true })).toHaveCount(1);
 
-  // Act & Assert: 使用率が5ポイント以上増えても、コストが増えていなければ推定しない。
+  // Act & Assert: 使用率が1ポイント以上増えても、コストが増えていなければ推定しない。
   await send(beta, 'beta', 80, 0);
   await limits.getByText('Beta Hub', { exact: true }).click();
   await expect(limits).toContainText('80% 5h');
