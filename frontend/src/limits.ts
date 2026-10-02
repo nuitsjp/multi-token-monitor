@@ -113,20 +113,17 @@ export function buildAccounts(windows: LimitWindow[]): LimitAccount[] {
 
 const MONTH = 31 * DAY;
 
-// 推定上限額が求められている枠のうち最も長い枠を、31日に比例換算する。約1か月の枠はそのまま。該当する枠がなければ null。
+// 各枠の推定上限額を31日に比例換算し、最小値を採用する。約1か月の枠はそのまま。候補がなければ null。
 export function monthlyLimitUsd(windows: LimitWindow[]): number | null {
-  let widest: { usd: number; minutes: number } | undefined;
+  let minimum: number | null = null;
   for (const window of windows) {
     const minutes = lengthOf(window);
-    if (
-      minutes !== null &&
-      window.estimatedLimitUsd !== null &&
-      (widest === undefined || minutes > widest.minutes)
-    )
-      widest = { usd: window.estimatedLimitUsd, minutes };
+    if (minutes === null || window.estimatedLimitUsd === null) continue;
+    const monthly =
+      minutes >= 28 * DAY && minutes <= 31 * DAY
+        ? window.estimatedLimitUsd
+        : (window.estimatedLimitUsd / minutes) * MONTH;
+    minimum = minimum === null ? monthly : Math.min(minimum, monthly);
   }
-  if (widest === undefined) return null;
-  return widest.minutes >= 28 * DAY && widest.minutes <= 31 * DAY
-    ? widest.usd
-    : (widest.usd / widest.minutes) * MONTH;
+  return minimum;
 }

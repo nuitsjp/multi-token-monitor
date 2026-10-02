@@ -293,7 +293,41 @@ test.describe('月換算上限額', () => {
     ]),
   );
 
-  test('LMT-4 推定上限額が求められている最も長い枠を31日に換算して円の右上に示し、求められない円には出さない', async ({
+  for (const sample of [
+    { name: '5時間枠', sessionDrop: 90, weeklyDrop: 1, expected: '$496/mo' },
+    { name: '週次枠', sessionDrop: 1, weeklyDrop: 10, expected: '$133/mo' },
+  ]) {
+    test(`LMT-4 ${sample.name}の月換算額が小さい場合はその値を採用する`, async ({
+      page,
+      app,
+      alpha,
+    }) => {
+      await expect.poll(() => receivedAt(app.databasePath, 'alpha')).toBeTruthy();
+      await page.goto('/');
+      const limits = page.getByRole('region', { name: 'Usage limits' });
+      await expect(limits.getByText('Estimating', { exact: true })).toHaveCount(3);
+
+      const before = receivedAt(app.databasePath, 'alpha');
+      const next = structuredClone(alpha.stats);
+      for (const target of next.limits.providers[0].windows) {
+        const drop = target.kind === 'session' ? sample.sessionDrop : sample.weeklyDrop;
+        target.remainingPercent = (target.remainingPercent ?? 0) - drop;
+        target.usedPercent = 100 - target.remainingPercent;
+      }
+      next.devices[0].periods.allTime.clientModelCosts.codex['gpt-5'] += 3;
+      alpha.stats = next;
+      alpha.send('stats', next);
+      await expect.poll(() => receivedAt(app.databasePath, 'alpha')).not.toBe(before);
+
+      // 同じ $3 の増分に対し、5h は 3 / 使用率差 × 100 × 148.8、
+      // weekly は 3 / 使用率差 × 100 × 31/7。小さい方を整数表示する。
+      await expect(limits.locator('.limit-circle').first().locator('.limit-monthly')).toHaveText(
+        sample.expected,
+      );
+    });
+  }
+
+  test('LMT-4 各枠を月換算した最小値を円の右上に示し、求められない円には出さない', async ({
     page,
     app,
     alpha,
@@ -329,7 +363,7 @@ test.describe('月換算上限額', () => {
     // Act & Assert: マウスオーバーで、換算した参考値であることを日本語で示す。
     await circles.nth(0).locator('.limit-monthly').hover();
     await expect(
-      page.getByRole('tooltip').filter({ hasText: '31日に換算した参考値' }),
+      page.getByRole('tooltip').filter({ hasText: '最も小さい金額を採用した参考値' }),
     ).toBeVisible();
   });
 });
