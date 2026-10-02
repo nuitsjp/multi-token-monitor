@@ -2,8 +2,9 @@ import { useLayoutEffect, useRef } from 'react';
 import { cost, full } from '../format.ts';
 
 const isDigit = (char: string | undefined) => char !== undefined && char >= '0' && char <= '9';
-// 改行の行高はブラウザーが丸めるため、30行の実際の高さから移動量を求める。
+// 同じ高さの30セルを並べたリール全体の高さから移動量を求める。
 const cell = (index: number) => `translateY(${(-index * 100) / 30}%)`;
+const reelDigits = Array.from({ length: 30 }, (_, index) => index % 10);
 
 // 整形済みの文字列を表示し、変わった数字の桁だけを1周以上回して左の桁から順に止める。
 // 見た目の文字は擬似要素で描き、DOMのテキストには値を1回だけ置く（読み上げと textContent 用）。
@@ -58,7 +59,7 @@ export function SlotNumber({ text }: { text: string }) {
   }, [text]);
 
   return (
-    <span className="slot">
+    <span className="slot" data-text={text}>
       <span className="slot-text">{text}</span>
       <span className="slot-visual" aria-hidden="true">
         {chars
@@ -74,7 +75,11 @@ export function SlotNumber({ text }: { text: string }) {
                       strips.current.delete(index);
                     };
                   }}
-                />
+                >
+                  {reelDigits.map((digit, row) => (
+                    <span key={row} className="slot-digit" data-char={digit} />
+                  ))}
+                </span>
               </span>
             ) : (
               <span key={index} className="slot-char" data-char={char} />

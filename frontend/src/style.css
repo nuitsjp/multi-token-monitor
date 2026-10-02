@@ -23,6 +23,22 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
 }
+.dashboard-totals {
+  flex: 5 1 0;
+  min-width: max-content;
+}
+.dashboard-model {
+  flex: 7 1 420px;
+  min-width: 0;
+}
+.total-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(calc(15ch + 42px), 1fr));
+  gap: 16px;
+  font-size: 32px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 .reconnecting {
   display: inline-flex;
   color: #ff922b;
@@ -73,10 +89,20 @@ body {
   white-space: nowrap;
 }
 .slot-visual {
-  display: inline-flex;
+  display: none;
   vertical-align: top;
 }
-.slot-char::before {
+.slot::before {
+  content: attr(data-text);
+}
+.slot:has(.slot-reel[data-spinning])::before {
+  display: none;
+}
+.slot:has(.slot-reel[data-spinning]) .slot-visual {
+  display: inline-flex;
+}
+.slot-char::before,
+.slot-digit::before {
   content: attr(data-char);
 }
 .slot-reel {
@@ -89,13 +115,14 @@ body {
   mask-image: linear-gradient(transparent, #000 22%, #000 78%, transparent);
 }
 .slot-strip {
-  display: block;
+  display: flex;
+  flex-direction: column;
   text-align: center;
 }
-/* 0〜9を3周並べる。回転は1周を足して回し、減少は3周目から下へ回す。 */
-.slot-strip::before {
-  content: '0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9';
-  white-space: pre;
+.slot-digit {
+  flex: none;
+  height: 1lh;
+  line-height: 1lh;
 }
 
 /* 利用枠: 契約ごとのパネルを、固定幅の列（--cell）で折り返して並べる。列数はUsage limitsの幅に合わせて増減する（最大4列）。 */
