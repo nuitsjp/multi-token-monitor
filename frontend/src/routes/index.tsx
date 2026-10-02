@@ -13,7 +13,6 @@ import {
   Progress,
   RingProgress,
   SegmentedControl,
-  SimpleGrid,
   Stack,
   Table,
   Text,
@@ -126,7 +125,7 @@ function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: 
       <Text size="sm" className="muted">
         {label}
       </Text>
-      <Text fz={{ base: 22, md: 32 }} fw={600} lh={1.3}>
+      <Text fz={32} fw={600} lh={1.3}>
         {value}
       </Text>
       {hint !== undefined && (
@@ -142,25 +141,27 @@ function Dashboard({ overview, period }: { overview: Overview; period: Period })
   const usage = overview.periods[period];
   return (
     <Stack gap="lg">
-      <Grid gutter="lg">
-        <Grid.Col span={{ base: 12, md: 5 }}>
+      <Flex gap="lg" wrap="wrap" align="stretch">
+        <Box className="dashboard-totals">
           <Stack gap="lg" h="100%">
             <section aria-label="Total">
-              <SimpleGrid cols={2}>
+              <div className="total-stats">
                 <Stat label="Tokens" value={<TokenCount value={usage.total.tokens} />} />
                 <Stat
                   label="Est. cost"
                   value={<CostUsd value={usage.total.costUsd} />}
                   hint="USD"
                 />
-              </SimpleGrid>
+              </div>
             </section>
             <HubCard overview={overview} usage={usage} />
           </Stack>
-        </Grid.Col>
-        <Grid.Col span={{ base: 12, md: 7 }}>
+        </Box>
+        <Box className="dashboard-model">
           <ModelCard usage={usage} />
-        </Grid.Col>
+        </Box>
+      </Flex>
+      <Grid gutter="lg">
         <Grid.Col span={{ base: 12, md: 8 }}>
           <LimitCard overview={overview} />
         </Grid.Col>
@@ -462,7 +463,15 @@ function LimitCard({ overview }: { overview: Overview }) {
     const timer = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(timer);
   }, []);
-  const accounts = buildAccounts(overview.limitWindows.filter((row) => row.hubId === hubId));
+  const accounts = buildAccounts(overview.limitWindows.filter((row) => row.hubId === hubId)).sort(
+    (a, b) =>
+      Math.min(
+        ...a.circles.flatMap((circle) => circle.windows.map((window) => window.remainingPercent)),
+      ) -
+      Math.min(
+        ...b.circles.flatMap((circle) => circle.windows.map((window) => window.remainingPercent)),
+      ),
+  );
   return (
     <Card
       bare

@@ -125,21 +125,19 @@ test('小さい数字も初回表示と期間切り替えの停止後に同じ�
         (strip) => strip.getAnimations().length === 0,
       ),
     );
-    const offsets = await page.locator('.slot').evaluateAll((slots) =>
-      slots.flatMap((slot) => {
-        const digits = [...slot.querySelector('.slot-text')!.textContent!].filter((char) =>
-          /\d/.test(char),
-        );
-        return [...slot.querySelectorAll('.slot-strip')].map((strip, index) => {
-          const track = strip.getBoundingClientRect();
-          const reel = strip.parentElement!.getBoundingClientRect();
-          // 30行のうち、表示する数字の行頭と表示窓の上端を比較する。
-          return Math.abs(track.top + (Number(digits[index]) * track.height) / 30 - reel.top);
-        });
-      }),
-    );
-    expect(offsets.length).toBeGreaterThan(0);
-    expect(Math.max(...offsets)).toBeLessThan(0.01);
+    const referenceStyle = await page.addStyleTag({
+      content:
+        '.slot.reference::before { content: none; } .slot.reference .slot-text { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }',
+    });
+    for (const selector of [TOTAL, '[aria-label="By hub"]', '[aria-label="By model"] td']) {
+      const slot = page.locator(selector).locator('.slot').first();
+      const rendered = await slot.screenshot();
+      await slot.evaluate((element) => element.classList.add('reference'));
+      const plainText = await slot.screenshot();
+      await slot.evaluate((element) => element.classList.remove('reference'));
+      expect(rendered.equals(plainText)).toBe(true);
+    }
+    await referenceStyle.evaluate((element) => element.parentNode!.removeChild(element));
   }
 });
 

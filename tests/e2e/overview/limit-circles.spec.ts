@@ -70,6 +70,49 @@ const test = base.extend<{ alpha: FakeHub; accounts: { build: () => Account[] } 
 const circle = (limits: Locator, name: string) =>
   limits.locator(`.limit-circle[aria-label="${name}"]`);
 
+test.describe('契約の残量順', () => {
+  test.use(
+    accountsOf(() => [
+      { provider: 'codex', accountKey: 'cx', windows: [limitWindow('session', '', 35, 200)] },
+      {
+        provider: 'claude',
+        accountKey: 'cl',
+        windows: [limitWindow('session', '', 90, 200), limitWindow('weekly', '', 15, 5000)],
+      },
+      { provider: 'antigravity', accountKey: 'ag', windows: [limitWindow('daily', '', 25, 600)] },
+    ]),
+  );
+
+  test('最小残量のWindowで契約を昇順に並べ、同期後も並べ直す', async ({ page, app, alpha }) => {
+    await expect.poll(() => receivedAt(app.databasePath, 'alpha')).toBeTruthy();
+    await page.goto('/');
+    const accounts = page.getByRole('region', { name: 'Usage limits' }).locator('.limit-account');
+    const order = () =>
+      accounts.evaluateAll((items) => items.map((item) => item.getAttribute('aria-label')));
+    await expect
+      .poll(order)
+      .toEqual([
+        'claude · Account cl · Pro',
+        'antigravity · Account ag · Pro',
+        'codex · Account cx · Pro',
+      ]);
+
+    const next = structuredClone(alpha.stats);
+    const window = next.limits.providers[1].windows[1];
+    window.remainingPercent = 80;
+    window.usedPercent = 20;
+    alpha.stats = next;
+    alpha.send('stats', next);
+    await expect
+      .poll(order)
+      .toEqual([
+        'antigravity · Account ag · Pro',
+        'codex · Account cx · Pro',
+        'claude · Account cl · Pro',
+      ]);
+  });
+});
+
 /** 円の中の円弧の色。窓ごとに、下地の円弧と残量の円弧が1組ずつ並ぶ。 */
 const arcColors = (target: Locator) =>
   target
