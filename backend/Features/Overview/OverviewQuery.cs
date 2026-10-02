@@ -35,7 +35,7 @@ internal static class OverviewQuery
                     hub_id AS HubId,
                     tool AS Tool,
                     model AS Model,
-                    SUM(tokens) AS Tokens,
+                    CAST(SUM(tokens) AS INTEGER) AS Tokens,
                     SUM(cost_usd) AS CostUsd
                 FROM
                     latest_token_usages
@@ -90,6 +90,23 @@ internal static class OverviewQuery
                     row.HubId, row.DeviceId, row.Hostname, row.OsName, row.UpdatedAt, row.Stale != 0))
                 .ToList();
 
+            // 全Hubの日別の集計を日付ごとに合算する。コストは、どのHubも値がない日だけNULLにする。
+            var activity = (await connection.QueryAsync<ActivityRow>(
+                """
+                SELECT
+                    date AS Date,
+                    CAST(SUM(tokens) AS INTEGER) AS Tokens,
+                    CAST(CASE WHEN COUNT(cost_usd) = 0 THEN NULL ELSE SUM(cost_usd) END AS REAL) AS CostUsd
+                FROM
+                    daily_token_usages
+                GROUP BY
+                    date
+                ORDER BY
+                    date
+                """))
+                .Select(row => new ActivityDayOutput(row.Date, row.Tokens, row.CostUsd))
+                .ToList();
+
             return new OverviewOutput(
                 hubs,
                 new OverviewPeriodsOutput(
@@ -98,7 +115,7 @@ internal static class OverviewQuery
                     Period(hubs, usages, "all_time")),
                 limitWindows,
                 devices,
-                new OverviewActivityOutput([]));
+                new OverviewActivityOutput(activity));
         });
 
     private static OverviewPeriodOutput Period(
@@ -163,6 +180,14 @@ internal static class OverviewQuery
         double BaseRemainingPercent,
         double BaseCostUsd,
         double CostUsd);
+
+    // 行がないとき集計式の型が分からず、コンストラクターの引数と対応づけられないため、プロパティで受ける。
+    private sealed class ActivityRow
+    {
+        public string Date { get; init; } = "";
+        public long Tokens { get; init; }
+        public double? CostUsd { get; init; }
+    }
 
     private sealed record HubRow(string HubId, string Name, long Connected, string? ReceivedAt, string? UpdatedAt);
 
