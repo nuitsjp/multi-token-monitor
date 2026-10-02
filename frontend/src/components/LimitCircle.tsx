@@ -95,7 +95,7 @@ export function LimitCircle({
           styles={{
             tooltip: { background: '#111215', color: '#e4e5e9', border: '1px solid #3a3d48' },
           }}
-          label="推定上限額が求められている枠のうち最も長い枠を、31日に換算した参考値です。"
+          label="各枠の上限額を月換算し、最も小さい金額を採用した参考値です。"
         >
           <span className="limit-monthly">{costWhole(monthly)}/mo</span>
         </Tooltip>
