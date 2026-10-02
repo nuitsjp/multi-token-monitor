@@ -21,6 +21,12 @@ export function SideMenu() {
 
   return (
     <nav aria-label="Menu" className="side-menu">
+      <div className="brand">
+        <span className="brand-logo">
+          <MenuIcon name="logo" size={17} />
+        </span>
+        <span className="brand-name">Token Monitor Analytics</span>
+      </div>
       <NavLink
         component={Link}
         to="/"

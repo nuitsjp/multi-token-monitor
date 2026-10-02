@@ -97,7 +97,8 @@ internal static class OverviewQuery
                     Period(hubs, usages, "month"),
                     Period(hubs, usages, "all_time")),
                 limitWindows,
-                devices);
+                devices,
+                new OverviewActivityOutput([]));
         });
 
     private static OverviewPeriodOutput Period(

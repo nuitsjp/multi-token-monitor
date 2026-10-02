@@ -27,10 +27,30 @@ export function applyFreshness(overview: Overview, freshness: HubFreshness): Ove
   };
 }
 
+// 動作合意用のモック（段階4で削除する）。URLに ?mock=activity を付けたときだけ、日別の集計を固定の式で生成して差し込む。
+// 日付は実行日から遡り、トークン数は日付だけで決まる。
+function mockActivity(): Overview['activity'] {
+  const today = new Date();
+  const days = Array.from({ length: 400 }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - index);
+    const seed = (date.getFullYear() * 372 + date.getMonth() * 31 + date.getDate()) % 97;
+    const tokens = seed % 5 === 0 ? 0 : seed * seed * 120_000 + (seed % 7) * 3_000_000;
+    return {
+      date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+      tokens,
+      costUsd: tokens === 0 ? null : tokens / 2_000_000,
+    };
+  });
+  return { days };
+}
+
 export async function fetchOverview(): Promise<Overview> {
   const response = await fetch('/api/overview');
   if (!response.ok) throw new Error(`利用状況を取得できませんでした（HTTP ${response.status}）。`);
-  return (await response.json()) as Overview;
+  const overview = (await response.json()) as Overview;
+  return new URLSearchParams(location.search).get('mock') === 'activity'
+    ? { ...overview, activity: mockActivity() }
+    : overview;
 }
 
 // 変更通知を購読し、接続・再接続（ready）と保存確定（overview.changed）のたびに取得し直す。
