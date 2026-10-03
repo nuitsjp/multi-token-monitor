@@ -65,7 +65,7 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
               By model
             </Title>
           </Group>
-          <Group gap={20} wrap="nowrap">
+          <Group gap={20} wrap="nowrap" className="by-model-summary">
             <Group gap={6} wrap="nowrap">
               <Text size="xs" c="dimmed">
                 Tokens
@@ -137,7 +137,7 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
                   </div>
                 ))}
               </div>
-              <Group gap={14} mt="sm" style={{ flex: 'none' }}>
+              <Group gap={14} mt="sm" className="by-model-legend" style={{ flex: 'none' }}>
                 {chart.series.map((series) => (
                   <Group gap={6} wrap="nowrap" key={series.key}>
                     <span className="hub-chart-swatch" style={{ background: series.color }} />
