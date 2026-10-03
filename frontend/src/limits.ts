@@ -64,19 +64,21 @@ export function stateOf(window: LimitWindow, now: number): Pace {
   return severity[pace] >= severity[remaining] ? pace : remaining;
 }
 
-// monthlyUsd は枠グループごとに1つで、グループの先頭の円だけが持つ（2つ目以降の円は null）。
+// monthlyUsd は、契約の枠グループが複数のとき、グループの先頭の円だけが持つ（2つ目以降の円と、グループが1つの契約は null）。
 export type LimitCircle = {
   key: string;
   group: string;
   windows: LimitWindow[];
   monthlyUsd: number | null;
 };
+// monthlyUsd は契約の枠グループが1つのときだけ持つ（契約で1つ。パネルの見出し行に示す）。複数のときは各円が持つ。
 export type LimitAccount = {
   key: string;
   provider: string;
   accountLabel: string | null;
   planLabel: string | null;
   circles: LimitCircle[];
+  monthlyUsd: number | null;
 };
 
 // 契約ごとに枠グループを作り、グループ内を長さの短い順（不明は最後）に並べて2枠ずつ円に詰める。
@@ -93,6 +95,7 @@ export function buildAccounts(windows: LimitWindow[]): LimitAccount[] {
           accountLabel: window.accountLabel,
           planLabel: window.planLabel,
           circles: [],
+          monthlyUsd: null,
         },
         groups: new Map(),
       };
@@ -102,17 +105,19 @@ export function buildAccounts(windows: LimitWindow[]): LimitAccount[] {
     entry.groups.set(group, [...(entry.groups.get(group) ?? []), window]);
   }
   return [...accounts.values()].map(({ account, groups }) => {
+    const single = groups.size === 1;
     for (const [group, members] of groups) {
       const sorted = [...members].sort(
         (a, b) => (lengthOf(a) ?? Infinity) - (lengthOf(b) ?? Infinity),
       );
       const monthlyUsd = monthlyLimitUsd(sorted);
+      if (single) account.monthlyUsd = monthlyUsd;
       for (let index = 0; index < sorted.length; index += 2)
         account.circles.push({
           key: `${group}/${index}`,
           group,
           windows: sorted.slice(index, index + 2),
-          monthlyUsd: index === 0 ? monthlyUsd : null,
+          monthlyUsd: !single && index === 0 ? monthlyUsd : null,
         });
     }
     return account;

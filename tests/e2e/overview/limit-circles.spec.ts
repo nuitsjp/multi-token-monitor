@@ -324,13 +324,11 @@ test.describe('月換算上限額', () => {
 
       // 同じ $3 の増分に対し、5h は 3 / 使用率差 × 100 × 148.8、
       // weekly は 3 / 使用率差 × 100 × 31/7。小さい方を整数表示する。
-      await expect(limits.locator('.limit-circle').first().locator('.limit-monthly')).toHaveText(
-        sample.expected,
-      );
+      await expect(limits.locator('.limit-heading .limit-monthly')).toHaveText(sample.expected);
     });
   }
 
-  test('LMT-4 枠グループごとに、各枠を月換算した最小値を先頭の円の右上に1つ示し、求められないグループには出さない', async ({
+  test('LMT-4 枠グループごとに、各枠を月換算した最小値を1つ示し（グループが1つの契約は見出し行の右端）、求められないグループには出さない', async ({
     page,
     app,
     alpha,
@@ -359,13 +357,13 @@ test.describe('月換算上限額', () => {
     await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(before);
 
     // Assert: 週次の推定上限額 $30 は 30 ÷ 10,080 × 44,640 で $133、月次の $30 は換算しない。
-    // 枠グループ（この契約は全体で1グループ）の最小値 $30 を、先頭の円の右上に1つだけ示す。
-    const circles = limits.locator('.limit-circle');
-    await expect(circles.nth(0).locator('.limit-monthly')).toHaveText('$30/mo');
+    // 枠グループ（この契約は全体で1グループ）の最小値 $30 を、見出し行の右端に1つだけ示す（円は2つあるが、円の右上には出ない）。
+    await expect(limits.locator('.limit-heading .limit-monthly')).toHaveText('$30/mo');
     await expect(limits.locator('.limit-monthly')).toHaveCount(1);
+    await expect(limits.locator('.limit-circle')).toHaveCount(2);
 
     // Act & Assert: マウスオーバーで、換算した参考値であることを日本語で示す。
-    await circles.nth(0).locator('.limit-monthly').hover();
+    await limits.locator('.limit-heading .limit-monthly').hover();
     await expect(
       page.getByRole('tooltip').filter({ hasText: '最も小さい金額を採用した参考値' }),
     ).toBeVisible();

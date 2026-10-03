@@ -22,6 +22,7 @@ import {
 import { type Overview } from '../api/overview.ts';
 import { useOverview } from '../app/overview.tsx';
 import { LimitCircle } from '../components/LimitCircle.tsx';
+import { MonthlyLimit } from '../components/MonthlyLimit.tsx';
 import { MenuIcon, type MenuIconName } from '../components/MenuIcon.tsx';
 import { ProviderIcon } from '../components/ProviderIcon.tsx';
 import { CostUsd, TokenCount } from '../components/SlotNumber.tsx';
@@ -517,6 +518,7 @@ function LimitCard({ overview }: { overview: Overview }) {
                     {account.accountLabel}
                   </Text>
                 )}
+                {account.monthlyUsd !== null && <MonthlyLimit value={account.monthlyUsd} />}
               </Group>
               <div className="limit-circles">
                 {account.circles.map((circle) => (

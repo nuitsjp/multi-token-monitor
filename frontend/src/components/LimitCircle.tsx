@@ -1,5 +1,6 @@
 import { Tooltip } from '@mantine/core';
-import { cost, costWhole } from '../format.ts';
+import { cost } from '../format.ts';
+import { MonthlyLimit } from './MonthlyLimit.tsx';
 import {
   stateOf,
   remainingText,
@@ -106,17 +107,7 @@ export function LimitCircle({
   );
   return (
     <div className="limit-circle" aria-label={name}>
-      {monthly !== null && (
-        <Tooltip
-          multiline
-          w={220}
-          withArrow
-          styles={tooltipStyles}
-          label="各枠の上限額を月換算し、最も小さい金額を採用した参考値です。"
-        >
-          <span className="limit-monthly">{costWhole(monthly)}/mo</span>
-        </Tooltip>
-      )}
+      {monthly !== null && <MonthlyLimit value={monthly} />}
       <svg viewBox="0 2 200 180" width={176} height={158} role="img" aria-label={name}>
         {circle.windows.map((window, index) => (
           <Arc
