@@ -102,13 +102,6 @@ Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（
 
 ### Hub情報を表示する画面の動作確認
 
-依存の導入後、PowerShellで次のコマンドを実行し、`http://127.0.0.1:5175/by-hub` を開きます。固定データの取得境界と共有する型は [UCP-2](design/UCP-2.md) に記載します。
+Hubの接続設定を準備し、開発構成は `mise run dev` で起動して `http://127.0.0.1:5173/by-hub`、配布構成は `mise run start` で起動して `http://127.0.0.1:3000/by-hub` を開きます。停止は起動したターミナルでCtrl+Cです。
 
-```powershell
-$env:VITE_HUB_USAGE_MOCK='1'
-npx vite --config frontend/vite.config.ts --host 127.0.0.1 --port 5175
-```
-
-初期表示はPersonal・2W・Dailyです。Hub・期間・集約単位を切り替えると、Tokens／CostのグラフとDevicesが同じ条件で更新されます。モデル上位5件とOtherを表示し、凡例の選択は両グラフに反映します。開発構成かつ上記環境変数が `1` の場合だけ固定データを使用し、ブラウザーのネットワーク欄に `/api/hub-usage` の要求がないことで有効を確認します。
-
-停止は起動したターミナルでCtrl+Cです。実処理の確認に切り替える場合は `Remove-Item Env:VITE_HUB_USAGE_MOCK` で変数を削除し、`mise run dev` で起動して `http://127.0.0.1:5173/by-hub` を開きます。ネットワーク欄に `GET /api/hub-usage` があることでモック無効を確認します。このAPIは実処理接続時に実装するため、それまでは取得エラーを表示します。APIの失敗時に固定データへ切り替えません。配布構成では環境変数の値にかかわらず固定データを使いません。
+初期表示は登録順で最初のHub・2W・Dailyです。Hub・期間・集約単位を切り替えると、Tokens／CostのグラフとDevicesが同じ条件で更新されます。モデル上位5件とOtherを表示し、凡例の選択は両グラフに反映します。ブラウザーのネットワーク欄に `GET /api/hub-usage` の要求があり、APIがローカルDBの保存済み明細を返すことで実処理を確認します。選択期間に明細が無い場合は数値を「—」で表示します。固定データと環境変数によるモックの切り替えは設けず、API失敗時に固定データへ切り替えません。取得境界は [UCP-2](design/UCP-2.md) に記載します。

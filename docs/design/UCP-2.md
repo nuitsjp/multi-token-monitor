@@ -32,11 +32,12 @@ sequenceDiagram
 
 ## Hub情報を表示する固有の処理
 
-画面は閲覧用APIから、保存済みのHub情報とモデル・デバイス別の日次明細を取得し、選択した期間と集約単位で表示する。閲覧クエリはローカルDBのドメインモデルだけを読み、Hubへ接続しない。日次明細の未取得とコストの不明を区別する。画面の表示・操作は [Hub情報を表示する](../usecases/Hub情報を表示する/README.md) に従う。
+画面の表示・操作は [Hub情報を表示する](../usecases/Hub情報を表示する/README.md) に従う。
 
 | 役割 | 責務 | 実装パス |
 | --- | --- | --- |
-| Hub利用状況の取得 | `fetchHubUsage` を唯一の取得境界とし、`HubUsageData` と日次明細の型を画面と固定データで共有する。実処理では `GET /api/hub-usage` を呼ぶ。API接続は段階4で実装する | `frontend/src/api/hub-usage.ts` |
-| 表示集計 | 受け取った日次明細を選択期間・日次／週次／月次で集計し、トークン合計による上位5モデルとOther、デバイス別合計と構成比を返す。集約単位を変えても期間合計を変えない | `frontend/src/hub-usage.ts` |
+| Hub利用状況の取得 | `fetchHubUsage` を唯一の取得境界とし、`GET /api/hub-usage` を呼ぶ。契約はOpenAPIから生成するTypeScriptの型で画面と共有する | `frontend/src/api/hub-usage.ts`、`backend/Presentation/Http/Contracts.cs`、`backend/Presentation/Http/ApiEndpoints.cs` |
+| Hub利用状況の閲覧クエリ | 読み取り専用のトランザクションでHubと端末、日次モデル明細のドメインモデルを読む。`hub_states.stats_json` は読まず、Hubへ接続しない。日次明細の取得可否を示す独立フラグは返さない | `backend/Features/HubUsage/HubUsageQuery.cs` |
+| 表示集計 | 受け取った日次明細を選択期間・日次／週次／月次で集計し、トークン合計による上位5モデルとOther、デバイス別合計と構成比を返す。集約単位を変えても期間合計を変えない。選択期間に明細が無いときは未取得値をゼロにしない | `frontend/src/hub-usage.ts` |
 
-モックの合成点は `fetchHubUsage` 1箇所とする。`import.meta.env.DEV` が真かつ `VITE_HUB_USAGE_MOCK` が `1` の場合だけ同関数の固定データを返す。それ以外は閲覧用APIを呼び、通信失敗時にも固定データへ切り替えない。固定データの起動・終了と無効化の確認は [実行手順](../project.md#commands) に従う。
+固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。変更の購読は既存の画面全体で1つの通知接続を共用し、新たなEventSourceを作らない（[UCP-3](UCP-3.md)）。保存確定後は同じ取得境界を呼び直し、鮮度更新では受信時刻と端末の鮮度だけを表示中の状態へ反映する。

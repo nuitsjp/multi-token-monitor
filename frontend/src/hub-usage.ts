@@ -4,7 +4,7 @@ export type AggregationUnit = 'daily' | 'weekly' | 'monthly';
 export type RangePreset = '7d' | '2w' | '4w' | '3m' | '1y';
 export type HubUsageAggregate = {
   series: { key: string; name: string; color: string }[];
-  buckets: { key: string; label: string; tokens: number[]; costs: (number | null)[] }[];
+  buckets: { key: string; label: string; tokens: (number | null)[]; costs: (number | null)[] }[];
   devices: {
     device: HubUsageDevice;
     tokens: number | null;
@@ -58,12 +58,7 @@ export function aggregateHub(
   end: string,
   unit: AggregationUnit,
 ): HubUsageAggregate {
-  const available = new Set(
-    hub.devices.filter((item) => item.historyAvailable).map((item) => item.deviceId),
-  );
-  const days = hub.historyAvailable
-    ? hub.days.filter((day) => day.date >= start && day.date <= end && available.has(day.deviceId))
-    : [];
+  const days = hub.days.filter((day) => day.date >= start && day.date <= end);
   const totals = new Map<string, number>();
   for (const day of days) totals.set(day.model, (totals.get(day.model) ?? 0) + day.tokens);
   const top = [...totals].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 5);
@@ -73,7 +68,7 @@ export function aggregateHub(
   if (hasOther) series.push({ key: '__other__', name: 'Other', color: '#626572' });
   const indexes = new Map(top.map(([model], index) => [model, index]));
   const grouped = new Map<string, { tokens: number[]; costs: (number | null)[][] }>();
-  if (hub.historyAvailable) {
+  if (days.length > 0) {
     for (
       const date = new Date(`${start}T00:00:00Z`);
       dateKey(date) <= end;
@@ -90,12 +85,12 @@ export function aggregateHub(
     bucket.tokens[index] += day.tokens;
     bucket.costs[index].push(day.costUsd);
   }
-  const totalTokens = hub.historyAvailable ? days.reduce((sum, day) => sum + day.tokens, 0) : null;
-  const totalCostUsd = hub.historyAvailable ? sumCosts(days.map((day) => day.costUsd)) : null;
+  const totalTokens = days.length > 0 ? days.reduce((sum, day) => sum + day.tokens, 0) : null;
+  const totalCostUsd = days.length > 0 ? sumCosts(days.map((day) => day.costUsd)) : null;
   const devices = hub.devices
     .map((device) => {
       const records = days.filter((day) => day.deviceId === device.deviceId);
-      const known = hub.historyAvailable && device.historyAvailable;
+      const known = records.length > 0;
       const tokens = known ? records.reduce((sum, day) => sum + day.tokens, 0) : null;
       const costUsd = known ? sumCosts(records.map((day) => day.costUsd)) : null;
       return {
@@ -122,15 +117,19 @@ export function aggregateHub(
               timeZone: 'UTC',
             })
           : `${Number(key.slice(5, 7))}/${Number(key.slice(8, 10))}`,
-      tokens: bucket.tokens,
-      costs: bucket.costs.map(sumCosts),
+      tokens: bucket.costs.some((records) => records.length > 0)
+        ? bucket.tokens
+        : series.map(() => null),
+      costs: bucket.costs.some((records) => records.length > 0)
+        ? bucket.costs.map(sumCosts)
+        : series.map(() => null),
     })),
     devices,
     totalTokens,
     totalCostUsd,
     partial:
-      !hub.historyAvailable ||
-      hub.devices.some((device) => !device.historyAvailable) ||
+      days.length === 0 ||
+      hub.devices.some((device) => !days.some((day) => day.deviceId === device.deviceId)) ||
       days.some((day) => day.costUsd === null),
   };
 }

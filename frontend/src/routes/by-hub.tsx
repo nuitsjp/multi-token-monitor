@@ -12,7 +12,7 @@ import {
   Title,
   UnstyledButton,
 } from '@mantine/core';
-import { fetchHubUsage, type HubUsageData } from '../api/hub-usage.ts';
+import { applyHubUsageFreshness, fetchHubUsage, type HubUsageData } from '../api/hub-usage.ts';
 import {
   aggregateHub,
   rangeForPreset,
@@ -23,6 +23,8 @@ import { HubUsageChart } from '../components/HubUsageChart.tsx';
 import { HubRangePicker } from '../components/HubRangePicker.tsx';
 import { MenuIcon } from '../components/MenuIcon.tsx';
 import { full } from '../format.ts';
+import { useOverview } from '../app/overview.tsx';
+import type { HubFreshness } from '../api/overview.ts';
 import '../by-hub.css';
 
 export const Route = createFileRoute('/by-hub')({ component: ByHub });
@@ -37,31 +39,51 @@ const time = (value: string | null) =>
 export function ByHub() {
   const [data, setData] = useState<HubUsageData>();
   const [error, setError] = useState<string>();
+  const { subscribeNotifications } = useOverview();
   useEffect(() => {
+    let latest = 0;
     let active = true;
-    void fetchHubUsage().then(
-      (value) => {
-        if (active) setData(value);
-      },
-      (reason) => {
-        if (active) setError(String(reason));
-      },
-    );
+    const freshness = new Map<string, HubFreshness>();
+    const refresh = () => {
+      const request = ++latest;
+      void fetchHubUsage().then(
+        (value) => {
+          if (!active || request !== latest) return;
+          let next = value;
+          for (const update of freshness.values()) next = applyHubUsageFreshness(next, update);
+          setData(next);
+          setError(undefined);
+        },
+        (reason: unknown) => {
+          if (active && request === latest)
+            setError(reason instanceof Error ? reason.message : String(reason));
+        },
+      );
+    };
+    const unsubscribe = subscribeNotifications((notification) => {
+      if (notification.type === 'changed') refresh();
+      else {
+        freshness.set(notification.freshness.hubId, notification.freshness);
+        setData((previous) =>
+          previous ? applyHubUsageFreshness(previous, notification.freshness) : previous,
+        );
+      }
+    });
+    refresh();
     return () => {
       active = false;
+      latest++;
+      unsubscribe();
     };
-  }, []);
+  }, [subscribeNotifications]);
   return (
     <Container component="main" size="xl" py="md">
       {error ? (
         <Alert color="red" title="Unable to load hub information">
           {error}
         </Alert>
-      ) : data ? (
-        <HubDashboard data={data} />
-      ) : (
-        <Loader aria-label="Loading" />
-      )}
+      ) : null}
+      {data ? <HubDashboard data={data} /> : <Loader aria-label="Loading" />}
     </Container>
   );
 }
@@ -116,7 +138,12 @@ function HubDashboard({ data }: { data: HubUsageData }) {
           />
           <Group gap={10} className="by-hub-status" wrap="nowrap">
             <Text size="xs" c={hub.connected ? '#0ca30c' : '#fab219'}>
-              ● {hub.connected ? 'Connected' : 'Disconnected'}
+              ●{' '}
+              {hub.connected
+                ? 'Connected'
+                : hub.receivedAt === null
+                  ? 'Not received'
+                  : 'Reconnecting'}
             </Text>
             <Text size="xs" c="dimmed">
               Last received {time(hub.receivedAt)}
@@ -171,9 +198,9 @@ function HubDashboard({ data }: { data: HubUsageData }) {
                 />
               </Group>
             </Group>
-            {!hub.historyAvailable ? (
+            {usage.totalTokens === null ? (
               <Text c="dimmed" py="xl">
-                History unavailable.
+                No history for selected range.
               </Text>
             ) : (
               <>
@@ -269,9 +296,9 @@ function HubDashboard({ data }: { data: HubUsageData }) {
                   color="#6b9eac"
                 />
                 <DeviceBar label="Cost" value={cost(costUsd)} share={costShare} color="#9789c7" />
-                {!device.historyAvailable && (
+                {amount === null && (
                   <Text size="xs" c="dimmed" mt={4}>
-                    History unavailable.
+                    No history for selected range.
                   </Text>
                 )}
               </div>

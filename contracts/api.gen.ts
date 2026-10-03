@@ -31,6 +31,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hub-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetHubUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -44,6 +60,34 @@ export interface components {
         };
         HealthOutput: {
             status: string;
+        };
+        HubUsageDataOutput: {
+            today: string;
+            hubs: components["schemas"]["HubUsageHubOutput"][];
+        };
+        HubUsageDayOutput: {
+            date: string;
+            deviceId: string;
+            model: string;
+            /** Format: int64 */
+            tokens: number;
+            /** Format: double */
+            costUsd: number | null;
+        };
+        HubUsageDeviceOutput: {
+            deviceId: string;
+            hostname: string;
+            osName: string | null;
+            updatedAt: string;
+            stale: boolean;
+        };
+        HubUsageHubOutput: {
+            hubId: string;
+            name: string;
+            connected: boolean;
+            receivedAt: string | null;
+            devices: components["schemas"]["HubUsageDeviceOutput"][];
+            days: components["schemas"]["HubUsageDayOutput"][];
         };
         HubUsageOutput: {
             hubId: string;
@@ -163,6 +207,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OverviewOutput"];
+                };
+            };
+        };
+    };
+    GetHubUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HubUsageDataOutput"];
                 };
             };
         };

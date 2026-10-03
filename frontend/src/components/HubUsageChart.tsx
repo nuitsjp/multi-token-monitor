@@ -7,7 +7,7 @@ export type ChartSeries = { key: string; name: string; color: string };
 export type ChartBucket = {
   key: string;
   label: string;
-  tokens: number[];
+  tokens: (number | null)[];
   costs: (number | null)[];
 };
 
@@ -94,7 +94,9 @@ export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
   const height = 230;
   const maxTokens = Math.max(
     0,
-    ...buckets.map((bucket) => visible.reduce((sum, entry) => sum + bucket.tokens[entry.index], 0)),
+    ...buckets.map((bucket) =>
+      visible.reduce((sum, entry) => sum + (bucket.tokens[entry.index] ?? 0), 0),
+    ),
   );
   const left = Math.max(90, full.format(Math.ceil(maxTokens * 1.1)).length * 8 + 16);
   const right = 10;

@@ -6,8 +6,8 @@
 | --- | --- | --- |
 | 起動・終了管理 | 接続設定とDBを準備し、全HubをDBへ受信中として登録し、設定から外れたHubをその行ごと削除してから受信を開始する。終了時は全Hubの受信を止め、処理中の保存が確定してからDBを閉じる | `backend/Hosting/AppHost.cs`、`backend/Features/HubSync/HubReceivers.cs` |
 | 接続設定読込 | `.env` の `HUB_CONFIG_PATH` が指すJSONを検証し、Hubの接続情報を返す。ファイルは更新しない | `backend/Infrastructure/Configuration/HubConfigFile.cs` |
-| Hub受信処理 | Hubごとに1つ動く。`Authorization: Bearer`・`x-token-monitor-stream: 2` を付けて `/api/stats/stream` へ接続し、通知を解析・検証して、受信順に保存処理を呼ぶ。保存の COMMIT 後に閲覧側へ変更を発行する（[UCP-3](UCP-3.md)）。受信が止まると受信状態を再接続中として記録して変更を発行し、待ち時間を1秒から倍にしながら（上限60秒）再接続する | `backend/Features/HubSync/HubReceivers.cs`、`backend/Features/HubSync/HubNotification.cs` |
-| 最新状態の保存処理 | snapshot・stats は受信時刻と一括で保存し、同じトランザクションで受信データを本システムのドメインモデルへ変換して保存する。日別の履歴を含むときは、日別の集計を日付ごとに上書きまたは追加する（含まない日付の行は消さない）。freshness は保存済みの状態を読まずに、受信時刻とHub・端末の時刻・古さだけを更新する | `backend/Features/HubSync/HubStateStore.cs`、`backend/Infrastructure/Persistence/Migrations/001-hub-sync.sql`、`backend/Infrastructure/Persistence/Migrations/004-daily-token-usages.sql` |
+| Hub受信処理 | Hubごとに1つ動く。`Authorization: Bearer`・`x-token-monitor-stream: 2` を付けて `/api/stats/stream` へ接続し、通知を解析・検証して、受信順に保存処理を呼ぶ。保存の COMMIT 後に閲覧側へ変更を発行する（[UCP-3](UCP-3.md)）。受信が止まると受信状態を再接続中として記録して変更を発行し、待ち時間を1秒から倍にしながら（上限60秒）再接続する | `backend/Features/HubSync/HubReceivers.cs`、`backend/Features/HubSync/HubNotification.cs`、`backend/Features/HubSync/HubDeviceHistory.cs` |
+| 最新状態の保存処理 | snapshot・stats は受信時刻と一括で保存し、同じトランザクションで受信データを本システムのドメインモデルへ変換して保存する。日別の履歴を含むときは、日別の集計を日付ごとに上書きまたは追加する（含まない日付の行は消さない）。freshness は保存済みの状態を読まずに、受信時刻とHub・端末の時刻・古さだけを更新する | `backend/Features/HubSync/HubStateStore.cs`、`backend/Infrastructure/Persistence/Migrations/001-hub-sync.sql`、`backend/Infrastructure/Persistence/Migrations/004-daily-token-usages.sql`、`backend/Infrastructure/Persistence/Migrations/005-device-daily-model-usages.sql` |
 
 ```mermaid
 sequenceDiagram
@@ -41,4 +41,4 @@ sequenceDiagram
 
 ## Hub情報を表示する固有の処理
 
-同期時にHubの `GET /api/devices` から日次明細を取得し、モデル・デバイス別の利用量と推定コストをドメインモデルとして保存する。受信データの最新状態と日次明細を区別し、当日の履歴と最新の当日利用量は重複加算しない。表示条件は [Hub情報を表示する](../usecases/Hub情報を表示する/README.md) に従う。
+同期側のHub受信処理が、認証付き `GET /api/devices` で日次明細を取得する。取得の契機、当日値との置き換え、端末と日付単位の保存、トランザクションと失敗時の扱いは [保存と変換の規則](data.md) に従う。外部取得と検証は保存トランザクションを開始する前に完了し、statsと日次明細の保存をCOMMITした後にだけ [UCP-3](UCP-3.md) の変更通知を発行する。表示条件は [Hub情報を表示する](../usecases/Hub情報を表示する/README.md) に従う。
