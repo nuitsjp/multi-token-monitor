@@ -130,7 +130,6 @@ const fixture =
 export async function fetchHubUsage(): Promise<HubUsageData> {
   if (fixture) return fixture;
   const response = await fetch('/api/hub-usage');
-  if (!response.ok)
-    throw new Error(`Hubの利用状況を取得できませんでした（HTTP ${response.status}）。`);
+  if (!response.ok) throw new Error(`Unable to load Hub usage (HTTP ${response.status}).`);
   return (await response.json()) as HubUsageData;
 }

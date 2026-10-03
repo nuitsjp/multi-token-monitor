@@ -88,7 +88,7 @@ export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
   if (kind === 'cost' && !costProvided) {
     return (
       <Text c="dimmed" size="sm" className="hub-chart-empty">
-        推定コストは未取得です
+        Estimated cost unavailable
       </Text>
     );
   }
@@ -114,7 +114,7 @@ export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
   }
   const format = (value: number | null) =>
     value === null ? '—' : kind === 'tokens' ? compact.format(value) : usd.format(value);
-  const title = kind === 'tokens' ? 'モデル別Tokens' : 'モデル別推定コスト（USD）';
+  const title = kind === 'tokens' ? 'Model tokens' : 'Estimated cost (USD)';
 
   return (
     <div className="hub-chart-scroll">
@@ -161,7 +161,7 @@ export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
             kind === 'cost' &&
             visible.some((entry) => row[entry.index] === null) &&
             totals[index] !== null;
-          const summary = `${bucket.label}: ${format(totals[index])}${partial ? '（取得済み分）' : ''}`;
+          const summary = `${bucket.label}: ${format(totals[index])}${partial ? ' (known amounts)' : ''}`;
           return (
             <g key={bucket.key}>
               {rects}

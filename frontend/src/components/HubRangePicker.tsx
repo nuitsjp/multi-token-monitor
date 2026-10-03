@@ -9,12 +9,12 @@ const dayKey = (date: Date) => date.toISOString().slice(0, 10);
 const monthDate = (day: string) => new Date(`${day.slice(0, 7)}-01T00:00:00Z`);
 const moveMonth = (month: Date, offset: number) =>
   new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + offset, 1));
-const monthLabel = new Intl.DateTimeFormat('ja-JP', {
+const monthLabel = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   month: 'long',
   timeZone: 'UTC',
 });
-const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function HubRangePicker({ range, today, onChange }: Props) {
   const [opened, setOpened] = useState(false);
@@ -57,7 +57,7 @@ export function HubRangePicker({ range, today, onChange }: Props) {
           color="gray"
           radius="xl"
           size="lg"
-          aria-label="任意の期間を選択"
+          aria-label="Choose date range"
           aria-expanded={opened}
           onClick={() => (opened ? setOpened(false) : open())}
         >
@@ -70,18 +70,18 @@ export function HubRangePicker({ range, today, onChange }: Props) {
             <ActionIcon
               variant="subtle"
               color="gray"
-              aria-label="前の月"
+              aria-label="Previous month"
               onClick={() => setMonth(moveMonth(month, -1))}
             >
               ‹
             </ActionIcon>
             <Text size="xs" c="dimmed" aria-live="polite">
-              {selectingEnd ? '終了日を選択してください' : '開始日を選択してください'}
+              {selectingEnd ? 'Select end date' : 'Select start date'}
             </Text>
             <ActionIcon
               variant="subtle"
               color="gray"
-              aria-label="次の月"
+              aria-label="Next month"
               disabled={dayKey(moveMonth(month, 1)) > today}
               onClick={() => setMonth(moveMonth(month, 1))}
             >
@@ -138,7 +138,7 @@ export function HubRangePicker({ range, today, onChange }: Props) {
           <Group gap="sm" grow wrap="nowrap">
             <TextInput
               type="date"
-              label="開始日"
+              label="Start date"
               value={draft.start}
               max={today}
               onChange={(event) => {
@@ -149,7 +149,7 @@ export function HubRangePicker({ range, today, onChange }: Props) {
             />
             <TextInput
               type="date"
-              label="終了日"
+              label="End date"
               value={draft.end}
               min={draft.start}
               max={today}
@@ -169,7 +169,7 @@ export function HubRangePicker({ range, today, onChange }: Props) {
               setOpened(false);
             }}
           >
-            期間を適用
+            Apply range
           </Button>
         </Stack>
       </Popover.Dropdown>

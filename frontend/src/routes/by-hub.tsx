@@ -32,7 +32,7 @@ const cost = (value: number | null) => (value === null ? '—' : dollars.format(
 const time = (value: string | null) =>
   value === null
     ? '—'
-    : new Date(value).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    : new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 export function ByHub() {
   const [data, setData] = useState<HubUsageData>();
@@ -54,7 +54,7 @@ export function ByHub() {
   return (
     <Container component="main" size="xl" py="md">
       {error ? (
-        <Alert color="red" title="Hub情報を取得できません">
+        <Alert color="red" title="Unable to load hub information">
           {error}
         </Alert>
       ) : data ? (
@@ -78,55 +78,59 @@ function HubDashboard({ data }: { data: HubUsageData }) {
     () => (hub ? aggregateHub(hub, range.start, range.end, unit) : undefined),
     [hub, range.start, range.end, unit],
   );
-  if (!hub || !usage) return <Text c="dimmed">登録されたHubはありません。</Text>;
+  if (!hub || !usage) return <Text c="dimmed">No hubs registered.</Text>;
   return (
     <>
       <Group className="by-hub-header" justify="space-between" mb="md">
-        <Group gap={10} wrap="nowrap">
-          <span className="page-icon">
-            <MenuIcon name="hub" size={26} />
-          </span>
-          <Title order={1} fz={26} lh={1} fw={600}>
-            By hub
-          </Title>
+        <Group gap={24} className="by-hub-heading">
+          <Group gap={20} className="by-hub-summary" wrap="nowrap">
+            <Group gap={6} wrap="nowrap">
+              <Text size="xs" c="dimmed">
+                Tokens
+              </Text>
+              <Text className="num">{tokens(usage.totalTokens)}</Text>
+            </Group>
+            <Group gap={6} wrap="nowrap">
+              <Text size="xs" c="dimmed">
+                Cost
+              </Text>
+              <Text className="num">{cost(usage.totalCostUsd)}</Text>
+            </Group>
+          </Group>
+          <Group gap={10} wrap="nowrap">
+            <span className="page-icon">
+              <MenuIcon name="hub" size={26} />
+            </span>
+            <Title order={1} fz={26} lh={1} fw={600}>
+              By hub
+            </Title>
+          </Group>
         </Group>
-        <Group gap={20} className="by-hub-summary">
-          <Group gap={10}>
+        <Group gap={20} className="by-hub-controls" wrap="nowrap">
+          <SegmentedControl
+            aria-label="Hub"
+            color="violet"
+            value={hubId}
+            data={data.hubs.map((item) => ({ value: item.hubId, label: item.name }))}
+            onChange={setHubId}
+          />
+          <Group gap={10} className="by-hub-status" wrap="nowrap">
             <Text size="xs" c={hub.connected ? '#0ca30c' : '#fab219'}>
-              ● {hub.connected ? '接続中' : '未接続'}
+              ● {hub.connected ? 'Connected' : 'Disconnected'}
             </Text>
             <Text size="xs" c="dimmed">
-              最終受信 {time(hub.receivedAt)}
+              Last received {time(hub.receivedAt)}
             </Text>
-          </Group>
-          <Group gap={6}>
-            <Text size="xs" c="dimmed">
-              Tokens
-            </Text>
-            <Text className="num">{tokens(usage.totalTokens)}</Text>
-          </Group>
-          <Group gap={6}>
-            <Text size="xs" c="dimmed">
-              Cost
-            </Text>
-            <Text className="num">{cost(usage.totalCostUsd)}</Text>
           </Group>
         </Group>
-        <SegmentedControl
-          aria-label="Hub"
-          color="violet"
-          value={hubId}
-          data={data.hubs.map((item) => ({ value: item.hubId, label: item.name }))}
-          onChange={setHubId}
-        />
       </Group>
       {hub.receivedAt === null ? (
         <div className="card">
-          <Text c="dimmed">このHubは未受信です。</Text>
+          <Text c="dimmed">No data received from this hub.</Text>
         </div>
       ) : (
         <div className="by-hub-workspace">
-          <section className="card by-hub-charts" aria-label="モデル別の利用推移">
+          <section className="card by-hub-charts" aria-label="Usage by model">
             <Group justify="space-between" className="by-hub-chart-toolbar" gap={12}>
               <Group gap={8} wrap="nowrap">
                 <span className="page-icon">
@@ -146,9 +150,8 @@ function HubDashboard({ data }: { data: HubUsageData }) {
                   }}
                 />
                 <SegmentedControl
-                  aria-label="表示期間"
+                  aria-label="Date range"
                   color="violet"
-                  size="xs"
                   value={preset}
                   data={['7d', '2w', '4w', '3m', '1y'].map((value) => ({
                     value,
@@ -157,20 +160,20 @@ function HubDashboard({ data }: { data: HubUsageData }) {
                   onChange={(value) => setPreset(value as RangePreset)}
                 />
                 <NativeSelect
-                  aria-label="集約単位"
+                  aria-label="Aggregation"
                   value={unit}
                   onChange={(event) => setUnit(event.currentTarget.value as AggregationUnit)}
                   data={[
-                    { value: 'daily', label: '日次' },
-                    { value: 'weekly', label: '週次' },
-                    { value: 'monthly', label: '月次' },
+                    { value: 'daily', label: 'Daily' },
+                    { value: 'weekly', label: 'Weekly' },
+                    { value: 'monthly', label: 'Monthly' },
                   ]}
                 />
               </Group>
             </Group>
             {!hub.historyAvailable ? (
               <Text c="dimmed" py="xl">
-                履歴は未取得です。
+                History unavailable.
               </Text>
             ) : (
               <>
@@ -216,12 +219,12 @@ function HubDashboard({ data }: { data: HubUsageData }) {
                 </Group>
                 <Text size="xs" c="dimmed" mt="sm">
                   {range.start} — {range.end}
-                  {usage.partial ? ' · 取得済みの履歴・推定コストを表示' : ''}
+                  {usage.partial ? ' · Showing available history and known costs' : ''}
                 </Text>
               </>
             )}
           </section>
-          <section className="card by-hub-devices" aria-label="デバイス別の利用状況">
+          <section className="card by-hub-devices" aria-label="Usage by device">
             <Group justify="space-between" mb="md">
               <Group gap={8}>
                 <span className="page-icon">
@@ -268,14 +271,14 @@ function HubDashboard({ data }: { data: HubUsageData }) {
                 <DeviceBar label="Cost" value={cost(costUsd)} share={costShare} color="#9789c7" />
                 {!device.historyAvailable && (
                   <Text size="xs" c="dimmed" mt={4}>
-                    履歴は未取得です。
+                    History unavailable.
                   </Text>
                 )}
               </div>
             ))}
             {hub.devices.length === 0 && (
               <Text size="sm" c="dimmed">
-                デバイスはありません。
+                No devices.
               </Text>
             )}
           </section>
@@ -306,7 +309,7 @@ function DeviceBar({
           —
         </Text>
       ) : (
-        <Progress aria-label={`${label}の構成比`} value={share * 100} color={color} size="md" />
+        <Progress aria-label={`${label} share`} value={share * 100} color={color} size="md" />
       )}
       <Text className="num" ta="right">
         {value}

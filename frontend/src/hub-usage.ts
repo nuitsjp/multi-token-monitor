@@ -117,7 +117,10 @@ export function aggregateHub(
       key,
       label:
         unit === 'monthly'
-          ? `${Number(key.slice(5, 7))}月`
+          ? new Date(`${key}-01T00:00:00Z`).toLocaleDateString('en-US', {
+              month: 'short',
+              timeZone: 'UTC',
+            })
           : `${Number(key.slice(5, 7))}/${Number(key.slice(8, 10))}`,
       tokens: bucket.tokens,
       costs: bucket.costs.map(sumCosts),

@@ -1,6 +1,12 @@
 .by-hub-header {
   gap: 16px;
 }
+.by-hub-controls {
+  margin-left: auto;
+}
+.by-hub-status {
+  justify-content: flex-end;
+}
 .by-hub-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 440px;
@@ -33,7 +39,7 @@
   margin-top: 6px;
 }
 .by-hub-chart-toolbar .mantine-NativeSelect-root {
-  width: 76px;
+  width: 108px;
 }
 @media (min-width: 1280px) and (max-width: 1439px) {
   .by-hub-workspace {
