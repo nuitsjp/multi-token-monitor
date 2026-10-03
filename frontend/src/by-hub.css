@@ -1,6 +1,10 @@
 .by-hub-header {
   gap: 16px;
 }
+.by-hub-heading h1 {
+  /* Align the visible glyphs with the smaller metric text, rather than their line boxes. */
+  transform: translateY(-3px);
+}
 .by-hub-controls {
   margin-left: auto;
 }
