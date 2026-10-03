@@ -1,0 +1,207 @@
+import { useId, useState, type ReactNode } from 'react';
+import { Group, Stack, Text, Tooltip } from '@mantine/core';
+import '../hub-chart.css';
+
+export type ChartSeries = { key: string; name: string; color: string };
+export type ChartBucket = {
+  key: string;
+  label: string;
+  tokens: number[];
+  costs: (number | null)[];
+};
+
+type Props = {
+  kind: 'tokens' | 'cost';
+  series: ChartSeries[];
+  buckets: ChartBucket[];
+  hidden: ReadonlySet<string>;
+};
+
+const compact = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+const usd = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 2,
+});
+const coordinate = (value: number) => Math.round(value * 10) / 10;
+
+function BucketTooltip({
+  label,
+  summary,
+  x,
+  y,
+  width,
+  height,
+}: {
+  label: ReactNode;
+  summary: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  return (
+    <Tooltip withArrow multiline opened={hovered || focused} label={label}>
+      <rect
+        className="hub-chart-target"
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill="transparent"
+        tabIndex={0}
+        role="graphics-symbol"
+        aria-label={summary}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setFocused(false);
+            setHovered(false);
+          }
+        }}
+      />
+    </Tooltip>
+  );
+}
+
+export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
+  const titleId = useId();
+  const visible = series
+    .map((entry, index) => ({ ...entry, index }))
+    .filter((entry) => !hidden.has(entry.key));
+  const values = buckets.map((bucket) => (kind === 'tokens' ? bucket.tokens : bucket.costs));
+  const totals = values.map((row) => {
+    const known = visible
+      .map((entry) => row[entry.index])
+      .filter((value): value is number => value !== null);
+    return known.length === 0 ? null : known.reduce((sum, value) => sum + value, 0);
+  });
+  const costProvided = buckets.some((bucket) => bucket.costs.some((value) => value !== null));
+  if (kind === 'cost' && !costProvided) {
+    return (
+      <Text c="dimmed" size="sm" className="hub-chart-empty">
+        推定コストは未取得です
+      </Text>
+    );
+  }
+
+  const width = buckets.length > 90 ? Math.max(720, buckets.length * 14 + 68) : 720;
+  const height = 230;
+  const left = 58;
+  const right = 10;
+  const top = 12;
+  const bottom = 30;
+  const plotHeight = height - top - bottom;
+  const plotWidth = width - left - right;
+  const slot = plotWidth / Math.max(buckets.length, 1);
+  const barWidth = Math.min(26, slot * 0.62);
+  let maximum = 0;
+  for (const total of totals) maximum = Math.max(maximum, total ?? 0);
+  const limit = maximum === 0 ? 1 : maximum * 1.1;
+  const labelStep = Math.max(1, Math.ceil((buckets.length - 1) / 7));
+  const lastIndex = buckets.length - 1;
+  const labels = new Set<number>([lastIndex]);
+  for (let index = 0; index < lastIndex; index += labelStep) {
+    if (lastIndex - index >= labelStep) labels.add(index);
+  }
+  const format = (value: number | null) =>
+    value === null ? '—' : kind === 'tokens' ? compact.format(value) : usd.format(value);
+  const title = kind === 'tokens' ? 'モデル別Tokens' : 'モデル別推定コスト（USD）';
+
+  return (
+    <div className="hub-chart-scroll">
+      <svg
+        className="hub-usage-chart"
+        style={{ minWidth: buckets.length > 90 ? width : undefined }}
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-labelledby={titleId}
+      >
+        <title id={titleId}>{title}</title>
+        {Array.from({ length: 5 }, (_, tick) => {
+          const amount = (limit * tick) / 4;
+          const y = coordinate(top + plotHeight * (1 - tick / 4));
+          return (
+            <g key={tick}>
+              <line className="hub-chart-grid" x1={left} x2={width - right} y1={y} y2={y} />
+              <text className="hub-chart-axis" x={left - 9} y={y + 4} textAnchor="end">
+                {kind === 'tokens' ? compact.format(amount) : usd.format(amount)}
+              </text>
+            </g>
+          );
+        })}
+        {buckets.map((bucket, index) => {
+          const row = values[index];
+          let stacked = 0;
+          const rects = visible.map((entry) => {
+            const value = row[entry.index];
+            if (value === null) return null;
+            const barHeight = (value / limit) * plotHeight;
+            stacked += barHeight;
+            return (
+              <rect
+                key={entry.key}
+                x={coordinate(left + slot * (index + 0.5) - barWidth / 2)}
+                y={coordinate(top + plotHeight - stacked)}
+                width={coordinate(barWidth)}
+                height={coordinate(barHeight)}
+                fill={entry.color}
+              />
+            );
+          });
+          const partial =
+            kind === 'cost' &&
+            visible.some((entry) => row[entry.index] === null) &&
+            totals[index] !== null;
+          const summary = `${bucket.label}: ${format(totals[index])}${partial ? '（取得済み分）' : ''}`;
+          return (
+            <g key={bucket.key}>
+              {rects}
+              {labels.has(index) ? (
+                <text
+                  className="hub-chart-axis"
+                  x={coordinate(left + slot * (index + 0.5))}
+                  y={height - 8}
+                  textAnchor="middle"
+                >
+                  {bucket.label}
+                </text>
+              ) : null}
+              <BucketTooltip
+                summary={summary}
+                x={coordinate(left + slot * index)}
+                y={top}
+                width={coordinate(slot)}
+                height={plotHeight}
+                label={
+                  <Stack gap={4}>
+                    <Text size="xs" fw={600}>
+                      {summary}
+                    </Text>
+                    {visible.map((entry) => (
+                      <Group key={entry.key} gap={12} justify="space-between" wrap="nowrap">
+                        <Group gap={6} wrap="nowrap">
+                          <span className="hub-chart-swatch" style={{ background: entry.color }} />
+                          <Text size="xs">{entry.name}</Text>
+                        </Group>
+                        <Text size="xs">{format(row[entry.index])}</Text>
+                      </Group>
+                    ))}
+                  </Stack>
+                }
+              />
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}

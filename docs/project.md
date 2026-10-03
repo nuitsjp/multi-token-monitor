@@ -8,14 +8,14 @@
 | --- | --- |
 | 解決する問題・達成したい結果 | 私用・業務など別々の Token Monitor Hub に集約されたAIツールの利用状況を、Hubごとに開かずに1か所で確認できるようにする |
 | 利用者・利用場面 | Hubを利用する本人が、自分のPCでアプリケーションを起動し、ブラウザーで閲覧する |
-| 今回の対象 | 設定したHubからの最新状態の受信と保存、保存済み最新状態の閲覧 |
+| 今回の対象 | 設定したHubからの最新状態の受信と保存、日次明細の取得と保存、保存済み利用状況の閲覧 |
 | 今回の対象外 | Hubへの書き込み（端末削除・サブスクリプション編集）、受信履歴の蓄積、アプリケーションからのHubの登録・編集、利用者向けWeb認証、旧製品のDB移行と旧製品機能の暗黙の復元 |
 
 ## 2. 制約・品質要求・受け入れ条件
 
 - WindowsまたはUbuntu 24.04上で、アプリケーションはループバックアドレス（127.0.0.1）だけで待ち受けます。単一の利用者が使い、利用者向けの認証は設けません。UbuntuでのLAN・TailscaleへのHTTP公開はManageMediaServerのnginxとホスト側ファイアウォールで行います。
 - Hubの接続情報（URL・認証トークン）はGit管理外の設定ファイルに置きます。DB、ログ、閲覧用のAPIと画面には含めません。アプリケーションは設定ファイルを更新しません。
-- Hubごとに保存するのは最新状態だけです。受信履歴は保存しません。
+- Hubごとの受信データは最新状態だけを保存し、受信履歴は保存しません。利用状況の変遷に使う日次明細はドメインモデルとして保存します。
 - あるHubで障害が起きても、他のHubの受信とWebサーバーは止めません。
 - 受け入れ条件は各シナリオに記載し、`mise run verify` の合格を完了の条件とします。
 
@@ -30,6 +30,7 @@
 | --- | --- | --- | --- | --- | --- |
 | [Hubから利用状況を同期する](usecases/Hubから利用状況を同期する/README.md) | 利用者 | 設定したHubの最新利用状況をローカルに保存し、閲覧できる状態に保つ | 1 | [UCP-1](design/UCP-1.md)、[UCP-3](design/UCP-3.md) | 対象外（UI確認不要） |
 | [利用状況を閲覧する](usecases/利用状況を閲覧する/README.md) | 利用者 | 登録したHubの最新利用状況を1画面で確認する | 2 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
+| [Hub情報を表示する](usecases/Hub情報を表示する/README.md) | 利用者 | 選択したHubのモデル別利用量・推定コストの変遷とデバイス別利用状況・鮮度を確認する | 3 | [UCP-1](design/UCP-1.md)、[UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 
 <a id="design"></a>
 ## 4. 確認した事実
@@ -98,3 +99,16 @@ Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（
 | 目的 | コマンド | 期待結果 |
 | --- | --- | --- |
 | Hubごとの受信時刻の確認 | `python -c "import sqlite3; db = sqlite3.connect('file:data/app.sqlite?mode=ro', uri=True); print(db.execute('SELECT h.hub_id, h.name, h.connected, s.received_at FROM hubs h LEFT JOIN hub_states s USING (hub_id)').fetchall())"` | 設定した全Hubが表示され、受信中のHubは `connected` が1、再接続中のHubは0です。受信済みのHubには最後に保存した受信時刻が表示されます |
+
+### Hub情報を表示する画面の動作確認
+
+依存の導入後、PowerShellで次のコマンドを実行し、`http://127.0.0.1:5175/by-hub` を開きます。固定データの取得境界と共有する型は [UCP-2](design/UCP-2.md) に記載します。
+
+```powershell
+$env:VITE_HUB_USAGE_MOCK='1'
+npx vite --config frontend/vite.config.ts --host 127.0.0.1 --port 5175
+```
+
+初期表示はPersonal・2W・日次です。Hub・期間・集約単位を切り替えると、Tokens／CostのグラフとDevicesが同じ条件で更新されます。モデル上位5件とOtherを表示し、凡例の選択は両グラフに反映します。開発構成かつ上記環境変数が `1` の場合だけ固定データを使用し、ブラウザーのネットワーク欄に `/api/hub-usage` の要求がないことで有効を確認します。
+
+停止は起動したターミナルでCtrl+Cです。実処理の確認に切り替える場合は `Remove-Item Env:VITE_HUB_USAGE_MOCK` で変数を削除し、`mise run dev` で起動して `http://127.0.0.1:5173/by-hub` を開きます。ネットワーク欄に `GET /api/hub-usage` があることでモック無効を確認します。このAPIは実処理接続時に実装するため、それまでは取得エラーを表示します。APIの失敗時に固定データへ切り替えません。配布構成では環境変数の値にかかわらず固定データを使いません。

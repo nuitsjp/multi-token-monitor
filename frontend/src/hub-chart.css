@@ -1,0 +1,40 @@
+.hub-chart-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.hub-usage-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.hub-chart-axis {
+  fill: var(--mantine-color-dimmed);
+  font: 12px var(--mantine-font-family);
+}
+
+.hub-chart-grid {
+  stroke: #33353d;
+  stroke-width: 1;
+}
+
+.hub-chart-target:focus-visible {
+  outline: none;
+  stroke: var(--mantine-color-violet-4);
+  stroke-width: 1;
+}
+
+.hub-chart-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.hub-chart-empty {
+  display: grid;
+  place-content: center;
+  min-height: 230px;
+}
