@@ -59,7 +59,7 @@ public sealed class DatabaseTests
     public sealed class InitializeAsync
     {
         [Fact]
-        public async Task NewFile_MigratesToSchemaVersionTwoWithWalAsync()
+        public async Task NewFile_MigratesToTheLatestSchemaVersionWithWalAsync()
         {
             // -------------------------------------------------------------
             // Arrange
@@ -77,6 +77,94 @@ public sealed class DatabaseTests
             await using var connection = await fixture.Database.OpenAsync();
             (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(4);
             (await connection.ExecuteScalarAsync<string>("PRAGMA journal_mode")).ShouldBe("wal");
+        }
+
+        [Fact]
+        public async Task NewFile_CreatesTheLimitTablesWithBaselineCostsInsteadOfCostColumnsAsync()
+        {
+            // -------------------------------------------------------------
+            // Arrange
+            // -------------------------------------------------------------
+            using var fixture = TemporaryDatabase.Create();
+
+            // -------------------------------------------------------------
+            // Act
+            // -------------------------------------------------------------
+            await fixture.Database.InitializeAsync();
+
+            // -------------------------------------------------------------
+            // Assert
+            // -------------------------------------------------------------
+            await using var connection = await fixture.Database.OpenAsync();
+            async Task<string[]> ColumnsAsync(string table) =>
+                (await connection.QueryAsync<string>($"SELECT name FROM pragma_table_info('{table}') ORDER BY cid")).ToArray();
+            (await ColumnsAsync("hub_accounts")).ShouldBe(["hub_id", "provider", "account_key", "source_device_id"]);
+            var windows = await ColumnsAsync("latest_limit_windows");
+            windows.ShouldContain("base_remaining_percent");
+            windows.ShouldContain("window_minutes");
+            windows.ShouldNotContain("base_cost_usd");
+            windows.ShouldNotContain("cost_usd");
+            (await ColumnsAsync("limit_window_baseline_costs"))
+                .ShouldBe(["hub_id", "provider", "account_key", "kind", "limit_key", "device_id", "model", "cost_usd"]);
+        }
+
+        [Fact]
+        public async Task VersionThreeFile_DropsTheOldLimitWindowsAndKeepsTheRestAsync()
+        {
+            // -------------------------------------------------------------
+            // Arrange
+            // -------------------------------------------------------------
+            using var fixture = TemporaryDatabase.Create();
+            await fixture.Database.InitializeAsync();
+            await using (var connection = await fixture.Database.OpenAsync())
+            {
+                // 版3の利用枠（コストを列に持つ）に戻して、行を1つ入れる。
+                await connection.ExecuteAsync(
+                    """
+                    DROP TABLE limit_window_baseline_costs;
+                    DROP TABLE latest_limit_windows;
+                    DROP TABLE hub_accounts;
+                    CREATE TABLE latest_limit_windows (
+                      hub_id TEXT NOT NULL REFERENCES hubs(hub_id) ON DELETE CASCADE,
+                      provider TEXT NOT NULL,
+                      account_key TEXT NOT NULL,
+                      kind TEXT NOT NULL,
+                      limit_key TEXT NOT NULL,
+                      label TEXT,
+                      remaining_percent REAL NOT NULL,
+                      used_percent REAL,
+                      resets_at TEXT,
+                      meter_changed_at TEXT NOT NULL,
+                      base_received_at TEXT NOT NULL,
+                      base_remaining_percent REAL NOT NULL,
+                      base_cost_usd REAL NOT NULL,
+                      cost_usd REAL NOT NULL,
+                      window_minutes REAL,
+                      PRIMARY KEY (hub_id, provider, account_key, kind, limit_key),
+                      FOREIGN KEY (provider, account_key) REFERENCES accounts(provider, account_key)
+                    ) STRICT;
+                    INSERT INTO hubs (hub_id, name, connected) VALUES ('hub', 'Hub', 1);
+                    INSERT INTO accounts (provider, account_key, account_label, plan_label) VALUES ('codex', 'a', 'A', 'Pro');
+                    INSERT INTO latest_limit_windows VALUES
+                      ('hub', 'codex', 'a', 'weekly', 'codex', NULL, 50, 50, NULL, 't', 't', 60, 1, 2, 10080);
+                    PRAGMA user_version = 3;
+                    """);
+            }
+
+            // -------------------------------------------------------------
+            // Act
+            // -------------------------------------------------------------
+            await fixture.Database.InitializeAsync();
+
+            // -------------------------------------------------------------
+            // Assert
+            // -------------------------------------------------------------
+            await using var migrated = await fixture.Database.OpenAsync();
+            (await migrated.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(4);
+            (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM latest_limit_windows")).ShouldBe(0);
+            (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM hubs")).ShouldBe(1);
+            (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM accounts")).ShouldBe(1);
+            (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM hub_accounts")).ShouldBe(0);
         }
 
         [Fact]
