@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Group, Stack, Text, Tooltip } from '@mantine/core';
 import { full } from '../format.ts';
 import '../hub-chart.css';
@@ -16,6 +16,8 @@ type Props = {
   series: ChartSeries[];
   buckets: ChartBucket[];
   hidden: ReadonlySet<string>;
+  // true のとき、固定の縦横比ではなく、置かれた領域の大きさに合わせて描く。
+  fill?: boolean;
 };
 
 const usd = new Intl.NumberFormat('en-US', {
@@ -69,8 +71,18 @@ function BucketTooltip({
   );
 }
 
-export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
+export function HubUsageChart({ kind, series, buckets, hidden, fill = false }: Props) {
   const titleId = useId();
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    if (!fill || !host) return;
+    const measure = () => setSize({ width: host.clientWidth, height: host.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [fill, host]);
   const visible = series
     .map((entry, index) => ({ ...entry, index }))
     .filter((entry) => !hidden.has(entry.key));
@@ -90,8 +102,12 @@ export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
     );
   }
 
-  const width = buckets.length > 90 ? Math.max(720, buckets.length * 14 + 68) : 720;
-  const height = 230;
+  const width = fill
+    ? size.width
+    : buckets.length > 90
+      ? Math.max(720, buckets.length * 14 + 68)
+      : 720;
+  const height = fill ? size.height : 230;
   const maxTokens = Math.max(
     0,
     ...buckets.map((bucket) =>
@@ -119,11 +135,12 @@ export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
     value === null ? '—' : kind === 'tokens' ? full.format(value) : usd.format(value);
   const title = kind === 'tokens' ? 'Model tokens' : 'Estimated cost (USD)';
 
+  if (fill && (width <= 0 || height <= 0)) return <div ref={setHost} className="hub-chart-fill" />;
   return (
-    <div className="hub-chart-scroll">
+    <div ref={fill ? setHost : undefined} className={fill ? 'hub-chart-fill' : 'hub-chart-scroll'}>
       <svg
         className="hub-usage-chart"
-        style={{ minWidth: buckets.length > 90 ? width : undefined }}
+        style={fill ? { width, height } : { minWidth: buckets.length > 90 ? width : undefined }}
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-labelledby={titleId}
