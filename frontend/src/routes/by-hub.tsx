@@ -22,12 +22,12 @@ import {
 import { HubUsageChart } from '../components/HubUsageChart.tsx';
 import { HubRangePicker } from '../components/HubRangePicker.tsx';
 import { MenuIcon } from '../components/MenuIcon.tsx';
+import { full } from '../format.ts';
 import '../by-hub.css';
 
 export const Route = createFileRoute('/by-hub')({ component: ByHub });
-const compact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 });
 const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-const tokens = (value: number | null) => (value === null ? '—' : compact.format(value));
+const tokens = (value: number | null) => (value === null ? '—' : full.format(value));
 const cost = (value: number | null) => (value === null ? '—' : dollars.format(value));
 const time = (value: string | null) =>
   value === null

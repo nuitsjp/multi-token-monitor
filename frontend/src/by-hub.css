@@ -37,7 +37,7 @@
 }
 .by-hub-device-bar {
   display: grid;
-  grid-template-columns: 42px minmax(40px, 1fr) 78px 44px;
+  grid-template-columns: 42px minmax(40px, 1fr) 108px 44px;
   gap: 8px;
   align-items: center;
   margin-top: 6px;

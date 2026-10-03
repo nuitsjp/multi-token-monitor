@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
 import { Group, Stack, Text, Tooltip } from '@mantine/core';
+import { full } from '../format.ts';
 import '../hub-chart.css';
 
 export type ChartSeries = { key: string; name: string; color: string };
@@ -17,10 +18,6 @@ type Props = {
   hidden: ReadonlySet<string>;
 };
 
-const compact = new Intl.NumberFormat('en-US', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-});
 const usd = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
@@ -95,7 +92,11 @@ export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
 
   const width = buckets.length > 90 ? Math.max(720, buckets.length * 14 + 68) : 720;
   const height = 230;
-  const left = 58;
+  const maxTokens = Math.max(
+    0,
+    ...buckets.map((bucket) => visible.reduce((sum, entry) => sum + bucket.tokens[entry.index], 0)),
+  );
+  const left = Math.max(90, full.format(Math.ceil(maxTokens * 1.1)).length * 8 + 16);
   const right = 10;
   const top = 12;
   const bottom = 30;
@@ -113,7 +114,7 @@ export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
     if (lastIndex - index >= labelStep) labels.add(index);
   }
   const format = (value: number | null) =>
-    value === null ? '—' : kind === 'tokens' ? compact.format(value) : usd.format(value);
+    value === null ? '—' : kind === 'tokens' ? full.format(value) : usd.format(value);
   const title = kind === 'tokens' ? 'Model tokens' : 'Estimated cost (USD)';
 
   return (
@@ -133,7 +134,7 @@ export function HubUsageChart({ kind, series, buckets, hidden }: Props) {
             <g key={tick}>
               <line className="hub-chart-grid" x1={left} x2={width - right} y1={y} y2={y} />
               <text className="hub-chart-axis" x={left - 9} y={y + 4} textAnchor="end">
-                {kind === 'tokens' ? compact.format(amount) : usd.format(amount)}
+                {kind === 'tokens' ? full.format(Math.round(amount)) : usd.format(amount)}
               </text>
             </g>
           );
