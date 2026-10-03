@@ -32,6 +32,7 @@
 | [Hubから利用状況を同期する](usecases/Hubから利用状況を同期する/README.md) | 利用者 | 設定したHubの最新利用状況をローカルに保存し、閲覧できる状態に保つ | 1 | [UCP-1](design/UCP-1.md)、[UCP-3](design/UCP-3.md) | 対象外（UI確認不要） |
 | [利用状況を閲覧する](usecases/利用状況を閲覧する/README.md) | 利用者 | 登録したHubの最新利用状況を1画面で確認する | 2 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 | [Hub情報を表示する](usecases/Hub情報を表示する/README.md) | 利用者 | 選択したHubのモデル別利用量・推定コストの変遷とデバイス別利用状況・鮮度を確認する | 3 | [UCP-1](design/UCP-1.md)、[UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
+| [モデル情報を表示する](usecases/モデル情報を表示する/README.md) | 利用者 | 全Hub合算のモデル別利用量・推定コストの変遷とモデル間の構成を、モデルを選びながら確認する | 4 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 
 <a id="design"></a>
 ## 4. 確認した事実
