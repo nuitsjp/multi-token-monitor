@@ -53,7 +53,8 @@ internal sealed record HubStats(
     HubPeriods Periods,
     IReadOnlyList<HubDevice> Devices,
     HubLimits Limits,
-    HubHistoryPreview? HistoryPreview = null);
+    HubHistoryPreview? HistoryPreview = null,
+    string? DeviceHistoryRevision = null);
 
 internal sealed record HubPeriods(HubPeriod Today, HubPeriod Month, HubPeriod AllTime);
 
@@ -73,7 +74,7 @@ internal sealed record HubDevice(
 
 internal sealed record HubPeriodWindows(HubPeriodWindow? Today = null, HubPeriodWindow? Month = null);
 
-internal sealed record HubPeriodWindow(DateTimeOffset EndsAt);
+internal sealed record HubPeriodWindow(DateTimeOffset EndsAt, string? Key = null);
 
 internal sealed record HubLimits(string UpdatedAt, IReadOnlyList<HubLimitProvider> Providers);
 
@@ -95,7 +96,10 @@ internal sealed record HubLimitWindow(
     string? Label = null,
     double? WindowMinutes = null);
 
-internal sealed record HubHistoryPreview(HubHistorySummary Summary);
+// Daily はHubが履歴を更新したときだけ付く。無いときは保存済みの日別の集計を変えない。
+internal sealed record HubHistoryPreview(HubHistorySummary Summary, IReadOnlyList<HubHistoryDay>? Daily = null);
+
+internal sealed record HubHistoryDay(string Date, long Tokens, double? Cost = null);
 
 internal sealed record HubHistorySummary(long? ActiveDays = null);
 

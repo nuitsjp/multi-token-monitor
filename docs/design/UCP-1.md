@@ -6,8 +6,8 @@
 | --- | --- | --- |
 | 起動・終了管理 | 接続設定とDBを準備し、全HubをDBへ受信中として登録し、設定から外れたHubをその行ごと削除してから受信を開始する。終了時は全Hubの受信を止め、処理中の保存が確定してからDBを閉じる | `backend/Hosting/AppHost.cs`、`backend/Features/HubSync/HubReceivers.cs` |
 | 接続設定読込 | `.env` の `HUB_CONFIG_PATH` が指すJSONを検証し、Hubの接続情報を返す。ファイルは更新しない | `backend/Infrastructure/Configuration/HubConfigFile.cs` |
-| Hub受信処理 | Hubごとに1つ動く。`Authorization: Bearer`・`x-token-monitor-stream: 2` を付けて `/api/stats/stream` へ接続し、通知を解析・検証して、受信順に保存処理を呼ぶ。保存の COMMIT 後に閲覧側へ変更を発行する（[UCP-3](UCP-3.md)）。受信が止まると受信状態を再接続中として記録して変更を発行し、待ち時間を1秒から倍にしながら（上限60秒）再接続する | `backend/Features/HubSync/HubReceivers.cs`、`backend/Features/HubSync/HubNotification.cs` |
-| 最新状態の保存処理 | snapshot・stats は受信時刻と一括で保存し、同じトランザクションで受信データを本システムのドメインモデルへ変換して保存する（契約・利用枠は upsert し、利用枠の1つ目の計測点を取り直すときは、その時点の端末×モデル別コストも保存する）。freshness は保存済みの状態を読まずに、受信時刻とHub・端末の時刻・古さだけを更新する | `backend/Features/HubSync/HubStateStore.cs`、`backend/Infrastructure/Persistence/Migrations/001-hub-sync.sql`、`backend/Infrastructure/Persistence/Migrations/004-limit-cost-baselines.sql` |
+| Hub受信処理 | Hubごとに1つ動く。`Authorization: Bearer`・`x-token-monitor-stream: 2` を付けて `/api/stats/stream` へ接続し、通知を解析・検証して、受信順に保存処理を呼ぶ。保存の COMMIT 後に閲覧側へ変更を発行する（[UCP-3](UCP-3.md)）。受信が止まると受信状態を再接続中として記録して変更を発行し、待ち時間を1秒から倍にしながら（上限60秒）再接続する | `backend/Features/HubSync/HubReceivers.cs`、`backend/Features/HubSync/HubNotification.cs`、`backend/Features/HubSync/HubDeviceHistory.cs` |
+| 最新状態の保存処理 | snapshot・stats は受信時刻と一括で保存し、同じトランザクションで受信データを本システムのドメインモデルへ変換して保存する（契約・利用枠は upsert し、利用枠の1つ目の計測点を取り直すときは、その時点の端末×モデル別コストも保存する）。日別の履歴を含むときは、日別の集計を日付ごとに上書きまたは追加する（含まない日付の行は消さない）。freshness は保存済みの状態を読まずに、受信時刻とHub・端末の時刻・古さだけを更新する | `backend/Features/HubSync/HubStateStore.cs`、`backend/Infrastructure/Persistence/Migrations/001-hub-sync.sql`、`backend/Infrastructure/Persistence/Migrations/004-daily-token-usages.sql`、`backend/Infrastructure/Persistence/Migrations/005-device-daily-model-usages.sql`、`backend/Infrastructure/Persistence/Migrations/006-limit-cost-baselines.sql` |
 | 枠のコストの範囲の決定と推定（閲覧時に使う） | 枠のコストの範囲を決め、推定上限額を求める純粋関数（閲覧クエリが呼ぶ。[UCP-2](UCP-2.md)）。入力は、同じHub・同じ提供元の契約と枠（アカウント、ラベル、残量、1つ目の計測点の残量、取得元の端末）、現在の端末×モデル別コスト、各枠の1つ目の計測点の端末×モデル別コストで、出力は枠ごとの「金額」「推定中（Estimating）」「N/A（理由）」。DB・時刻・ログに触れない。保存処理にはルールを入れず、1つ目の計測点の事実（残量と端末×モデル別コスト）だけを保存する。基本ルールは [シナリオの「枠のコストの範囲」](../usecases/利用状況を閲覧する/scenarios/保存済みの最新利用状況を1画面で見る.md)、提供元ごとの個別ルールは下の表に定める。枠グループの導出は、画面（`frontend/src/limits.ts`）と同じ規則とし、同じケース表で両方を検証する。単体テストは、ケースを分けて十分に用意する（基本ルール、複数グループの名前一致と名前なし、一致なし、アカウント複数で端末が分かれる・共有する・不明、個別ルール、増分の下限と基準点にない組、境界）。 | `backend/Features/Overview/LimitEstimator.cs` |
 
 ```mermaid
@@ -50,3 +50,6 @@ sequenceDiagram
 | cursor | `Other Models` | `Cursor Models` に数えないモデルすべて（`cursor-auto` を含む） |
 | cursor | `Grok Bot` | 範囲を確定できない（N/A）。どのモデルも数えない |
 
+## Hub情報を表示する固有の処理
+
+同期側のHub受信処理が、認証付き `GET /api/devices` で日次明細を取得する。取得の契機、当日値との置き換え、端末と日付単位の保存、トランザクションと失敗時の扱いは [保存と変換の規則](data.md) に従う。外部取得と検証は保存トランザクションを開始する前に完了し、statsと日次明細の保存をCOMMITした後にだけ [UCP-3](UCP-3.md) の変更通知を発行する。表示条件は [Hub情報を表示する](../usecases/Hub情報を表示する/README.md) に従う。

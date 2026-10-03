@@ -75,7 +75,7 @@ public sealed class DatabaseTests
             // Assert
             // -------------------------------------------------------------
             await using var connection = await fixture.Database.OpenAsync();
-            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(4);
+            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(6);
             (await connection.ExecuteScalarAsync<string>("PRAGMA journal_mode")).ShouldBe("wal");
         }
 
@@ -109,7 +109,7 @@ public sealed class DatabaseTests
         }
 
         [Fact]
-        public async Task VersionThreeFile_DropsTheOldLimitWindowsAndKeepsTheRestAsync()
+        public async Task VersionFiveFile_DropsTheOldLimitWindowsAndKeepsTheRestAsync()
         {
             // -------------------------------------------------------------
             // Arrange
@@ -118,7 +118,7 @@ public sealed class DatabaseTests
             await fixture.Database.InitializeAsync();
             await using (var connection = await fixture.Database.OpenAsync())
             {
-                // 版3の利用枠（コストを列に持つ）に戻して、行を1つ入れる。
+                // 版5の利用枠（コストを列に持つ）に戻して、行を1つ入れる。
                 await connection.ExecuteAsync(
                     """
                     DROP TABLE limit_window_baseline_costs;
@@ -147,7 +147,7 @@ public sealed class DatabaseTests
                     INSERT INTO accounts (provider, account_key, account_label, plan_label) VALUES ('codex', 'a', 'A', 'Pro');
                     INSERT INTO latest_limit_windows VALUES
                       ('hub', 'codex', 'a', 'weekly', 'codex', NULL, 50, 50, NULL, 't', 't', 60, 1, 2, 10080);
-                    PRAGMA user_version = 3;
+                    PRAGMA user_version = 5;
                     """);
             }
 
@@ -160,7 +160,7 @@ public sealed class DatabaseTests
             // Assert
             // -------------------------------------------------------------
             await using var migrated = await fixture.Database.OpenAsync();
-            (await migrated.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(4);
+            (await migrated.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(6);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM latest_limit_windows")).ShouldBe(0);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM hubs")).ShouldBe(1);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM accounts")).ShouldBe(1);
@@ -270,7 +270,7 @@ public sealed class DatabaseTests
             // -------------------------------------------------------------
             // Assert
             // -------------------------------------------------------------
-            result.Version.ShouldBe(4);
+            result.Version.ShouldBe(6);
             result.IsHealthy.ShouldBeTrue();
         }
     }

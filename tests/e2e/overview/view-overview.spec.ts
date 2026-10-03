@@ -50,7 +50,7 @@ test('OVW-1 全Hubへ到達でき、期間の切り替えで合計・Hub別・�
   const slotHeight = await byHub
     .locator('.hub-slot')
     .evaluateAll((slots) => slots.map((slot) => getComputedStyle(slot).minHeight));
-  expect(slotHeight).toEqual(['76px', '76px']);
+  expect(slotHeight).toEqual(['52px', '52px']);
   await expect(page.getByRole('radio', { name: 'Today' })).toBeChecked();
 
   // Act & Assert: 期間を切り替えてもHubのページは維持する。
@@ -274,5 +274,5 @@ oneHub('OVW-11 Hubが1件のときはページを送らず、空の2件目で高
   const slotHeight = await byHub
     .locator('.hub-slot')
     .evaluateAll((slots) => slots.map((slot) => getComputedStyle(slot).minHeight));
-  expect(slotHeight).toEqual(['76px', '76px']);
+  expect(slotHeight).toEqual(['52px', '52px']);
 });

@@ -15,6 +15,12 @@ const paths = {
       <path d="M8 20h8M12 16v4" />
     </>
   ),
+  activity: (
+    <>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <path d="M3 9h18M8 2v4M16 2v4" />
+    </>
+  ),
   logo: <path d="M4 18V9M10 18V5M16 18v-7M22 18H2" />,
 };
 

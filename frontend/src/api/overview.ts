@@ -29,15 +29,19 @@ export function applyFreshness(overview: Overview, freshness: HubFreshness): Ove
 
 export async function fetchOverview(): Promise<Overview> {
   const response = await fetch('/api/overview');
-  if (!response.ok) throw new Error(`利用状況を取得できませんでした（HTTP ${response.status}）。`);
+  if (!response.ok) throw new Error(`Unable to load usage (HTTP ${response.status}).`);
   return (await response.json()) as Overview;
 }
+
+export type OverviewNotification =
+  { type: 'changed' } | { type: 'freshness'; freshness: HubFreshness };
 
 // 変更通知を購読し、接続・再接続（ready）と保存確定（overview.changed）のたびに取得し直す。
 // 時刻の更新（hub.freshness）は取得し直さず、表示中の状態へ当てはめる。
 export function watchOverview(
   onOverview: (overview: Overview) => void,
   onError: (reason: unknown) => void,
+  onNotification?: (notification: OverviewNotification) => void,
 ): () => void {
   const source = new EventSource('/api/events');
   let current: Overview | undefined;
@@ -49,6 +53,7 @@ export function watchOverview(
   };
   let latest = 0;
   const refresh = () => {
+    onNotification?.({ type: 'changed' });
     // 応答の到着順が前後しても、最後に要求した取得の結果だけを表示する。
     const request = ++latest;
     fetchOverview().then(
@@ -72,6 +77,7 @@ export function watchOverview(
   source.addEventListener('hub.freshness', (event) => {
     const update = JSON.parse(event.data as string) as HubFreshness;
     freshness.set(update.hubId, update);
+    onNotification?.({ type: 'freshness', freshness: update });
     if (current) show(applyFreshness(current, update));
   });
   return () => {

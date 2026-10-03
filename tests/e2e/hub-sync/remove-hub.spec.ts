@@ -1,18 +1,24 @@
 import { test as base, expect, type HubConfigEntry } from '../fixtures.ts';
-import { createStats, startFakeHub, type FakeHub } from './fake-hub.ts';
+import { createStats, startFakeHub, withDaily, type FakeHub } from './fake-hub.ts';
 import { query, receivedAt, statsJson } from './sync.ts';
 
 // 拡張シナリオ「設定から外したHubを起動時に削除する」を検証する。
 const test = base.extend<{ alpha: FakeHub; beta: FakeHub }>({
   // eslint-disable-next-line no-empty-pattern -- Playwrightは依存のないfixtureにも分割代入を要求する
   alpha: async ({}, use) => {
-    const hub = await startFakeHub('alpha-secret-token', createStats(1));
+    const hub = await startFakeHub(
+      'alpha-secret-token',
+      withDaily(createStats(1), [{ date: '2026-09-30', tokens: 100, cost: 1.5 }]),
+    );
     await use(hub);
     await hub.close();
   },
   // eslint-disable-next-line no-empty-pattern
   beta: async ({}, use) => {
-    const hub = await startFakeHub('beta-secret-token', createStats(2));
+    const hub = await startFakeHub(
+      'beta-secret-token',
+      withDaily(createStats(2), [{ date: '2026-09-30', tokens: 200 }]),
+    );
     await use(hub);
     await hub.close();
   },
@@ -32,6 +38,7 @@ const HUB_TABLES = [
   'hub_summaries',
   'devices',
   'latest_token_usages',
+  'daily_token_usages',
   'hub_accounts',
   'latest_limit_windows',
   'limit_window_baseline_costs',

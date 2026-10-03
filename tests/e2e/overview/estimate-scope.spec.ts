@@ -198,10 +198,10 @@ test.describe('個別ルールのある提供元', () => {
     await expect(limits.getByText('Estimating', { exact: true })).toHaveCount(2);
     await expect(limits.getByText('N/A', { exact: true })).toHaveCount(1);
 
-    // Act & Assert: N/A にマウスオーバーすると、日本語で理由を示す。
+    // Act & Assert: N/A にマウスオーバーすると、英語で理由を示す。
     await limits.getByText('N/A', { exact: true }).hover();
     await expect(
-      page.getByRole('tooltip').filter({ hasText: '特定できないため、推定しません' }),
+      page.getByRole('tooltip').filter({ hasText: 'cannot be identified from model names' }),
     ).toBeVisible();
 
     // Act: Cursor Models は3pt・composer と grok の $0.60、Other Models は5pt・それ以外の $2.00。
@@ -327,7 +327,7 @@ test.describe('同じ提供元に複数のアカウントがある契約', () =>
       await expect(limits.getByText('$30.00', { exact: true })).toHaveCount(0);
       await limits.getByText('N/A', { exact: true }).first().hover();
       await expect(
-        page.getByRole('tooltip').filter({ hasText: '同じ取得元の端末を共有しているため' }),
+        page.getByRole('tooltip').filter({ hasText: 'share the same source device' }),
       ).toBeVisible();
     });
   });
@@ -370,7 +370,7 @@ test.describe('同じ提供元に複数のアカウントがある契約', () =>
       await expect(limits.getByText('N/A', { exact: true })).toHaveCount(1);
       await limits.getByText('N/A', { exact: true }).hover();
       await expect(
-        page.getByRole('tooltip').filter({ hasText: '取得元の端末が分からないため' }),
+        page.getByRole('tooltip').filter({ hasText: 'source device of this account is unknown' }),
       ).toBeVisible();
     });
   });

@@ -44,10 +44,52 @@
           }
         }
       }
+    },
+    "/api/hub-usage": {
+      "get": {
+        "tags": [
+          "MultiTokenMonitor"
+        ],
+        "operationId": "GetHubUsage",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubUsageDataOutput"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ActivityDayOutput": {
+        "required": [
+          "date",
+          "tokens",
+          "costUsd"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "tokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costUsd": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        }
+      },
       "EstimateStatus": {
         "enum": [
           "estimated",
@@ -63,6 +105,120 @@
         "properties": {
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "HubUsageDataOutput": {
+        "required": [
+          "today",
+          "hubs"
+        ],
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "string"
+          },
+          "hubs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubUsageHubOutput"
+            }
+          }
+        }
+      },
+      "HubUsageDayOutput": {
+        "required": [
+          "date",
+          "deviceId",
+          "model",
+          "tokens",
+          "costUsd"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "tokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costUsd": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        }
+      },
+      "HubUsageDeviceOutput": {
+        "required": [
+          "deviceId",
+          "hostname",
+          "osName",
+          "updatedAt",
+          "stale"
+        ],
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "osName": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "stale": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HubUsageHubOutput": {
+        "required": [
+          "hubId",
+          "name",
+          "connected",
+          "receivedAt",
+          "devices",
+          "days"
+        ],
+        "type": "object",
+        "properties": {
+          "hubId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "receivedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubUsageDeviceOutput"
+            }
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubUsageDayOutput"
+            }
           }
         }
       },
@@ -111,6 +267,20 @@
             "type": "number",
             "format": "double",
             "nullable": true
+          }
+        }
+      },
+      "OverviewActivityOutput": {
+        "required": [
+          "days"
+        ],
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityDayOutput"
+            }
           }
         }
       },
@@ -262,7 +432,8 @@
           "hubs",
           "periods",
           "limitWindows",
-          "devices"
+          "devices",
+          "activity"
         ],
         "type": "object",
         "properties": {
@@ -286,6 +457,9 @@
             "items": {
               "$ref": "#/components/schemas/OverviewDeviceOutput"
             }
+          },
+          "activity": {
+            "$ref": "#/components/schemas/OverviewActivityOutput"
           }
         }
       },

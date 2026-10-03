@@ -60,19 +60,19 @@ const tooltipStyles = {
   tooltip: { background: '#111215', color: '#e4e5e9', border: '1px solid #3a3d48' },
 };
 
-// 推定上限額が「N/A」になる理由。コストの範囲を確定できない場合の説明。
+// 推定上限額が「N/A」になる理由。コストの範囲を確定できない場合の説明（画面の説明は英語）。
 function unavailableText(reason: LimitWindow['unavailableReason']): string {
   switch (reason) {
     case 'unknown-source-device':
-      return '同じ提供元に複数のアカウントがあり、このアカウントの取得元の端末が分からないため、コストの範囲を確定できません。';
+      return 'The provider has several accounts and the source device of this account is unknown, so the cost scope cannot be determined.';
     case 'shared-source-device':
-      return '複数のアカウントが同じ取得元の端末を共有しているため、アカウントごとのコストを分けられません。';
+      return 'Several accounts share the same source device, so their costs cannot be told apart.';
     case 'no-matching-model':
-      return '枠グループ名に対応するモデルが見つからないため、コストの範囲を確定できません。';
+      return 'No model matches the name of this window group, so the cost scope cannot be determined.';
     case 'not-countable':
-      return 'この枠が数える利用をモデル名から特定できないため、推定しません。';
+      return 'The usage this window counts cannot be identified from model names, so it is not estimated.';
     default:
-      return 'コストの範囲を確定できないため、推定しません。';
+      return 'The cost scope cannot be determined, so it is not estimated.';
   }
 }
 

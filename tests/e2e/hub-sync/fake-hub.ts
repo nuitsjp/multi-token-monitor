@@ -52,7 +52,19 @@ export interface FakeStats {
       windows: FakeLimitWindow[];
     }[];
   };
-  historyPreview: { summary: { activeDays: number } };
+  historyPreview: { summary: { activeDays: number }; daily?: FakeDay[] };
+}
+
+export interface FakeDay {
+  date: string;
+  tokens: number;
+  cost?: number;
+}
+
+/** Hubが日別の履歴を付けた状態にする。 */
+export function withDaily(stats: FakeStats, daily: FakeDay[]): FakeStats {
+  stats.historyPreview.daily = daily;
+  return stats;
 }
 
 export const PERIODS = ['today', 'month', 'allTime'] as const;
@@ -204,6 +216,7 @@ export async function startFakeHub(
   options: { sendSnapshot?: boolean } = {},
 ): Promise<FakeHub> {
   const streams = new Set<ServerResponse>();
+  let historyDevices: unknown[] = stats.devices;
   let rejected = 0;
   const failures: FakeFailure[] = [];
   const hub = {
@@ -218,6 +231,14 @@ export async function startFakeHub(
       return streams.size;
     },
     send(event: 'snapshot' | 'stats' | 'freshness', value: unknown) {
+      if (
+        event !== 'freshness' &&
+        typeof value === 'object' &&
+        value !== null &&
+        'devices' in value &&
+        Array.isArray(value.devices)
+      )
+        historyDevices = value.devices;
       // snapshot の本文は stats と同じ種類で送られる。
       const data = JSON.stringify({
         type: event === 'freshness' ? 'freshness' : 'stats',
@@ -243,6 +264,15 @@ export async function startFakeHub(
       }),
   };
   const server = createServer((request, response) => {
+    if (request.url === '/api/devices' && request.method === 'GET') {
+      if (request.headers.authorization !== `Bearer ${token}`) {
+        response.writeHead(401).end();
+        return;
+      }
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ devices: historyDevices }));
+      return;
+    }
     if (request.url !== '/api/stats/stream' || request.method !== 'GET') {
       response.writeHead(404).end();
       return;
@@ -268,10 +298,11 @@ export async function startFakeHub(
     if (failure === 'invalid-notification') {
       response.write('event: snapshot\ndata: {"type":\n\n');
     } else if (hub.sendSnapshot) {
+      historyDevices = hub.stats.devices;
       // 端末IDの重複は通知の検証を通り、保存のトランザクションで一意制約に違反する。
       const stats =
         failure === 'save-failure'
-          ? { ...hub.stats, devices: [hub.stats.devices[0], hub.stats.devices[0]] }
+          ? { ...hub.stats, devices: [...hub.stats.devices, hub.stats.devices[0]] }
           : hub.stats;
       const data = JSON.stringify({
         type: 'stats',
