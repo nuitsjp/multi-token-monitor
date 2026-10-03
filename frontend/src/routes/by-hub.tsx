@@ -1,18 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import {
   Alert,
   Container,
   Group,
   Loader,
-  NativeSelect,
   Progress,
   SegmentedControl,
   Text,
   Title,
   UnstyledButton,
 } from '@mantine/core';
-import { applyHubUsageFreshness, fetchHubUsage, type HubUsageData } from '../api/hub-usage.ts';
+import { fetchHubUsage, type HubUsageData } from '../api/hub-usage.ts';
 import {
   aggregateHub,
   rangeForPreset,
@@ -20,12 +19,11 @@ import {
   type RangePreset,
 } from '../hub-usage.ts';
 import { HubUsageChart } from '../components/HubUsageChart.tsx';
-import { HubRangePicker } from '../components/HubRangePicker.tsx';
+import { UsageRangeControls } from '../components/UsageRangeControls.tsx';
 import { MenuIcon } from '../components/MenuIcon.tsx';
 import { SlotNumber } from '../components/SlotNumber.tsx';
 import { cost, full } from '../format.ts';
-import { useOverview } from '../app/overview.tsx';
-import type { HubFreshness } from '../api/overview.ts';
+import { useHubUsage } from '../app/use-hub-usage.ts';
 import '../by-hub.css';
 
 export const Route = createFileRoute('/by-hub')({ component: ByHub });
@@ -36,45 +34,7 @@ const time = (value: string | null) =>
     : new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 export function ByHub() {
-  const [data, setData] = useState<HubUsageData>();
-  const [error, setError] = useState<string>();
-  const { subscribeNotifications } = useOverview();
-  useEffect(() => {
-    let latest = 0;
-    let active = true;
-    const freshness = new Map<string, HubFreshness>();
-    const refresh = () => {
-      const request = ++latest;
-      void fetchHubUsage().then(
-        (value) => {
-          if (!active || request !== latest) return;
-          let next = value;
-          for (const update of freshness.values()) next = applyHubUsageFreshness(next, update);
-          setData(next);
-          setError(undefined);
-        },
-        (reason: unknown) => {
-          if (active && request === latest)
-            setError(reason instanceof Error ? reason.message : String(reason));
-        },
-      );
-    };
-    const unsubscribe = subscribeNotifications((notification) => {
-      if (notification.type === 'changed') refresh();
-      else {
-        freshness.set(notification.freshness.hubId, notification.freshness);
-        setData((previous) =>
-          previous ? applyHubUsageFreshness(previous, notification.freshness) : previous,
-        );
-      }
-    });
-    refresh();
-    return () => {
-      active = false;
-      latest++;
-      unsubscribe();
-    };
-  }, [subscribeNotifications]);
+  const { data, error } = useHubUsage(fetchHubUsage);
   return (
     <Container component="main" size="xl" py="md">
       {error ? (
@@ -170,36 +130,18 @@ function HubDashboard({ data }: { data: HubUsageData }) {
                   By model
                 </Title>
               </Group>
-              <Group gap={8} wrap="nowrap">
-                <HubRangePicker
-                  today={data.today}
-                  range={range}
-                  onChange={(value) => {
-                    setCustom(value);
-                    setPreset('custom');
-                  }}
-                />
-                <SegmentedControl
-                  aria-label="Date range"
-                  color="violet"
-                  value={preset}
-                  data={['7d', '2w', '4w', '3m', '1y'].map((value) => ({
-                    value,
-                    label: value.toUpperCase(),
-                  }))}
-                  onChange={(value) => setPreset(value as RangePreset)}
-                />
-                <NativeSelect
-                  aria-label="Aggregation"
-                  value={unit}
-                  onChange={(event) => setUnit(event.currentTarget.value as AggregationUnit)}
-                  data={[
-                    { value: 'daily', label: 'Daily' },
-                    { value: 'weekly', label: 'Weekly' },
-                    { value: 'monthly', label: 'Monthly' },
-                  ]}
-                />
-              </Group>
+              <UsageRangeControls
+                today={data.today}
+                range={range}
+                preset={preset}
+                unit={unit}
+                onCustom={(value) => {
+                  setCustom(value);
+                  setPreset('custom');
+                }}
+                onPreset={setPreset}
+                onUnit={setUnit}
+              />
             </Group>
             {usage.totalTokens === null ? (
               <Text c="dimmed" py="xl">

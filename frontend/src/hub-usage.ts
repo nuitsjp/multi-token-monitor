@@ -17,7 +17,7 @@ export type HubUsageAggregate = {
   partial: boolean;
 };
 
-function dateKey(date: Date): string {
+export function dateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
@@ -38,7 +38,7 @@ export function rangeForPreset(preset: RangePreset, today: string): { start: str
   return { start: dateKey(start), end: today };
 }
 
-function bucketKey(date: string, unit: AggregationUnit): string {
+export function bucketKey(date: string, unit: AggregationUnit): string {
   if (unit === 'monthly') return date.slice(0, 7);
   if (unit === 'daily') return date;
   const monday = new Date(`${date}T00:00:00Z`);
@@ -46,10 +46,19 @@ function bucketKey(date: string, unit: AggregationUnit): string {
   return dateKey(monday);
 }
 
-function sumCosts(values: (number | null)[]): number | null {
+export function sumCosts(values: (number | null)[]): number | null {
   if (values.length === 0) return 0;
   const known = values.filter((value): value is number => value !== null);
   return known.length > 0 ? known.reduce((sum, value) => sum + value, 0) : null;
+}
+
+export function bucketLabel(key: string, unit: AggregationUnit): string {
+  return unit === 'monthly'
+    ? new Date(`${key}-01T00:00:00Z`).toLocaleDateString('en-US', {
+        month: 'short',
+        timeZone: 'UTC',
+      })
+    : `${Number(key.slice(5, 7))}/${Number(key.slice(8, 10))}`;
 }
 
 export function aggregateHub(
@@ -110,13 +119,7 @@ export function aggregateHub(
     series,
     buckets: [...grouped].map(([key, bucket]) => ({
       key,
-      label:
-        unit === 'monthly'
-          ? new Date(`${key}-01T00:00:00Z`).toLocaleDateString('en-US', {
-              month: 'short',
-              timeZone: 'UTC',
-            })
-          : `${Number(key.slice(5, 7))}/${Number(key.slice(8, 10))}`,
+      label: bucketLabel(key, unit),
       tokens: bucket.costs.some((records) => records.length > 0)
         ? bucket.tokens
         : series.map(() => null),

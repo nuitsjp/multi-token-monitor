@@ -107,3 +107,9 @@ Hubの接続設定は、`config/hubs.example.json` を `data/hubs.local.json`（
 Hubの接続設定を準備し、開発構成は `mise run dev` で起動して `http://127.0.0.1:5173/by-hub`、配布構成は `mise run start` で起動して `http://127.0.0.1:3000/by-hub` を開きます。停止は起動したターミナルでCtrl+Cです。
 
 初期表示は登録順で最初のHub・2W・Dailyです。Hub・期間・集約単位を切り替えると、Tokens／CostのグラフとDevicesが同じ条件で更新されます。モデル上位5件とOtherを表示し、凡例の選択は両グラフに反映します。ブラウザーのネットワーク欄に `GET /api/hub-usage` の要求があり、APIがローカルDBの保存済み明細を返すことで実処理を確認します。選択期間に明細が無い場合は数値を「—」で表示します。固定データと環境変数によるモックの切り替えは設けず、API失敗時に固定データへ切り替えません。取得境界は [UCP-2](design/UCP-2.md) に記載します。
+
+### モデル情報を表示する画面の動作確認（動作合意用モック）
+
+Hubの接続設定を準備し（`data/hubs.local.json` はダミーのHubでも起動できる）、PowerShellで `$env:VITE_BY_MODEL_MOCK = '1'; mise run dev` を実行して `http://127.0.0.1:5173/by-model` を開きます。固定データ（2Hub・5端末・9モデル・1年分の日次明細。1モデルはコスト不明）で再現できます。停止は起動したターミナルでCtrl+Cです。
+
+`VITE_BY_MODEL_MOCK` を設定しない起動（既定）では、`GET /api/hub-usage` の実処理を読みます。固定データへの切り替えは、`frontend/src/routes/by-model.tsx` の取得関数を選ぶ1箇所だけです。実処理の失敗時に固定データへ切り替えません。固定データと切り替えは段階4で削除します。取得境界は [UCP-2](design/UCP-2.md) に記載します。

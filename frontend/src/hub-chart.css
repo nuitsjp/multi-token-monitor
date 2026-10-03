@@ -3,6 +3,19 @@
   overflow-x: auto;
 }
 
+.hub-chart-fill {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.hub-chart-fill > .hub-usage-chart {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
 .hub-usage-chart {
   display: block;
   width: 100%;
