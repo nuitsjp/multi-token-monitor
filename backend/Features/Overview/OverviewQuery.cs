@@ -43,8 +43,8 @@ internal static class OverviewQuery
                     period, hub_id, tool, model
                 """)).AsList();
 
-            // 利用枠はHubごとに返し、画面でHubを切り替えて表示する。
-            var limitWindows = (await connection.QueryAsync<LimitWindowRow>(
+            // 利用枠はHubごとに返し、画面でHubを切り替えて表示する。推定上限額は、同じHub・同じ提供元の全契約をまとめて純粋関数で求める。
+            var windowRows = (await connection.QueryAsync<LimitWindowRow>(
                 """
                 SELECT
                     w.hub_id AS HubId,
@@ -59,17 +59,55 @@ internal static class OverviewQuery
                     w.resets_at AS ResetsAt,
                     w.window_minutes AS WindowMinutes,
                     w.base_remaining_percent AS BaseRemainingPercent,
-                    w.base_cost_usd AS BaseCostUsd,
-                    w.cost_usd AS CostUsd
+                    h.source_device_id AS SourceDeviceId
                 FROM
                     latest_limit_windows w
+                    JOIN hub_accounts h USING (hub_id, provider, account_key)
                     JOIN accounts a USING (provider, account_key)
                 ORDER BY
                     w.hub_id, w.provider, w.account_key, w.kind, w.limit_key
+                """)).AsList();
+            var currentCosts = (await connection.QueryAsync<CostRow>(
+                """
+                SELECT hub_id AS HubId, tool AS Tool, device_id AS DeviceId, model AS Model, cost_usd AS CostUsd
+                FROM latest_token_usages
+                WHERE period = 'all_time' AND cost_usd IS NOT NULL
                 """))
-                .Select(row => new OverviewLimitWindowOutput(
-                    row.HubId, row.Provider, row.AccountKey, row.AccountLabel, row.PlanLabel, row.Kind, row.LimitKey,
-                    row.Label, row.RemainingPercent, row.ResetsAt, EstimateLimit(row), row.WindowMinutes))
+                .ToLookup(row => (row.HubId, row.Tool), row => new CostEntry(row.DeviceId, row.Model, row.CostUsd));
+            var baselineCosts = (await connection.QueryAsync<BaselineCostRow>(
+                """
+                SELECT
+                    hub_id AS HubId, provider AS Provider, account_key AS AccountKey, kind AS Kind, limit_key AS LimitKey,
+                    device_id AS DeviceId, model AS Model, cost_usd AS CostUsd
+                FROM limit_window_baseline_costs
+                """))
+                .ToLookup(
+                    row => (row.HubId, row.Provider, new WindowKey(row.AccountKey, row.Kind, row.LimitKey)),
+                    row => new CostEntry(row.DeviceId, row.Model, row.CostUsd));
+            var estimates = new Dictionary<(string HubId, string Provider, WindowKey Key), EstimateResult>();
+            foreach (var group in windowRows.GroupBy(row => (row.HubId, row.Provider)))
+            {
+                var results = LimitEstimator.Estimate(
+                    group.Key.Provider,
+                    group.Select(row => new LimitWindowInput(
+                        new WindowKey(row.AccountKey, row.Kind, row.LimitKey),
+                        row.Label, row.RemainingPercent, row.BaseRemainingPercent, row.SourceDeviceId)).ToList(),
+                    currentCosts[(group.Key.HubId, group.Key.Provider)].ToList(),
+                    group.Select(row => new WindowKey(row.AccountKey, row.Kind, row.LimitKey)).ToDictionary(
+                        key => key,
+                        key => (IReadOnlyList<CostEntry>)baselineCosts[(group.Key.HubId, group.Key.Provider, key)].ToList()));
+                foreach (var (key, result) in results) estimates[(group.Key.HubId, group.Key.Provider, key)] = result;
+            }
+
+            var limitWindows = windowRows
+                .Select(row =>
+                {
+                    var estimate = estimates[(row.HubId, row.Provider, new WindowKey(row.AccountKey, row.Kind, row.LimitKey))];
+                    return new OverviewLimitWindowOutput(
+                        row.HubId, row.Provider, row.AccountKey, row.AccountLabel, row.PlanLabel, row.Kind, row.LimitKey,
+                        row.Label, row.RemainingPercent, row.ResetsAt, estimate.LimitUsd, estimate.Status,
+                        estimate.Reason, row.WindowMinutes);
+                })
                 .ToList();
 
             var devices = (await connection.QueryAsync<DeviceRow>(
@@ -139,14 +177,6 @@ internal static class OverviewQuery
                 .ToList());
     }
 
-    // 2つの計測点の使用率の差が1ポイント未満か、推定コストが増えていなければ推定しない。
-    private static double? EstimateLimit(LimitWindowRow row)
-    {
-        var usedPercent = row.BaseRemainingPercent - row.RemainingPercent;
-        var costUsd = row.CostUsd - row.BaseCostUsd;
-        return usedPercent >= 1 && costUsd > 0 ? costUsd / usedPercent * 100 : null;
-    }
-
     // 推定コストの無い実績は合計に含めない。1件も無ければ null。
     private static double? SumCost(IEnumerable<UsageRow> rows)
     {
@@ -178,7 +208,18 @@ internal static class OverviewQuery
         string? ResetsAt,
         double? WindowMinutes,
         double BaseRemainingPercent,
-        double BaseCostUsd,
+        string? SourceDeviceId);
+
+    private sealed record CostRow(string HubId, string Tool, string DeviceId, string Model, double CostUsd);
+
+    private sealed record BaselineCostRow(
+        string HubId,
+        string Provider,
+        string AccountKey,
+        string Kind,
+        string LimitKey,
+        string DeviceId,
+        string Model,
         double CostUsd);
 
     // 行がないとき集計式の型が分からず、コンストラクターの引数と対応づけられないため、プロパティで受ける。

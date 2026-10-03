@@ -47,6 +47,8 @@ export interface FakeStats {
       accountKey: string;
       accountLabel: string;
       planLabel: string;
+      /** アカウントの利用枠を取得した端末。Hubが送らない場合は省く。 */
+      sourceDeviceId?: string;
       windows: FakeLimitWindow[];
     }[];
   };

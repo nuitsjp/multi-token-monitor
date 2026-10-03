@@ -1,3 +1,5 @@
+using MultiTokenMonitor.Features.Overview;
+
 namespace MultiTokenMonitor.Presentation.Http;
 
 internal sealed record HealthOutput(string Status);
@@ -53,7 +55,11 @@ internal sealed record HubUsageOutput(string HubId, long Tokens, double? CostUsd
 
 internal sealed record ModelUsageOutput(string Tool, string Model, long Tokens, double? CostUsd);
 
-/// <summary>EstimatedLimitUsd は推定上限額。推定できない枠は null。WindowMinutes は枠の長さ（分）で、Hubが送らない枠は null。</summary>
+/// <summary>
+/// Estimate は推定の状態（estimated は金額あり、estimating は範囲を確定できるが条件未達、unavailable は範囲を確定できない）。
+/// EstimatedLimitUsd は推定上限額で、estimated 以外は null。UnavailableReason は unavailable のときだけ値を持つ。
+/// WindowMinutes は枠の長さ（分）で、Hubが送らない枠は null。
+/// </summary>
 internal sealed record OverviewLimitWindowOutput(
     string HubId,
     string Provider,
@@ -66,6 +72,8 @@ internal sealed record OverviewLimitWindowOutput(
     double RemainingPercent,
     string? ResetsAt,
     double? EstimatedLimitUsd,
+    EstimateStatus Estimate,
+    UnavailableReason? UnavailableReason,
     double? WindowMinutes);
 
 internal sealed record OverviewDeviceOutput(

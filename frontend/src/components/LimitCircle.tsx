@@ -1,7 +1,7 @@
 import { Tooltip } from '@mantine/core';
-import { cost, costWhole } from '../format.ts';
+import { cost } from '../format.ts';
+import { MonthlyLimit } from './MonthlyLimit.tsx';
 import {
-  monthlyLimitUsd,
   stateOf,
   remainingText,
   windowLabel,
@@ -56,6 +56,26 @@ const clock = (
 
 const windowKey = (window: LimitWindow) => `${window.kind}/${window.limitKey}`;
 
+const tooltipStyles = {
+  tooltip: { background: '#111215', color: '#e4e5e9', border: '1px solid #3a3d48' },
+};
+
+// 推定上限額が「N/A」になる理由。コストの範囲を確定できない場合の説明（画面の説明は英語）。
+function unavailableText(reason: LimitWindow['unavailableReason']): string {
+  switch (reason) {
+    case 'unknown-source-device':
+      return 'The provider has several accounts and the source device of this account is unknown, so the cost scope cannot be determined.';
+    case 'shared-source-device':
+      return 'Several accounts share the same source device, so their costs cannot be told apart.';
+    case 'no-matching-model':
+      return 'No model matches the name of this window group, so the cost scope cannot be determined.';
+    case 'not-countable':
+      return 'The usage this window counts cannot be identified from model names, so it is not estimated.';
+    default:
+      return 'The cost scope cannot be determined, so it is not estimated.';
+  }
+}
+
 export function LimitCircle({
   name,
   label,
@@ -68,7 +88,7 @@ export function LimitCircle({
   now: number;
 }) {
   const [outer, inner] = circle.windows;
-  const monthly = monthlyLimitUsd(circle.windows);
+  const monthly = circle.monthlyUsd;
   const line = (window: LimitWindow, y: number) => (
     <text
       key={windowKey(window)}
@@ -87,19 +107,7 @@ export function LimitCircle({
   );
   return (
     <div className="limit-circle" aria-label={name}>
-      {monthly !== null && (
-        <Tooltip
-          multiline
-          w={220}
-          withArrow
-          styles={{
-            tooltip: { background: '#111215', color: '#e4e5e9', border: '1px solid #3a3d48' },
-          }}
-          label="Reference estimate: the lowest monthly equivalent of the window limits."
-        >
-          <span className="limit-monthly">{costWhole(monthly)}/mo</span>
-        </Tooltip>
-      )}
+      {monthly !== null && <MonthlyLimit value={monthly} />}
       <svg viewBox="0 2 200 180" width={176} height={158} role="img" aria-label={name}>
         {circle.windows.map((window, index) => (
           <Arc
@@ -128,15 +136,27 @@ export function LimitCircle({
             <b className="c1">{windowLabel(window)}</b>
             <span className="c2">{clock}</span>
             <span className="c3">{remainingText(window.resetsAt, now)}</span>
-            {window.estimatedLimitUsd === null ? (
-              <>
-                <span className="c4" />
-                <span className="c5 muted">Estimating</span>
-              </>
-            ) : (
+            {window.estimate === 'estimated' && window.estimatedLimitUsd !== null ? (
               <>
                 <span className="c4 muted">≈</span>
                 <span className="c5">{cost(window.estimatedLimitUsd)}</span>
+              </>
+            ) : (
+              <>
+                <span className="c4" />
+                {window.estimate === 'unavailable' ? (
+                  <Tooltip
+                    multiline
+                    w={240}
+                    withArrow
+                    styles={tooltipStyles}
+                    label={unavailableText(window.unavailableReason)}
+                  >
+                    <span className="c5 muted">N/A</span>
+                  </Tooltip>
+                ) : (
+                  <span className="c5 muted">Estimating</span>
+                )}
               </>
             )}
           </div>

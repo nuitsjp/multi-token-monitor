@@ -213,6 +213,13 @@ body {
   color: #e4e5e9;
   cursor: help;
 }
+/* 契約で1つの月換算上限額は、見出し行の右端に置く */
+.limit-heading .limit-monthly {
+  position: static;
+  margin-left: auto;
+  flex: none;
+  padding-right: 2px;
+}
 
 /* 全体の枠を持たない区画。右隣のカードのタイトルと見出しの高さを揃える */
 .section-bare {

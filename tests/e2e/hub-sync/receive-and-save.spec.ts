@@ -325,8 +325,15 @@ interface Point {
 function points(databasePath: string, hubId: string) {
   return query<Point>(
     databasePath,
-    `SELECT limit_key, resets_at, base_received_at, base_remaining_percent, base_cost_usd, remaining_percent, cost_usd
-     FROM latest_limit_windows WHERE hub_id = ? ORDER BY limit_key`,
+    // 1つ目の計測点のコストは枠ごとの基準点の合計、2つ目は枠の提供元と同じツールの現在の累計（allTime）の合計。
+    `SELECT
+       w.limit_key, w.resets_at, w.base_received_at, w.base_remaining_percent, w.remaining_percent,
+       (SELECT TOTAL(b.cost_usd) FROM limit_window_baseline_costs b
+        WHERE b.hub_id = w.hub_id AND b.provider = w.provider AND b.account_key = w.account_key
+          AND b.kind = w.kind AND b.limit_key = w.limit_key) AS base_cost_usd,
+       (SELECT TOTAL(u.cost_usd) FROM latest_token_usages u
+        WHERE u.hub_id = w.hub_id AND u.tool = w.provider AND u.period = 'all_time') AS cost_usd
+     FROM latest_limit_windows w WHERE w.hub_id = ? ORDER BY w.limit_key`,
     hubId,
   );
 }

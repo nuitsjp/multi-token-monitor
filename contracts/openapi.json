@@ -90,6 +90,13 @@
           }
         }
       },
+      "EstimateStatus": {
+        "enum": [
+          "estimated",
+          "estimating",
+          "unavailable"
+        ]
+      },
       "HealthOutput": {
         "required": [
           "status"
@@ -351,6 +358,8 @@
           "remainingPercent",
           "resetsAt",
           "estimatedLimitUsd",
+          "estimate",
+          "unavailableReason",
           "windowMinutes"
         ],
         "type": "object",
@@ -394,6 +403,22 @@
             "type": "number",
             "format": "double",
             "nullable": true
+          },
+          "estimate": {
+            "$ref": "#/components/schemas/EstimateStatus"
+          },
+          "unavailableReason": {
+            "oneOf": [
+              {
+                "enum": [
+                  null
+                ],
+                "nullable": true
+              },
+              {
+                "$ref": "#/components/schemas/UnavailableReason"
+              }
+            ]
           },
           "windowMinutes": {
             "type": "number",
@@ -481,6 +506,15 @@
             "$ref": "#/components/schemas/OverviewPeriodOutput"
           }
         }
+      },
+      "UnavailableReason": {
+        "enum": [
+          "unknown-source-device",
+          "shared-source-device",
+          "no-matching-model",
+          "not-countable",
+          null
+        ]
       },
       "UsageOutput": {
         "required": [

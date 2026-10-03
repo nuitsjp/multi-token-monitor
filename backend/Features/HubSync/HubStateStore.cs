@@ -30,8 +30,8 @@ internal static class HubStateStore
                 """
                 DELETE FROM accounts
                 WHERE NOT EXISTS (
-                    SELECT 1 FROM latest_limit_windows w
-                    WHERE w.provider = accounts.provider AND w.account_key = accounts.account_key)
+                    SELECT 1 FROM hub_accounts a
+                    WHERE a.provider = accounts.provider AND a.account_key = accounts.account_key)
                 """);
         });
         return removed;
@@ -118,7 +118,7 @@ internal static class HubStateStore
 
     private static async Task ReplaceDomainAsync(SqliteConnection connection, string hubId, HubStats stats, string receivedAt)
     {
-        var previousMeters = (await connection.QueryAsync<LimitWindowRow>(
+        var previousWindows = (await connection.QueryAsync<LimitWindowRow>(
                 """
                 SELECT
                     hub_id AS HubId,
@@ -133,8 +133,6 @@ internal static class HubStateStore
                     meter_changed_at AS MeterChangedAt,
                     base_received_at AS BaseReceivedAt,
                     base_remaining_percent AS BaseRemainingPercent,
-                    base_cost_usd AS BaseCostUsd,
-                    cost_usd AS CostUsd,
                     window_minutes AS WindowMinutes
                 FROM
                     latest_limit_windows
@@ -143,10 +141,13 @@ internal static class HubStateStore
                 """,
                 new { hubId }))
             .ToDictionary(row => (row.Provider, row.AccountKey, row.Kind, row.LimitKey));
+        var previousAccounts = (await connection.QueryAsync<(string Provider, string AccountKey)>(
+                "SELECT provider, account_key FROM hub_accounts WHERE hub_id = @hubId", new { hubId }))
+            .ToHashSet();
 
+        // 利用実績は受信のたびに作り直す。契約・利用枠・利用枠の基準点は、基準点のコストを残すため作り直さない。
         await connection.ExecuteAsync(
             """
-            DELETE FROM latest_limit_windows WHERE hub_id = @hubId;
             DELETE FROM latest_token_usages WHERE hub_id = @hubId;
             DELETE FROM hub_summaries WHERE hub_id = @hubId;
             """,
@@ -197,16 +198,15 @@ internal static class HubStateStore
             """,
             stats.Devices.SelectMany(device => TokenUsages(hubId, device, DateTimeOffset.Parse(receivedAt, CultureInfo.InvariantCulture))));
 
-        // 利用枠の計測点に使う、ツールごとの累計の推定コスト。枠の提供元とツールは同じ識別子で対応する。
-        var costs = (await connection.QueryAsync<(string Tool, double CostUsd)>(
+        // 利用枠の1つ目の計測点に保存する、ツールごと・端末×モデルごとの累計の推定コスト。枠の提供元とツールは同じ識別子で対応する。
+        var costs = (await connection.QueryAsync<(string Tool, string DeviceId, string Model, double CostUsd)>(
                 """
-                SELECT tool, TOTAL(cost_usd)
+                SELECT tool, device_id, model, cost_usd
                 FROM latest_token_usages
-                WHERE hub_id = @hubId AND period = 'all_time'
-                GROUP BY tool
+                WHERE hub_id = @hubId AND period = 'all_time' AND cost_usd IS NOT NULL
                 """,
                 new { hubId }))
-            .ToDictionary(row => row.Tool, row => row.CostUsd);
+            .ToLookup(row => row.Tool);
 
         var now = DateTimeOffset.Parse(receivedAt, CultureInfo.InvariantCulture);
         var windows = stats.Limits.Providers
@@ -214,6 +214,7 @@ internal static class HubStateStore
                 .Where(window => window.ShowMeter && window.RemainingPercent is not null)
                 .Select(window => (Provider: provider, Window: window)))
             .ToArray();
+        var providers = windows.Select(item => item.Provider).Distinct().ToArray();
 
         await connection.ExecuteAsync(
             """
@@ -223,7 +224,7 @@ internal static class HubStateStore
                 account_label = excluded.account_label,
                 plan_label = excluded.plan_label
             """,
-            windows.Select(item => item.Provider).Distinct().Select(provider => new
+            providers.Select(provider => new
             {
                 provider.Provider,
                 provider.AccountKey,
@@ -231,42 +232,106 @@ internal static class HubStateStore
                 provider.PlanLabel,
             }));
 
+        // 報告されなくなった契約と枠だけを削除する（契約の削除で枠と基準点のコストも、枠の削除で基準点のコストも連鎖して消える）。
+        var reportedAccounts = providers.Select(provider => (provider.Provider, provider.AccountKey)).ToHashSet();
+        await connection.ExecuteAsync(
+            "DELETE FROM hub_accounts WHERE hub_id = @HubId AND provider = @Provider AND account_key = @AccountKey",
+            previousAccounts.Where(account => !reportedAccounts.Contains(account))
+                .Select(account => new { HubId = hubId, account.Provider, account.AccountKey }));
+
+        await connection.ExecuteAsync(
+            """
+            INSERT INTO hub_accounts (hub_id, provider, account_key, source_device_id)
+            VALUES (@HubId, @Provider, @AccountKey, @SourceDeviceId)
+            ON CONFLICT (hub_id, provider, account_key) DO UPDATE SET source_device_id = excluded.source_device_id
+            """,
+            providers.Select(provider => new
+            {
+                HubId = hubId,
+                provider.Provider,
+                provider.AccountKey,
+                provider.SourceDeviceId,
+            }));
+
+        var rows = windows.Select(item =>
+        {
+            var (provider, window) = item;
+            var limitKey = (string.IsNullOrEmpty(window.LimitId) ? window.Label : window.LimitId) ?? "";
+            var remaining = window.RemainingPercent!.Value;
+            var found = previousWindows.TryGetValue((provider.Provider, provider.AccountKey, window.Kind, limitKey), out var previous);
+            // 残量・使用量が前回の行と同じなら、最後に変わった時刻を引き継ぐ。
+            var meterChangedAt = found && previous!.RemainingPercent == remaining && previous.UsedPercent == window.UsedPercent
+                ? previous.MeterChangedAt
+                : receivedAt;
+            // 前回のリセット時刻を過ぎておらず、使用率が減っていなければ、1つ目の計測点を引き継ぐ。それ以外は今回の値を1つ目にする。
+            // リセット時刻は取り直すたびにミリ秒単位で揺れるため、値の一致では同じ周期かを判定しない。
+            var keepBase = found &&
+                (previous!.ResetsAt is null || now < DateTimeOffset.Parse(previous.ResetsAt, CultureInfo.InvariantCulture)) &&
+                remaining <= previous.RemainingPercent;
+            var row = new LimitWindowRow(
+                hubId, provider.Provider, provider.AccountKey, window.Kind, limitKey, window.Label,
+                remaining, window.UsedPercent, window.ResetsAt, meterChangedAt,
+                keepBase ? previous!.BaseReceivedAt : receivedAt,
+                keepBase ? previous!.BaseRemainingPercent : remaining,
+                window.WindowMinutes);
+            return (Row: row, Rebased: !keepBase);
+        }).ToArray();
+
+        var reportedWindows = rows.Select(item => (item.Row.Provider, item.Row.AccountKey, item.Row.Kind, item.Row.LimitKey)).ToHashSet();
+        await connection.ExecuteAsync(
+            """
+            DELETE FROM latest_limit_windows
+            WHERE hub_id = @HubId AND provider = @Provider AND account_key = @AccountKey AND kind = @Kind AND limit_key = @LimitKey
+            """,
+            previousWindows.Keys.Where(key => !reportedWindows.Contains(key))
+                .Select(key => new { HubId = hubId, key.Provider, key.AccountKey, key.Kind, key.LimitKey }));
+
         await connection.ExecuteAsync(
             """
             INSERT INTO latest_limit_windows (
                 hub_id, provider, account_key, kind, limit_key, label,
                 remaining_percent, used_percent, resets_at, meter_changed_at,
-                base_received_at, base_remaining_percent, base_cost_usd, cost_usd, window_minutes)
+                base_received_at, base_remaining_percent, window_minutes)
             VALUES (
                 @HubId, @Provider, @AccountKey, @Kind, @LimitKey, @Label,
                 @RemainingPercent, @UsedPercent, @ResetsAt, @MeterChangedAt,
-                @BaseReceivedAt, @BaseRemainingPercent, @BaseCostUsd, @CostUsd, @WindowMinutes)
+                @BaseReceivedAt, @BaseRemainingPercent, @WindowMinutes)
+            ON CONFLICT (hub_id, provider, account_key, kind, limit_key) DO UPDATE SET
+                label = excluded.label,
+                remaining_percent = excluded.remaining_percent,
+                used_percent = excluded.used_percent,
+                resets_at = excluded.resets_at,
+                meter_changed_at = excluded.meter_changed_at,
+                base_received_at = excluded.base_received_at,
+                base_remaining_percent = excluded.base_remaining_percent,
+                window_minutes = excluded.window_minutes
             """,
-            windows.Select(item =>
+            rows.Select(item => item.Row));
+
+        // 1つ目の計測点を取り直した枠は、その時点の端末×モデル別コストを、枠の範囲を問わず保存し直す。
+        var rebased = rows.Where(item => item.Rebased).Select(item => item.Row).ToArray();
+        await connection.ExecuteAsync(
+            """
+            DELETE FROM limit_window_baseline_costs
+            WHERE hub_id = @HubId AND provider = @Provider AND account_key = @AccountKey AND kind = @Kind AND limit_key = @LimitKey
+            """,
+            rebased);
+        await connection.ExecuteAsync(
+            """
+            INSERT INTO limit_window_baseline_costs (hub_id, provider, account_key, kind, limit_key, device_id, model, cost_usd)
+            VALUES (@HubId, @Provider, @AccountKey, @Kind, @LimitKey, @DeviceId, @Model, @CostUsd)
+            """,
+            rebased.SelectMany(row => costs[row.Provider].Select(cost => new
             {
-                var (provider, window) = item;
-                var limitKey = (string.IsNullOrEmpty(window.LimitId) ? window.Label : window.LimitId) ?? "";
-                var remaining = window.RemainingPercent!.Value;
-                var cost = costs.GetValueOrDefault(provider.Provider);
-                var found = previousMeters.TryGetValue((provider.Provider, provider.AccountKey, window.Kind, limitKey), out var previous);
-                // 残量・使用量が前回の行と同じなら、最後に変わった時刻を引き継ぐ。
-                var meterChangedAt = found && previous!.RemainingPercent == remaining && previous.UsedPercent == window.UsedPercent
-                    ? previous.MeterChangedAt
-                    : receivedAt;
-                // 前回のリセット時刻を過ぎておらず、使用率が減っていなければ、1つ目の計測点を引き継ぐ。それ以外は今回の値を1つ目にする。
-                // リセット時刻は取り直すたびにミリ秒単位で揺れるため、値の一致では同じ周期かを判定しない。
-                var keepBase = found &&
-                    (previous!.ResetsAt is null || now < DateTimeOffset.Parse(previous.ResetsAt, CultureInfo.InvariantCulture)) &&
-                    remaining <= previous.RemainingPercent;
-                return new LimitWindowRow(
-                    hubId, provider.Provider, provider.AccountKey, window.Kind, limitKey, window.Label,
-                    remaining, window.UsedPercent, window.ResetsAt, meterChangedAt,
-                    keepBase ? previous!.BaseReceivedAt : receivedAt,
-                    keepBase ? previous!.BaseRemainingPercent : remaining,
-                    keepBase ? previous!.BaseCostUsd : cost,
-                    cost,
-                    window.WindowMinutes);
-            }));
+                row.HubId,
+                row.Provider,
+                row.AccountKey,
+                row.Kind,
+                row.LimitKey,
+                cost.DeviceId,
+                cost.Model,
+                cost.CostUsd,
+            })));
     }
 
     private static IEnumerable<object> TokenUsages(string hubId, HubDevice device, DateTimeOffset receivedAt)
@@ -321,7 +386,5 @@ internal static class HubStateStore
         string MeterChangedAt,
         string BaseReceivedAt,
         double BaseRemainingPercent,
-        double BaseCostUsd,
-        double CostUsd,
         double? WindowMinutes);
 }

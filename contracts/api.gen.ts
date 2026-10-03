@@ -58,6 +58,8 @@ export interface components {
             /** Format: double */
             costUsd: number | null;
         };
+        /** @enum {unknown} */
+        EstimateStatus: "estimated" | "estimating" | "unavailable";
         HealthOutput: {
             status: string;
         };
@@ -136,6 +138,8 @@ export interface components {
             resetsAt: string | null;
             /** Format: double */
             estimatedLimitUsd: number | null;
+            estimate: components["schemas"]["EstimateStatus"];
+            unavailableReason: (null) | components["schemas"]["UnavailableReason"];
             /** Format: double */
             windowMinutes: number | null;
         };
@@ -156,6 +160,8 @@ export interface components {
             month: components["schemas"]["OverviewPeriodOutput"];
             allTime: components["schemas"]["OverviewPeriodOutput"];
         };
+        /** @enum {unknown} */
+        UnavailableReason: "unknown-source-device" | "shared-source-device" | "no-matching-model" | "not-countable" | null;
         UsageOutput: {
             /** Format: int64 */
             tokens: number;
