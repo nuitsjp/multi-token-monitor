@@ -15,7 +15,7 @@ body {
 }
 /* 受信済みHub（名前・進捗・時刻）2件分の高さをページ間で揃える。 */
 .hub-slot {
-  min-height: 4.75rem;
+  min-height: 3.25rem;
 }
 .muted {
   color: #8b8e99;
@@ -25,7 +25,7 @@ body {
 }
 .dashboard-totals {
   flex: 5 1 0;
-  min-width: max-content;
+  min-width: min-content;
 }
 .dashboard-model {
   flex: 7 1 420px;
@@ -132,7 +132,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: var(--gap);
-  align-items: flex-start;
+  align-items: stretch;
   max-width: calc(4 * var(--cell) + 3 * var(--gap));
 }
 /* 契約ごとのパネル。円の数だけ列を使う（--n）。幅が足りなければ、パネルの中で円が折り返す */
@@ -218,14 +218,12 @@ body {
 .section-bare {
   padding-top: 20px;
 }
-.top-bar {
+.brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 56px;
-  padding: 0 24px;
-  background: #1f2126;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0 12px;
+  margin-bottom: 16px;
 }
 .brand-logo {
   display: grid;
@@ -237,18 +235,19 @@ body {
   color: #fff;
 }
 .brand-name {
+  white-space: nowrap;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.2px;
 }
 .app-shell {
   display: flex;
-  min-height: calc(100vh - 56px);
+  min-height: 100vh;
 }
 .side-menu {
   flex: none;
-  width: 232px;
-  padding: 20px 12px;
+  width: 280px;
+  padding: 16px 12px 20px;
   border-right: 1px solid rgba(255, 255, 255, 0.07);
 }
 .side-menu .mantine-NavLink-root {
@@ -280,4 +279,53 @@ body {
 .app-content {
   flex: 1;
   min-width: 0;
+}
+
+/* Activity: 左端に曜日、上端に月名を置く。マスは枠の幅に合わせて正方形のまま広がる */
+.activity {
+  display: grid;
+  grid-template-columns: 24px repeat(52, minmax(0, 1fr));
+  grid-template-rows: 14px repeat(7, auto);
+  gap: 3px;
+  font-size: 9px;
+  line-height: 1;
+}
+.activity-month {
+  grid-row: 1;
+  white-space: nowrap;
+}
+.activity-weekday {
+  grid-column: 1;
+  align-self: center;
+}
+.activity-cell {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: #2a2c34;
+}
+.level-1 {
+  background: #3b3566;
+}
+.level-2 {
+  background: #5a4fa8;
+}
+.level-3 {
+  background: #7a6fd6;
+}
+.level-4 {
+  background: #a79ef5;
+}
+.activity-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+.activity-legend .activity-cell {
+  width: 10px;
+}
+/* 週の列数が左の列の最小幅を押し広げないよう、幅は外側の枠から受け取る */
+.activity-box {
+  contain: inline-size;
 }

@@ -6,7 +6,13 @@ internal sealed record OverviewOutput(
     IReadOnlyList<OverviewHubOutput> Hubs,
     OverviewPeriodsOutput Periods,
     IReadOnlyList<OverviewLimitWindowOutput> LimitWindows,
-    IReadOnlyList<OverviewDeviceOutput> Devices);
+    IReadOnlyList<OverviewDeviceOutput> Devices,
+    OverviewActivityOutput Activity);
+
+/// <summary>Hubが送る日別の集計を全Hubで合算した行。Date は YYYY-MM-DD で、CostUsd は推定コストのある実績が1件もなければ null。</summary>
+internal sealed record OverviewActivityOutput(IReadOnlyList<ActivityDayOutput> Days);
+
+internal sealed record ActivityDayOutput(string Date, long Tokens, double? CostUsd);
 
 /// <summary>未受信のHubは ReceivedAt と UpdatedAt が null。Connected は受信中なら true、再接続中なら false。</summary>
 internal sealed record OverviewHubOutput(string HubId, string Name, bool Connected, string? ReceivedAt, string? UpdatedAt);

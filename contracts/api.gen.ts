@@ -35,6 +35,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ActivityDayOutput: {
+            date: string;
+            /** Format: int64 */
+            tokens: number;
+            /** Format: double */
+            costUsd: number | null;
+        };
         HealthOutput: {
             status: string;
         };
@@ -52,6 +59,9 @@ export interface components {
             tokens: number;
             /** Format: double */
             costUsd: number | null;
+        };
+        OverviewActivityOutput: {
+            days: components["schemas"]["ActivityDayOutput"][];
         };
         OverviewDeviceOutput: {
             hubId: string;
@@ -90,6 +100,7 @@ export interface components {
             periods: components["schemas"]["OverviewPeriodsOutput"];
             limitWindows: components["schemas"]["OverviewLimitWindowOutput"][];
             devices: components["schemas"]["OverviewDeviceOutput"][];
+            activity: components["schemas"]["OverviewActivityOutput"];
         };
         OverviewPeriodOutput: {
             total: components["schemas"]["UsageOutput"];

@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import { type Overview } from '../api/overview.ts';
 import { useOverview } from '../app/overview.tsx';
+import { ActivityCalendar, ActivityLegend } from '../components/ActivityCalendar.tsx';
 import { LimitCircle } from '../components/LimitCircle.tsx';
 import { MenuIcon, type MenuIconName } from '../components/MenuIcon.tsx';
 import { ProviderIcon } from '../components/ProviderIcon.tsx';
@@ -59,8 +60,8 @@ export function Home() {
   const [period, setPeriod] = useState<Period>('today');
 
   return (
-    <Container component="main" size="xl" py="xl">
-      <Group justify="space-between" mb="xl">
+    <Container component="main" size="xl" py="md">
+      <Group justify="space-between" mb="md">
         <Group gap={10} wrap="nowrap">
           <span className="page-icon">
             <MenuIcon name="home" size={26} />
@@ -90,6 +91,17 @@ export function Home() {
   );
 }
 
+function PanelTitle({ title, icon }: { title: string; icon: MenuIconName }) {
+  return (
+    <Group gap={8} wrap="nowrap" className="panel-title">
+      <MenuIcon name={icon} size={18} />
+      <Title order={2} fz={17} lh={1} fw={500}>
+        {title}
+      </Title>
+    </Group>
+  );
+}
+
 function Card({
   title,
   icon,
@@ -106,12 +118,7 @@ function Card({
   return (
     <section className={bare ? 'section-bare' : 'card'} aria-label={title}>
       <Group justify="space-between" mb="md">
-        <Group gap={8} wrap="nowrap" className="panel-title">
-          <MenuIcon name={icon} size={18} />
-          <Title order={2} fz={17} lh={1} fw={500}>
-            {title}
-          </Title>
-        </Group>
+        <PanelTitle title={title} icon={icon} />
         {control}
       </Group>
       {children}
@@ -154,7 +161,9 @@ function Dashboard({ overview, period }: { overview: Overview; period: Period })
                 />
               </div>
             </section>
-            <HubCard overview={overview} usage={usage} />
+            <Card title="Activity" icon="activity" control={<ActivityLegend />}>
+              <ActivityCalendar days={overview.activity.days} today={new Date()} />
+            </Card>
           </Stack>
         </Box>
         <Box className="dashboard-model">
@@ -166,7 +175,10 @@ function Dashboard({ overview, period }: { overview: Overview; period: Period })
           <LimitCard overview={overview} />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 4 }}>
-          <DeviceCard overview={overview} />
+          <Stack gap="lg">
+            <HubCard overview={overview} usage={usage} />
+            <DeviceCard overview={overview} />
+          </Stack>
         </Grid.Col>
       </Grid>
     </Stack>
@@ -201,7 +213,7 @@ function HubCard({ overview, usage }: { overview: Overview; usage: Usage }) {
         ) : undefined
       }
     >
-      <Stack gap="lg">
+      <Stack gap="md">
         {Array.from({ length: hubsPerPage }, (_, index) => {
           const hub = visible[index];
           return hub ? (
@@ -336,29 +348,36 @@ function ModelCard({ usage }: { usage: Usage }) {
   ];
   const total = Math.max(1, usage.total.tokens);
   return (
-    <Card title="By model" icon="model">
-      <Flex direction={{ base: 'column', sm: 'row' }} align="center" gap="xl">
-        <RingProgress
-          size={200}
-          thickness={20}
-          roundCaps={false}
-          sections={slices.map((slice) => ({
-            value: (slice.tokens / total) * 100,
-            color: slice.color,
-            tooltip: `${slice.name} · ${full.format(slice.tokens)}`,
-          }))}
-          label={
-            <Stack gap={0} align="center">
-              <Text fz={15} fw={600} className="num">
-                <TokenCount value={usage.total.tokens} />
-              </Text>
-              <Text size="xs" className="muted">
-                tokens
-              </Text>
-            </Stack>
-          }
-        />
-        <Table verticalSpacing={6} style={{ flex: 1, width: '100%' }}>
+    <section className="card" aria-label="By model">
+      <Flex direction={{ base: 'column', sm: 'row' }} align="stretch" gap="xl">
+        <Stack gap="md" align="center" justify="flex-start">
+          <Box style={{ alignSelf: 'flex-start' }}>
+            <PanelTitle title="By model" icon="model" />
+          </Box>
+          <Flex flex={1} align="center">
+            <RingProgress
+              size={200}
+              thickness={20}
+              roundCaps={false}
+              sections={slices.map((slice) => ({
+                value: (slice.tokens / total) * 100,
+                color: slice.color,
+                tooltip: `${slice.name} · ${full.format(slice.tokens)}`,
+              }))}
+              label={
+                <Stack gap={0} align="center">
+                  <Text fz={15} fw={600} className="num">
+                    <TokenCount value={usage.total.tokens} />
+                  </Text>
+                  <Text size="xs" className="muted">
+                    tokens
+                  </Text>
+                </Stack>
+              }
+            />
+          </Flex>
+        </Stack>
+        <Table verticalSpacing={3} style={{ flex: 1, width: '100%' }}>
           <Table.Tbody>
             {slices.map((slice) => (
               <Table.Tr key={slice.key}>
@@ -384,7 +403,7 @@ function ModelCard({ usage }: { usage: Usage }) {
           </Table.Tbody>
         </Table>
       </Flex>
-    </Card>
+    </section>
   );
 }
 

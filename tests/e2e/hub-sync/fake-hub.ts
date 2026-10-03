@@ -50,7 +50,19 @@ export interface FakeStats {
       windows: FakeLimitWindow[];
     }[];
   };
-  historyPreview: { summary: { activeDays: number } };
+  historyPreview: { summary: { activeDays: number }; daily?: FakeDay[] };
+}
+
+export interface FakeDay {
+  date: string;
+  tokens: number;
+  cost?: number;
+}
+
+/** Hubが日別の履歴を付けた状態にする。 */
+export function withDaily(stats: FakeStats, daily: FakeDay[]): FakeStats {
+  stats.historyPreview.daily = daily;
+  return stats;
 }
 
 export const PERIODS = ['today', 'month', 'allTime'] as const;

@@ -94,7 +94,10 @@ internal sealed record HubLimitWindow(
     string? Label = null,
     double? WindowMinutes = null);
 
-internal sealed record HubHistoryPreview(HubHistorySummary Summary);
+// Daily はHubが履歴を更新したときだけ付く。無いときは保存済みの日別の集計を変えない。
+internal sealed record HubHistoryPreview(HubHistorySummary Summary, IReadOnlyList<HubHistoryDay>? Daily = null);
+
+internal sealed record HubHistoryDay(string Date, long Tokens, double? Cost = null);
 
 internal sealed record HubHistorySummary(long? ActiveDays = null);
 

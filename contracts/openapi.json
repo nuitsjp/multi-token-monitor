@@ -48,6 +48,28 @@
   },
   "components": {
     "schemas": {
+      "ActivityDayOutput": {
+        "required": [
+          "date",
+          "tokens",
+          "costUsd"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "tokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costUsd": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        }
+      },
       "HealthOutput": {
         "required": [
           "status"
@@ -104,6 +126,20 @@
             "type": "number",
             "format": "double",
             "nullable": true
+          }
+        }
+      },
+      "OverviewActivityOutput": {
+        "required": [
+          "days"
+        ],
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityDayOutput"
+            }
           }
         }
       },
@@ -237,7 +273,8 @@
           "hubs",
           "periods",
           "limitWindows",
-          "devices"
+          "devices",
+          "activity"
         ],
         "type": "object",
         "properties": {
@@ -261,6 +298,9 @@
             "items": {
               "$ref": "#/components/schemas/OverviewDeviceOutput"
             }
+          },
+          "activity": {
+            "$ref": "#/components/schemas/OverviewActivityOutput"
           }
         }
       },

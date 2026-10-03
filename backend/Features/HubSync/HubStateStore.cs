@@ -119,6 +119,18 @@ internal static class HubStateStore
             """,
             new { hubId });
 
+        // 日別の集計は、受け取った日付だけを上書きまたは追加する。受け取っていない日付の行は消さない。
+        if (stats.HistoryPreview?.Daily is { } daily)
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO daily_token_usages (hub_id, date, tokens, cost_usd)
+                VALUES (@hubId, @Date, @Tokens, @Cost)
+                ON CONFLICT (hub_id, date) DO UPDATE SET tokens = excluded.tokens, cost_usd = excluded.cost_usd
+                """,
+                daily.Select(day => new { hubId, day.Date, day.Tokens, day.Cost }));
+        }
+
         await connection.ExecuteAsync(
             "INSERT INTO hub_summaries (hub_id, updated_at, active_days) VALUES (@hubId, @updatedAt, @activeDays)",
             new { hubId, updatedAt = stats.UpdatedAt, activeDays = stats.HistoryPreview?.Summary.ActiveDays });

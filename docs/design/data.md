@@ -2,13 +2,14 @@
 
 保存形式と現在のテーブル設計の正本です。変更範囲と論点は [設計標準](../standards/design-and-documentation.md#architecture-method) に従って会話で提示します。
 
-Hubから受信したstats全体は受信データとして `hub_states` にそのまま保存し、同じトランザクションで本システムのドメインモデル（Hub・端末・トークン利用実績・アカウント・利用枠）へ変換して保存します。閲覧はドメインモデルのテーブルだけを読み、受信データの形式に依存しません。
+Hubから受信したstats全体は受信データとして `hub_states` にそのまま保存し、同じトランザクションで本システムのドメインモデル（Hub・端末・トークン利用実績・日別の集計・アカウント・利用枠）へ変換して保存します。閲覧はドメインモデルのテーブルだけを読み、受信データの形式に依存しません。
 
 ```mermaid
 erDiagram
   hubs ||--o| hub_states : "受信データ"
   hubs ||--o| hub_summaries : "概要"
   hubs ||--o{ devices : "登録端末"
+  hubs ||--o{ daily_token_usages : "日別の集計"
   devices ||--o{ latest_token_usages : "利用実績"
   hubs ||--o{ latest_limit_windows : "報告した利用枠"
   accounts ||--o{ latest_limit_windows : "利用枠"
@@ -26,6 +27,12 @@ erDiagram
     TEXT hub_id PK,FK
     TEXT updated_at
     INTEGER active_days
+  }
+  daily_token_usages {
+    TEXT hub_id PK,FK
+    TEXT date PK
+    INTEGER tokens
+    REAL cost_usd
   }
   devices {
     TEXT hub_id PK,FK
@@ -127,6 +134,17 @@ Hubに利用状況を送っている端末。
 | model | TEXT | 不可 | PK | モデル識別子 |
 | tokens | INTEGER | 不可 |  | トークン数 |
 | cost_usd | REAL | 可 |  | 推定コスト（USD）。Hubが送らない場合はNULL |
+
+### daily_token_usages
+
+Hubが送った日別のトークン利用実績。Hubごとに、日付1つにつき1行を持つ。受信のたびに、受け取った日付だけを上書きまたは追加し、他の日付の行は消さない。
+
+| カラム | 型 | NULL | キー | 説明 |
+| --- | --- | --- | --- | --- |
+| hub_id | TEXT | 不可 | PK、FK → hubs.hub_id | 日別の集計を送ったHub |
+| date | TEXT | 不可 | PK | Hubが送る日付（`YYYY-MM-DD`）。時刻帯の変換はしない |
+| tokens | INTEGER | 不可 |  | その日の合計トークン数 |
+| cost_usd | REAL | 可 |  | その日の推定コスト（USD）。Hubが送らない場合はNULL |
 
 ### accounts
 
