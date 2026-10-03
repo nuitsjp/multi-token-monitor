@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Alert, Checkbox, Container, Group, Loader, Text, Title } from '@mantine/core';
 import { fetchHubUsage, type HubUsageData } from '../api/hub-usage.ts';
-import { fetchFixedHubUsage } from '../api/hub-usage-fixture.ts';
 import { useHubUsage } from '../app/use-hub-usage.ts';
 import { HubUsageChart } from '../components/HubUsageChart.tsx';
 import { MenuIcon } from '../components/MenuIcon.tsx';
@@ -16,13 +15,11 @@ import '../by-model.css';
 
 export const Route = createFileRoute('/by-model')({ component: ByModel });
 
-// 動作合意用の合成点。既定は実処理で、VITE_BY_MODEL_MOCK=1 のときだけ固定データを使う（段階4で削除する）。
-const loadUsage = import.meta.env.VITE_BY_MODEL_MOCK === '1' ? fetchFixedHubUsage : fetchHubUsage;
 const noneHidden: ReadonlySet<string> = new Set();
 const tokens = (value: number | null) => (value === null ? '—' : full.format(value));
 
 export function ByModel() {
-  const { data, error } = useHubUsage(loadUsage);
+  const { data, error } = useHubUsage(fetchHubUsage);
   return (
     <Container component="main" size="xl" py="md" className="by-model-page">
       {error ? (

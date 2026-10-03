@@ -59,6 +59,12 @@ sequenceDiagram
 
 ## モデル情報を表示する固有の処理
 
-画面の表示・操作は [モデル情報を表示する](../usecases/モデル情報を表示する/README.md) に従う。Hub情報と同じ `GET /api/hub-usage` の応答を使い、新しいAPI・テーブルは追加しない。全Hubの日次明細を画面側でモデル名ごとに合算し、選択期間・集約単位・タイルの選択の切り替えでAPIを呼び直さない。変更の購読は画面全体で共用する既存の通知接続を使う（[UCP-3](UCP-3.md)）。
+画面の表示・操作は [モデル情報を表示する](../usecases/モデル情報を表示する/README.md) に従う。Hub情報と同じ `GET /api/hub-usage` の応答を使い、新しいAPI・テーブルは追加しない。全Hubの日次明細を画面側でモデル名ごとに合算し、選択期間・集約単位・タイルの選択の切り替えでAPIを呼び直さない。
 
-- モックに置き換える境界と合成点（動作合意用）: `frontend/src/routes/by-model.tsx` で閲覧用APIの取得関数を選ぶ1箇所。環境変数 `VITE_BY_MODEL_MOCK=1` のときだけ、本番と同じ型 `HubUsageData` の固定データ（`frontend/src/api/hub-usage-fixture.ts`）を使う。既定は実処理で、固定データと切り替えは段階4で削除する。
+| 役割 | 責務 | 実装パス |
+| --- | --- | --- |
+| 取得と購読 | `fetchHubUsage` を唯一の取得境界とし、保存確定の通知で取得し直し、鮮度更新は表示中の値へ書き込む。Hub情報の画面と共用する | `frontend/src/api/hub-usage.ts`、`frontend/src/app/use-hub-usage.ts` |
+| 表示集計 | 全Hubの日次明細をモデル名で合算し、コスト順（不明は最後、同順位は名前順）に並べる。期間・集約単位ごとの積み上げ、タイルの日次推移、未選択モデルのOtherを返す。集約単位を変えても期間合計を変えず、不明なコストをゼロにしない | `frontend/src/model-usage.ts` |
+| 画面 | タイルの選択（モデル名で保持）、三状態のSelect all、グラフの伸縮、期間・集約単位の操作欄を共用部品で表示する | `frontend/src/routes/by-model.tsx`、`frontend/src/components/HubUsageChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
+
+固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。変更の購読は既存の画面全体で1つの通知接続を共用し、新たなEventSourceを作らない（[UCP-3](UCP-3.md)）。
