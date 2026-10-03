@@ -83,6 +83,14 @@ function HubDashboard({ data }: { data: HubUsageData }) {
     <>
       <Group className="by-hub-header" justify="space-between" mb="md">
         <Group gap={24} className="by-hub-heading">
+          <Group gap={10} wrap="nowrap">
+            <span className="page-icon">
+              <MenuIcon name="hub" size={26} />
+            </span>
+            <Title order={1} fz={26} lh={1} fw={600}>
+              By hub
+            </Title>
+          </Group>
           <Group gap={20} className="by-hub-summary" wrap="nowrap">
             <Group gap={6} wrap="nowrap">
               <Text size="xs" c="dimmed">
@@ -96,14 +104,6 @@ function HubDashboard({ data }: { data: HubUsageData }) {
               </Text>
               <Text className="num">{cost(usage.totalCostUsd)}</Text>
             </Group>
-          </Group>
-          <Group gap={10} wrap="nowrap">
-            <span className="page-icon">
-              <MenuIcon name="hub" size={26} />
-            </span>
-            <Title order={1} fz={26} lh={1} fw={600}>
-              By hub
-            </Title>
           </Group>
         </Group>
         <Group gap={20} className="by-hub-controls" wrap="nowrap">
