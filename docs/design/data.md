@@ -66,6 +66,7 @@ erDiagram
     REAL base_cost_usd
     REAL cost_usd
     REAL window_minutes
+    TEXT source_device_id
   }
 ```
 
@@ -157,9 +158,10 @@ Hubが報告したアカウントの利用枠。メーターを表示する枠�
 | meter_changed_at | TEXT | 不可 |  | remaining_percent・used_percent が最後に変わった保存時刻 |
 | base_received_at | TEXT | 不可 |  | 1つ目の計測点の受信時刻 |
 | base_remaining_percent | REAL | 不可 |  | 1つ目の計測点の残量（%） |
-| base_cost_usd | REAL | 不可 |  | 1つ目の計測点の累計推定コスト（USD） |
-| cost_usd | REAL | 不可 |  | 今回の受信時点の累計推定コスト（USD）。当該Hubの全端末について、枠の提供元と同じツールの累計（allTime）の推定コストの合計。コストが無ければ0 |
+| base_cost_usd | REAL | 不可 |  | 1つ目の計測点の累計推定コスト（USD）。`cost_usd` と同じ範囲で数える |
+| cost_usd | REAL | 不可 |  | 今回の受信時点の累計推定コスト（USD）。当該Hubの、枠の提供元と同じツールの累計（allTime）の推定コストのうち、枠のコストの範囲（[保存済みの最新利用状況を1画面で見る](../usecases/利用状況を閲覧する/scenarios/保存済みの最新利用状況を1画面で見る.md) の「枠のコストの範囲」と [UCP-1](UCP-1.md) の個別ルール）に入る端末・モデルの合計。コストが無ければ0。範囲を確定できない枠（推定上限額が「N/A」の枠）は、提供元全体の合計を保存するが、閲覧では使わない |
 | window_minutes | REAL | 可 |  | Hubが報告した枠の長さ（分）。Hubが送らない枠はNULL。画面は、NULLの枠の長さを `kind` の固定表で補う |
+| source_device_id | TEXT | 可 |  | Hubが報告した、アカウントの利用枠を取得した端末（`sourceDeviceId`）。Hubが送らない場合はNULL |
 
 ## 保存と変換の規則
 
@@ -169,6 +171,6 @@ Hubが報告したアカウントの利用枠。メーターを表示する枠�
 - `freshness` は保存済みの行を読まず、同じトランザクションで `hub_states.received_at`、`hub_summaries.updated_at`、通知に含まれる端末の `devices.updated_at`・`stale` だけを更新します。`hub_states.stats_json` とその他の行は、次の `snapshot`・`stats` で作り直すまで維持します。期間の区切りが変わるとHubは `stats` を送るため、期限切れの判定は `snapshot`・`stats` の保存時だけ行います。
 - `latest_token_usages` は端末ごとの期間別 `clientModels`・`clientModelCosts` から作ります。Hub・ツール・モデル単位の合計はこのテーブルの合計で求めます（2026-09-12取得の実測資料で、期限切れの端末がない場合にHub集約の各合計と端末別・ツール×モデル別の合計が一致することを確認）。period は stats の `periods.today`・`month`・`allTime` に対応します。端末の `today`・`month` は、`periodWindows` の当該期間の `endsAt` が受信時刻以前なら期限切れとして行を作りません。`periodWindows` が無い端末は、端末の最終更新時刻と受信時刻のUTCの日付・月が異なる場合に期限切れとします（Hubが自身の集計から期限切れの端末分を除く規則と同じ）。
 - `latest_limit_windows` は Hub集約の `limits.providers` のうち、`showMeter` が真で `remainingPercent` が数値の枠から作ります。同じアカウントの同じ枠を複数のHubが報告した場合は Hub ごとに行を持ち、閲覧ではHubを選んで表示します。`window_minutes` は枠の `windowMinutes`（数値。無ければNULL）をそのまま保存します。`meter_changed_at` は作り直す前の行と残量が同じなら引き継ぎ、変わった場合と新規の場合は今回の受信時刻にします。
-- `latest_limit_windows` の1つ目の計測点（`base_`）は、作り直す前の行があり、受信時刻が作り直す前の行の `resets_at` より前（`resets_at` が無ければ条件なし）で、残量が前回以下なら引き継ぎます。`resets_at` の値は受信のたびに変わりうるため、値の一致では判定しません。新規の枠、受信時刻が作り直す前の行の `resets_at` を過ぎた場合、残量が増えた（使用率が減った）場合は今回の受信時刻・残量・`cost_usd` にします。閲覧では `(cost_usd − base_cost_usd) ÷ (base_remaining_percent − remaining_percent) × 100` を推定上限額とし、残量の差が1ポイント未満か、コストが増えていなければ推定しません。
+- `latest_limit_windows` の1つ目の計測点（`base_`）は、作り直す前の行があり、受信時刻が作り直す前の行の `resets_at` より前（`resets_at` が無ければ条件なし）で、残量が前回以下なら引き継ぎます。`resets_at` の値は受信のたびに変わりうるため、値の一致では判定しません。新規の枠、受信時刻が作り直す前の行の `resets_at` を過ぎた場合、残量が増えた（使用率が減った）場合は今回の受信時刻・残量・`cost_usd` にします。閲覧では、枠のコストの範囲を確定できるかを、同じHub・同じ提供元の行（アカウント、ラベル、`source_device_id`）から純粋関数で判定します（[UCP-1](UCP-1.md)）。確定できる枠は `(cost_usd − base_cost_usd) ÷ (base_remaining_percent − remaining_percent) × 100` を推定上限額とし、残量の差が1ポイント未満か、コストが増えていなければ「推定中」（Estimating）とします。確定できない枠は「N/A」とします。保存時の `cost_usd` も同じ純粋関数で範囲を決めて数えます。
 - URLと認証トークンは保存しません。セッション、プロジェクト、日次・月次履歴、トークンの内訳（キャッシュ・出力など）、アカウントのメールアドレス・氏名はドメインモデルに含めません（受信データには含まれます）。
-- `hubs` と `devices` を参照する外部キーは連鎖削除を設け、`accounts` を参照する外部キーには設けません。連鎖更新は設けません。スキーマ版0から1への移行で全テーブルを作成し、版1から2への移行で `latest_limit_windows` を作り直します（既存の行は移さず、次の `snapshot`・`stats` で作り直します）。版2から3への移行で `latest_limit_windows` に `window_minutes` を追加します（既存の行はNULLのままで、次の `snapshot`・`stats` で値が入ります）。移行と版の更新は同一トランザクションで行います。
+- `hubs` と `devices` を参照する外部キーは連鎖削除を設け、`accounts` を参照する外部キーには設けません。連鎖更新は設けません。スキーマ版0から1への移行で全テーブルを作成し、版1から2への移行で `latest_limit_windows` を作り直します（既存の行は移さず、次の `snapshot`・`stats` で作り直します）。版2から3への移行で `latest_limit_windows` に `window_minutes` を追加します（既存の行はNULLのままで、次の `snapshot`・`stats` で値が入ります）。版3から4への移行で `latest_limit_windows` に `source_device_id` を追加し、`cost_usd`・`base_cost_usd` の範囲が変わるため、`latest_limit_windows` の行を消します（既存の行は移さず、次の `snapshot`・`stats` で作り直します）。移行と版の更新は同一トランザクションで行います。
