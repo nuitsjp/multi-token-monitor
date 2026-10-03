@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 画面 | 表示時に閲覧用APIを1回呼ぶ（表示中の取得し直しは [UCP-3](UCP-3.md)）。期間、利用枠のHub、Hub別のページは受け取った値から選び、APIを呼び直さない。Hub別は2件ずつ表示する。トークン数と推定コストは、表示する値が変わるたびに変わった桁をリールで回す。利用枠は、枠グループ・長さ・ラベル・残り時間・ペース・月換算上限額を受け取った値から表示上で計算し、1分ごとに再計算する。変更通知の購読は画面全体で1つにし、左のメニュー（Hub・契約・端末の項目）と各ページが同じ状態を読む | `frontend/src/routes/index.tsx`、`frontend/src/api/overview.ts`、`frontend/src/components/SlotNumber.tsx`、`frontend/src/components/LimitCircle.tsx`、`frontend/src/components/providerIcons.ts`、`frontend/src/limits.ts`、`frontend/src/format.ts`、`frontend/src/app/overview.tsx`、`frontend/src/components/SideMenu.tsx` |
 | 閲覧用API | `GET /api/overview` を提供し、全区画のデータを期間別にまとめて1回で返す。契約はOpenAPIから生成するTypeScriptの型で画面と共有する。Hostヘッダーをループバックの名前に限定する | `backend/Presentation/Http/ApiEndpoints.cs`、`backend/Presentation/Http/Contracts.cs`、`backend/Presentation/Http/HttpPresentationRegistration.cs` |
-| 閲覧クエリ | ドメインモデルのテーブルだけを読み取り専用で読み、集計して返す。受信データ（`hub_states.stats_json`）は読まない。各枠の推定上限額は、「金額」「推定中（Estimating）」「N/A（理由つき）」のいずれかとして返し、判定には [UCP-1](UCP-1.md) の「枠のコストの範囲の決定と推定」の純粋関数を呼ぶ。応答は、推定の状態（`estimated`・`estimating`・`unavailable`）と、`unavailable` の理由の区分を含める。理由の文言は画面が日本語で示す | `backend/Features/Overview/OverviewQuery.cs`、`backend/Infrastructure/Persistence/Database.cs` |
+| 閲覧クエリ | ドメインモデルのテーブルだけを読み取り専用で読み、集計して返す。受信データ（`hub_states.stats_json`）は読まない。各枠の推定上限額は、「金額」「推定中（Estimating）」「N/A（理由つき）」のいずれかとして返し、判定には [UCP-1](UCP-1.md) の「枠のコストの範囲の決定と推定」の純粋関数を呼ぶ。応答は、推定の状態（`estimated`・`estimating`・`unavailable`）と、`unavailable` の理由の区分を含める。理由の文言は画面が日本語で示す | `backend/Features/Overview/OverviewQuery.cs`、`backend/Features/Overview/LimitEstimator.cs`、`backend/Infrastructure/Persistence/Database.cs` |
 
 ```mermaid
 sequenceDiagram

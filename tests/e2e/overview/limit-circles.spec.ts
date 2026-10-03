@@ -309,7 +309,10 @@ test.describe('月換算上限額', () => {
 
       const before = receivedAt(app.databasePath, 'alpha');
       const next = structuredClone(alpha.stats);
-      for (const target of next.limits.providers[0].windows) {
+      // 月次枠は動かさない（月額は枠グループの最小値なので、比べる2枠だけを動かす）。
+      for (const target of next.limits.providers[0].windows.filter(
+        (item) => item.kind !== 'billing',
+      )) {
         const drop = target.kind === 'session' ? sample.sessionDrop : sample.weeklyDrop;
         target.remainingPercent = (target.remainingPercent ?? 0) - drop;
         target.usedPercent = 100 - target.remainingPercent;
@@ -327,7 +330,7 @@ test.describe('月換算上限額', () => {
     });
   }
 
-  test('LMT-4 各枠を月換算した最小値を円の右上に示し、求められない円には出さない', async ({
+  test('LMT-4 枠グループごとに、各枠を月換算した最小値を先頭の円の右上に1つ示し、求められないグループには出さない', async ({
     page,
     app,
     alpha,
@@ -338,7 +341,7 @@ test.describe('月換算上限額', () => {
     await page.goto('/');
     const limits = page.getByRole('region', { name: 'Usage limits' });
 
-    // Assert: どの枠も Estimating の間は、どの円にも出ない。
+    // Assert: どの枠も Estimating の間は、どのグループにも出ない。
     await expect(limits.getByText('Estimating', { exact: true })).toHaveCount(3);
     await expect(limits.locator('.limit-monthly')).toHaveCount(0);
 
@@ -355,10 +358,11 @@ test.describe('月換算上限額', () => {
     alpha.send('stats', next);
     await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(before);
 
-    // Assert: 週次の推定上限額 $30 は 30 ÷ 10,080 × 44,640 を整数のドルで、月次の $30 は換算せずに示す。
+    // Assert: 週次の推定上限額 $30 は 30 ÷ 10,080 × 44,640 で $133、月次の $30 は換算しない。
+    // 枠グループ（この契約は全体で1グループ）の最小値 $30 を、先頭の円の右上に1つだけ示す。
     const circles = limits.locator('.limit-circle');
-    await expect(circles.nth(0).locator('.limit-monthly')).toHaveText('$133/mo');
-    await expect(circles.nth(1).locator('.limit-monthly')).toHaveText('$30/mo');
+    await expect(circles.nth(0).locator('.limit-monthly')).toHaveText('$30/mo');
+    await expect(limits.locator('.limit-monthly')).toHaveCount(1);
 
     // Act & Assert: マウスオーバーで、換算した参考値であることを日本語で示す。
     await circles.nth(0).locator('.limit-monthly').hover();

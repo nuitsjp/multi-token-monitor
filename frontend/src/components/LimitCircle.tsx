@@ -1,7 +1,6 @@
 import { Tooltip } from '@mantine/core';
 import { cost, costWhole } from '../format.ts';
 import {
-  monthlyLimitUsd,
   stateOf,
   remainingText,
   windowLabel,
@@ -56,6 +55,26 @@ const clock = (
 
 const windowKey = (window: LimitWindow) => `${window.kind}/${window.limitKey}`;
 
+const tooltipStyles = {
+  tooltip: { background: '#111215', color: '#e4e5e9', border: '1px solid #3a3d48' },
+};
+
+// 推定上限額が「N/A」になる理由。コストの範囲を確定できない場合の説明。
+function unavailableText(reason: LimitWindow['unavailableReason']): string {
+  switch (reason) {
+    case 'unknown-source-device':
+      return '同じ提供元に複数のアカウントがあり、このアカウントの取得元の端末が分からないため、コストの範囲を確定できません。';
+    case 'shared-source-device':
+      return '複数のアカウントが同じ取得元の端末を共有しているため、アカウントごとのコストを分けられません。';
+    case 'no-matching-model':
+      return '枠グループ名に対応するモデルが見つからないため、コストの範囲を確定できません。';
+    case 'not-countable':
+      return 'この枠が数える利用をモデル名から特定できないため、推定しません。';
+    default:
+      return 'コストの範囲を確定できないため、推定しません。';
+  }
+}
+
 export function LimitCircle({
   name,
   label,
@@ -68,7 +87,7 @@ export function LimitCircle({
   now: number;
 }) {
   const [outer, inner] = circle.windows;
-  const monthly = monthlyLimitUsd(circle.windows);
+  const monthly = circle.monthlyUsd;
   const line = (window: LimitWindow, y: number) => (
     <text
       key={windowKey(window)}
@@ -92,9 +111,7 @@ export function LimitCircle({
           multiline
           w={220}
           withArrow
-          styles={{
-            tooltip: { background: '#111215', color: '#e4e5e9', border: '1px solid #3a3d48' },
-          }}
+          styles={tooltipStyles}
           label="各枠の上限額を月換算し、最も小さい金額を採用した参考値です。"
         >
           <span className="limit-monthly">{costWhole(monthly)}/mo</span>
@@ -128,15 +145,27 @@ export function LimitCircle({
             <b className="c1">{windowLabel(window)}</b>
             <span className="c2">{clock}</span>
             <span className="c3">{remainingText(window.resetsAt, now)}</span>
-            {window.estimatedLimitUsd === null ? (
-              <>
-                <span className="c4" />
-                <span className="c5 muted">Estimating</span>
-              </>
-            ) : (
+            {window.estimate === 'estimated' && window.estimatedLimitUsd !== null ? (
               <>
                 <span className="c4 muted">≈</span>
                 <span className="c5">{cost(window.estimatedLimitUsd)}</span>
+              </>
+            ) : (
+              <>
+                <span className="c4" />
+                {window.estimate === 'unavailable' ? (
+                  <Tooltip
+                    multiline
+                    w={240}
+                    withArrow
+                    styles={tooltipStyles}
+                    label={unavailableText(window.unavailableReason)}
+                  >
+                    <span className="c5 muted">N/A</span>
+                  </Tooltip>
+                ) : (
+                  <span className="c5 muted">Estimating</span>
+                )}
               </>
             )}
           </div>

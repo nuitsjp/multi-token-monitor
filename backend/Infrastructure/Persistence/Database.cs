@@ -29,7 +29,7 @@ internal sealed class Database
         try
         {
             var version = await connection.ExecuteScalarAsync<int>("PRAGMA user_version;");
-            string[] migrations = ["001-hub-sync.sql", "002-limit-estimate.sql", "003-limit-window-minutes.sql"];
+            string[] migrations = ["001-hub-sync.sql", "002-limit-estimate.sql", "003-limit-window-minutes.sql", "004-limit-cost-baselines.sql"];
             if (version < 0 || version > migrations.Length)
             {
                 throw new InvalidOperationException("未対応のDBスキーマです。");

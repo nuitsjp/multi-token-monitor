@@ -64,7 +64,13 @@ export function stateOf(window: LimitWindow, now: number): Pace {
   return severity[pace] >= severity[remaining] ? pace : remaining;
 }
 
-export type LimitCircle = { key: string; group: string; windows: LimitWindow[] };
+// monthlyUsd は枠グループごとに1つで、グループの先頭の円だけが持つ（2つ目以降の円は null）。
+export type LimitCircle = {
+  key: string;
+  group: string;
+  windows: LimitWindow[];
+  monthlyUsd: number | null;
+};
 export type LimitAccount = {
   key: string;
   provider: string;
@@ -100,11 +106,13 @@ export function buildAccounts(windows: LimitWindow[]): LimitAccount[] {
       const sorted = [...members].sort(
         (a, b) => (lengthOf(a) ?? Infinity) - (lengthOf(b) ?? Infinity),
       );
+      const monthlyUsd = monthlyLimitUsd(sorted);
       for (let index = 0; index < sorted.length; index += 2)
         account.circles.push({
           key: `${group}/${index}`,
           group,
           windows: sorted.slice(index, index + 2),
+          monthlyUsd: index === 0 ? monthlyUsd : null,
         });
     }
     return account;
@@ -113,7 +121,7 @@ export function buildAccounts(windows: LimitWindow[]): LimitAccount[] {
 
 const MONTH = 31 * DAY;
 
-// 各枠の推定上限額を31日に比例換算し、最小値を採用する。約1か月の枠はそのまま。候補がなければ null。
+// 推定上限額が金額の各枠を31日に比例換算し、最小値を採用する。約1か月の枠はそのまま。候補がなければ null。
 export function monthlyLimitUsd(windows: LimitWindow[]): number | null {
   let minimum: number | null = null;
   for (const window of windows) {

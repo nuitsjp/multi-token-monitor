@@ -32,7 +32,9 @@ const HUB_TABLES = [
   'hub_summaries',
   'devices',
   'latest_token_usages',
+  'hub_accounts',
   'latest_limit_windows',
+  'limit_window_baseline_costs',
 ];
 
 // Hubに属する全テーブルの行。
