@@ -10,7 +10,7 @@ import { SlotNumber } from '../components/SlotNumber.tsx';
 import { UsageRangeControls } from '../components/UsageRangeControls.tsx';
 import { cost, full } from '../format.ts';
 import { rangeForPreset, sumCosts, type AggregationUnit, type RangePreset } from '../hub-usage.ts';
-import { aggregateModels, type ModelUsage } from '../model-usage.ts';
+import { aggregateModels, groupUnselected, type ModelUsage } from '../model-usage.ts';
 import '../hub-chart.css';
 import '../by-model.css';
 
@@ -18,6 +18,7 @@ export const Route = createFileRoute('/by-model')({ component: ByModel });
 
 // 動作合意用の合成点。既定は実処理で、VITE_BY_MODEL_MOCK=1 のときだけ固定データを使う（段階4で削除する）。
 const loadUsage = import.meta.env.VITE_BY_MODEL_MOCK === '1' ? fetchFixedHubUsage : fetchHubUsage;
+const noneHidden: ReadonlySet<string> = new Set();
 const tokens = (value: number | null) => (value === null ? '—' : full.format(value));
 
 export function ByModel() {
@@ -46,9 +47,7 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
   // 選択はモデル名で保持する。最初の表示では、コストの大きい順の上位3モデルを選ぶ。
   const [chosen, setChosen] = useState(() => new Set(usage.models.slice(0, 3).map((m) => m.name)));
   const selected = usage.models.filter((model) => chosen.has(model.name));
-  const hidden = new Set(
-    usage.models.filter((model) => !chosen.has(model.name)).map((m) => m.name),
-  );
+  const chart = groupUnselected(usage, chosen);
   const toggle = (name: string) =>
     setChosen((previous) => {
       const next = new Set(previous);
@@ -121,10 +120,6 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
             <Text c="dimmed" py="xl">
               No history for selected range.
             </Text>
-          ) : selected.length === 0 ? (
-            <Text c="dimmed" className="by-model-empty">
-              Select a model to show the chart.
-            </Text>
           ) : (
             <>
               <div className="by-model-plots">
@@ -137,23 +132,19 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
                       <HubUsageChart
                         kind={kind}
                         fill
-                        series={usage.models.map((m) => ({
-                          key: m.name,
-                          name: m.name,
-                          color: m.color,
-                        }))}
-                        buckets={usage.buckets}
-                        hidden={hidden}
+                        series={chart.series}
+                        buckets={chart.buckets}
+                        hidden={noneHidden}
                       />
                     </div>
                   </div>
                 ))}
               </div>
               <Group gap={14} mt="sm" style={{ flex: 'none' }}>
-                {selected.map((model) => (
-                  <Group gap={6} wrap="nowrap" key={model.name}>
-                    <span className="hub-chart-swatch" style={{ background: model.color }} />
-                    <Text size="xs">{model.name}</Text>
+                {chart.series.map((series) => (
+                  <Group gap={6} wrap="nowrap" key={series.key}>
+                    <span className="hub-chart-swatch" style={{ background: series.color }} />
+                    <Text size="xs">{series.name}</Text>
                   </Group>
                 ))}
               </Group>

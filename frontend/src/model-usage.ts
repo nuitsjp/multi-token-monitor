@@ -101,3 +101,31 @@ export function aggregateModels(
     })),
   };
 }
+
+export const otherColor = '#626572';
+
+// グラフ用に、選択中のモデルはそのまま、選択していないモデルは1本の Other に合算する。
+export function groupUnselected(usage: ModelAggregate, chosen: ReadonlySet<string>) {
+  const kept = usage.models.flatMap((model, index) => (chosen.has(model.name) ? [index] : []));
+  const rest = usage.models.flatMap((model, index) => (chosen.has(model.name) ? [] : [index]));
+  const series = kept.map((index) => ({
+    key: usage.models[index].name,
+    name: usage.models[index].name,
+    color: usage.models[index].color,
+  }));
+  if (rest.length > 0) series.push({ key: '__other__', name: 'Other', color: otherColor });
+  const buckets = usage.buckets.map((bucket) => {
+    const tokens = kept.map((index) => bucket.tokens[index]);
+    const costs = kept.map((index) => bucket.costs[index]);
+    if (rest.length > 0) {
+      tokens.push(
+        bucket.tokens[rest[0]] === null
+          ? null
+          : rest.reduce((sum, index) => sum + (bucket.tokens[index] ?? 0), 0),
+      );
+      costs.push(sumCosts(rest.map((index) => bucket.costs[index])));
+    }
+    return { ...bucket, tokens, costs };
+  });
+  return { series, buckets };
+}
