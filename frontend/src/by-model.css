@@ -4,6 +4,10 @@
   flex-direction: column;
   height: 100vh;
 }
+/* 幅が足りないときは操作欄を折り返し、さらに狭いときはページ全体を横にスクロールさせる。 */
+.by-model-page {
+  min-width: 640px;
+}
 .by-model-heading h1 {
   /* Align the visible glyphs with the smaller metric text, rather than their line boxes. */
   transform: translateY(-3px);
@@ -129,4 +133,31 @@
 .by-model-tiles::-webkit-scrollbar-thumb {
   background: var(--mantine-color-dark-4);
   border-radius: 4px;
+}
+
+/* 一覧の見出しの全選択。タイルの左端（チェックの位置）に揃える。 */
+.by-model-select-all {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px 8px 15px;
+}
+.by-model-check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--mantine-color-dark-3);
+  border-radius: 4px;
+  color: transparent;
+}
+.by-model-tile[aria-pressed='true'] .by-model-check {
+  border-color: var(--mantine-color-violet-filled);
+  background: var(--mantine-color-violet-filled);
+  color: #fff;
+}
+.by-model-select-all label {
+  font-size: 14px;
 }

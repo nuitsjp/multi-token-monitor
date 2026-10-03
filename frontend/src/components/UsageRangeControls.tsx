@@ -24,7 +24,7 @@ export function UsageRangeControls({
   onUnit,
 }: Props) {
   return (
-    <Group gap={8} wrap="nowrap">
+    <Group gap={8} wrap="wrap">
       <HubRangePicker today={today} range={range} onChange={onCustom} />
       <SegmentedControl
         aria-label="Date range"

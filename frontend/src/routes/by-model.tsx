@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Alert, Button, Container, Group, Loader, Text, Title } from '@mantine/core';
+import { Alert, Checkbox, Container, Group, Loader, Text, Title } from '@mantine/core';
 import { fetchHubUsage, type HubUsageData } from '../api/hub-usage.ts';
 import { fetchFixedHubUsage } from '../api/hub-usage-fixture.ts';
 import { useHubUsage } from '../app/use-hub-usage.ts';
@@ -95,7 +95,7 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
       </Group>
       <div className="by-model-workspace">
         <section className="card by-model-card" aria-label="Usage over time">
-          <Group justify="space-between" className="by-model-chart-toolbar" gap={12}>
+          <Group justify="space-between" className="by-model-chart-toolbar" gap={12} wrap="wrap">
             <Group gap={8} wrap="nowrap">
               <span className="page-icon">
                 <MenuIcon name="logo" />
@@ -168,26 +168,28 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
             <Title order={2} fz={17} fw={500} lh={1}>
               Models
             </Title>
-            <Text size="xs" c="dimmed" ml="auto" style={{ whiteSpace: 'nowrap' }}>
+          </Group>
+          <div className="by-model-select-all">
+            <Checkbox
+              size="18px"
+              radius={4}
+              color="violet"
+              label="Select all"
+              disabled={empty}
+              checked={!empty && selected.length === usage.models.length}
+              indeterminate={selected.length > 0 && selected.length < usage.models.length}
+              onChange={() =>
+                setChosen(
+                  selected.length === usage.models.length
+                    ? new Set()
+                    : new Set(usage.models.map((m) => m.name)),
+                )
+              }
+            />
+            <Text size="xs" c="dimmed" className="num">
               {selected.length} / {usage.models.length}
             </Text>
-            <Button
-              size="compact-xs"
-              variant="default"
-              disabled={usage.models.length === selected.length}
-              onClick={() => setChosen(new Set(usage.models.map((m) => m.name)))}
-            >
-              All
-            </Button>
-            <Button
-              size="compact-xs"
-              variant="default"
-              disabled={selected.length === 0}
-              onClick={() => setChosen(new Set())}
-            >
-              None
-            </Button>
-          </Group>
+          </div>
           <div className="by-model-tiles">
             {empty ? (
               <Text size="sm" c="dimmed">
@@ -224,6 +226,18 @@ function ModelTile({
     <button type="button" className="by-model-tile" aria-pressed={selected} onClick={onToggle}>
       <span className="by-model-tile-row">
         <span className="by-model-tile-name">
+          <span className="by-model-check" aria-hidden>
+            <svg
+              viewBox="0 0 12 12"
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M2.5 6.5l2.5 2.5 4.5-5.5" />
+            </svg>
+          </span>
           <span className="hub-chart-swatch" style={{ background: model.color }} />
           <span>{model.name}</span>
         </span>
