@@ -44,8 +44,8 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
     () => aggregateModels(data, range.start, range.end, unit),
     [data, range.start, range.end, unit],
   );
-  // 選択はモデル名で保持する。最初の表示では、コストの大きい順の上位3モデルを選ぶ。
-  const [chosen, setChosen] = useState(() => new Set(usage.models.slice(0, 3).map((m) => m.name)));
+  // 選択はモデル名で保持する。最初の表示では、コストの大きい順の上位5モデルを選ぶ。
+  const [chosen, setChosen] = useState(() => new Set(usage.models.slice(0, 5).map((m) => m.name)));
   const selected = usage.models.filter((model) => chosen.has(model.name));
   const chart = groupUnselected(usage, chosen);
   const toggle = (name: string) =>
@@ -75,7 +75,7 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
               </Text>
               <Text className="num">
                 <SlotNumber
-                  text={tokens(empty ? null : selected.reduce((sum, m) => sum + m.tokens, 0))}
+                  text={tokens(empty ? null : usage.models.reduce((sum, m) => sum + m.tokens, 0))}
                 />
               </Text>
             </Group>
@@ -85,7 +85,7 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
               </Text>
               <Text className="num">
                 <SlotNumber
-                  text={cost(empty ? null : sumCosts(selected.map((model) => model.costUsd)))}
+                  text={cost(empty ? null : sumCosts(usage.models.map((model) => model.costUsd)))}
                 />
               </Text>
             </Group>
