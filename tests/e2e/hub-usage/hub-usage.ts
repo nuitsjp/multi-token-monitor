@@ -14,11 +14,11 @@ type HistoryDevice = FakeDevice & {
     daily: {
       date: string;
       tokens: number;
-      perModel: Record<string, { tokens: number; cost: number }>;
+      perModel: Record<string, { tokens: number; cost: number | null }>;
     }[];
   };
 };
-type HistoryStats = FakeStats & { deviceHistoryRevision: string; devices: HistoryDevice[] };
+export type HistoryStats = FakeStats & { deviceHistoryRevision: string; devices: HistoryDevice[] };
 export const models = [
   'shared-model',
   'model-b',

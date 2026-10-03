@@ -360,10 +360,10 @@ test.describe('月換算上限額', () => {
     await expect(circles.nth(0).locator('.limit-monthly')).toHaveText('$133/mo');
     await expect(circles.nth(1).locator('.limit-monthly')).toHaveText('$30/mo');
 
-    // Act & Assert: マウスオーバーで、換算した参考値であることを日本語で示す。
+    // Act & Assert: マウスオーバーで、換算した参考値であることを英語で示す。
     await circles.nth(0).locator('.limit-monthly').hover();
     await expect(
-      page.getByRole('tooltip').filter({ hasText: '最も小さい金額を採用した参考値' }),
+      page.getByRole('tooltip').filter({ hasText: 'the lowest monthly equivalent' }),
     ).toBeVisible();
   });
 });
@@ -393,9 +393,9 @@ test.describe('凡例', () => {
     // Act & Assert: マウスオーバーでペースの規則と残量の規則を示す。
     await legend.hover();
     const tooltip = page.getByRole('tooltip');
-    await expect(tooltip).toContainText('残量 ÷ 理想の残量');
-    await expect(tooltip).toContainText('40%超');
-    await expect(tooltip).toContainText('25%未満');
-    await expect(tooltip).toContainText('悪い方');
+    await expect(tooltip).toContainText('remaining ÷ ideal remaining');
+    await expect(tooltip).toContainText('> 40%');
+    await expect(tooltip).toContainText('< 25%');
+    await expect(tooltip).toContainText('worse state');
   });
 });

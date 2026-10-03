@@ -120,7 +120,7 @@ export function aggregateHub(
       tokens: bucket.costs.some((records) => records.length > 0)
         ? bucket.tokens
         : series.map(() => null),
-      costs: bucket.costs.some((records) => records.length > 0)
+      costs: bucket.costs.some((records) => records.some((cost) => cost !== null))
         ? bucket.costs.map(sumCosts)
         : series.map(() => null),
     })),

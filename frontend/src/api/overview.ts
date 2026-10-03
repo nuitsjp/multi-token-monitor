@@ -29,7 +29,7 @@ export function applyFreshness(overview: Overview, freshness: HubFreshness): Ove
 
 export async function fetchOverview(): Promise<Overview> {
   const response = await fetch('/api/overview');
-  if (!response.ok) throw new Error(`利用状況を取得できませんでした（HTTP ${response.status}）。`);
+  if (!response.ok) throw new Error(`Unable to load usage (HTTP ${response.status}).`);
   return (await response.json()) as Overview;
 }
 

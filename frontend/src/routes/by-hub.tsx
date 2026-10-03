@@ -22,15 +22,14 @@ import {
 import { HubUsageChart } from '../components/HubUsageChart.tsx';
 import { HubRangePicker } from '../components/HubRangePicker.tsx';
 import { MenuIcon } from '../components/MenuIcon.tsx';
-import { full } from '../format.ts';
+import { SlotNumber } from '../components/SlotNumber.tsx';
+import { cost, full } from '../format.ts';
 import { useOverview } from '../app/overview.tsx';
 import type { HubFreshness } from '../api/overview.ts';
 import '../by-hub.css';
 
 export const Route = createFileRoute('/by-hub')({ component: ByHub });
-const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const tokens = (value: number | null) => (value === null ? '—' : full.format(value));
-const cost = (value: number | null) => (value === null ? '—' : dollars.format(value));
 const time = (value: string | null) =>
   value === null
     ? '—'
@@ -118,13 +117,17 @@ function HubDashboard({ data }: { data: HubUsageData }) {
               <Text size="xs" c="dimmed">
                 Tokens
               </Text>
-              <Text className="num">{tokens(usage.totalTokens)}</Text>
+              <Text className="num">
+                <SlotNumber text={tokens(usage.totalTokens)} />
+              </Text>
             </Group>
             <Group gap={6} wrap="nowrap">
               <Text size="xs" c="dimmed">
                 Cost
               </Text>
-              <Text className="num">{cost(usage.totalCostUsd)}</Text>
+              <Text className="num">
+                <SlotNumber text={cost(usage.totalCostUsd)} />
+              </Text>
             </Group>
           </Group>
         </Group>
@@ -274,7 +277,7 @@ function HubDashboard({ data }: { data: HubUsageData }) {
                       params={{ deviceId: device.deviceId }}
                       className="by-hub-device-link"
                     >
-                      <Text fw={500}>{device.hostname} ↗</Text>
+                      <Text size="sm">{device.hostname} ↗</Text>
                     </Link>
                     <Text size="xs" c="dimmed">
                       {device.osName}
@@ -339,7 +342,7 @@ function DeviceBar({
         <Progress aria-label={`${label} share`} value={share * 100} color={color} size="md" />
       )}
       <Text className="num" ta="right">
-        {value}
+        <SlotNumber text={value} />
       </Text>
       <Text size="xs" c="dimmed" ta="right">
         {share === null ? '—' : `${(share * 100).toFixed(1)}%`}

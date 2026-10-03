@@ -68,6 +68,16 @@ test('HUB-1 登録順で既定の2Wを表示し、Hubを切り替えて端末詳
     }),
   );
   expect(nameOsCenters.every((difference) => difference < 1)).toBe(true);
+  const hostStyles = await devices.locator('.by-hub-device-link').evaluateAll((links) =>
+    links.map((link) => {
+      const style = getComputedStyle(link.firstElementChild!);
+      return { fontSize: style.fontSize, fontWeight: style.fontWeight };
+    }),
+  );
+  expect(hostStyles).toEqual([
+    { fontSize: '14px', fontWeight: '400' },
+    { fontSize: '14px', fontWeight: '400' },
+  ]);
   const [tokensBox, costBox, devicesBox, titleBox, periodBox, unitBox] = await Promise.all([
     tokenChart(page).boundingBox(),
     costChart(page).boundingBox(),

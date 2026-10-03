@@ -104,6 +104,30 @@ describe('Hub period and model aggregation', () => {
     expect(usage.totalCostUsd).toBeNull();
     expect(usage.buckets[0].costs).toEqual([null]);
   });
+
+  it('keeps every cost in an unknown day null even when another ranked model is unused that day', () => {
+    const days = [
+      { date: '2026-10-01', deviceId: 'a', model: 'A', tokens: 100, costUsd: null },
+      { date: '2026-10-02', deviceId: 'a', model: 'B', tokens: 200, costUsd: null },
+    ];
+    const usage = aggregateHub({ ...hub, days }, '2026-10-01', '2026-10-02', 'daily');
+    expect(usage.totalCostUsd).toBeNull();
+    expect(usage.buckets.map((bucket) => bucket.costs)).toEqual([
+      [null, null],
+      [null, null],
+    ]);
+    const zero = aggregateHub(
+      { ...hub, days: days.map((day) => ({ ...day, costUsd: 0 })) },
+      '2026-10-01',
+      '2026-10-02',
+      'daily',
+    );
+    expect(zero.totalCostUsd).toBe(0);
+    expect(zero.buckets.map((bucket) => bucket.costs)).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
+  });
 });
 
 describe('Hub usage API and freshness', () => {

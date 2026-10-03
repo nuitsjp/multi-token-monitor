@@ -418,28 +418,28 @@ const [PURPLE, YELLOW, RED] = ['#9085e9', '#fab219', '#f0616d'];
 
 const legendRules = [
   {
-    title: 'ペース（残量 ÷ 理想の残量）',
-    note: '理想の残量 ＝ 残り時間 ÷ 枠の長さ',
+    title: 'Pace (remaining ÷ ideal remaining)',
+    note: 'Ideal remaining = time left ÷ window duration',
     rows: [
-      [PURPLE, '0.8以上', '正常'],
-      [YELLOW, '0.5以上 0.8未満', '注意'],
-      [RED, '0.5未満', '危険'],
+      [PURPLE, '≥ 0.8', 'Normal'],
+      [YELLOW, '≥ 0.5 and < 0.8', 'Caution'],
+      [RED, '< 0.5', 'Danger'],
     ],
   },
   {
-    title: '残量',
-    note: '枠の残量（%）そのもの',
+    title: 'Remaining',
+    note: 'Remaining window allowance (%)',
     rows: [
-      [PURPLE, '40%超', '正常'],
-      [YELLOW, '25%以上 40%以下', '注意'],
-      [RED, '25%未満', '危険'],
+      [PURPLE, '> 40%', 'Normal'],
+      [YELLOW, '≥ 25% and ≤ 40%', 'Caution'],
+      [RED, '< 25%', 'Danger'],
     ],
   },
 ];
 
 const legendTip = (
   <Stack gap={10}>
-    <Text size="xs">円弧の色は、2つの規則のうち悪い方の状態です。</Text>
+    <Text size="xs">The arc uses the worse state of the two rules.</Text>
     {legendRules.map((rule) => (
       <Stack key={rule.title} gap={3}>
         <Text size="xs" fw={600}>
