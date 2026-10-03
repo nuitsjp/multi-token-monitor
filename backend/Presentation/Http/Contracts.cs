@@ -2,6 +2,25 @@ namespace MultiTokenMonitor.Presentation.Http;
 
 internal sealed record HealthOutput(string Status);
 
+internal sealed record HubUsageDataOutput(string Today, IReadOnlyList<HubUsageHubOutput> Hubs);
+
+internal sealed record HubUsageHubOutput(
+    string HubId,
+    string Name,
+    bool Connected,
+    string? ReceivedAt,
+    IReadOnlyList<HubUsageDeviceOutput> Devices,
+    IReadOnlyList<HubUsageDayOutput> Days);
+
+internal sealed record HubUsageDeviceOutput(
+    string DeviceId,
+    string Hostname,
+    string? OsName,
+    string UpdatedAt,
+    bool Stale);
+
+internal sealed record HubUsageDayOutput(string Date, string DeviceId, string Model, long Tokens, double? CostUsd);
+
 internal sealed record OverviewOutput(
     IReadOnlyList<OverviewHubOutput> Hubs,
     OverviewPeriodsOutput Periods,

@@ -42,7 +42,8 @@ internal static class HubStateStore
             "UPDATE hubs SET connected = 0 WHERE hub_id = @hubId", new { hubId }));
 
     // 受信データと、そこから作り直したドメインモデルを1トランザクションで保存する。
-    internal static Task SaveAsync(Database database, string hubId, HubNotification notification, string receivedAt) =>
+    internal static Task SaveAsync(Database database, string hubId, HubNotification notification, string receivedAt,
+        IReadOnlyList<DeviceHistoryDay>? history = null) =>
         database.InTransactionAsync(async connection =>
         {
             var stats = HubNotification.ReadStats(notification.Stats);
@@ -58,6 +59,39 @@ internal static class HubStateStore
             // 保存できた接続は受信中。再接続後の最初の保存で受信中に戻る。
             await connection.ExecuteAsync("UPDATE hubs SET connected = 1 WHERE hub_id = @hubId", new { hubId });
             await ReplaceDomainAsync(connection, hubId, stats, receivedAt);
+            // 同じ履歴revisionの通知でも当日の利用は進む。取得済み端末だけを補完する。
+            if (history is null && stats.DeviceHistoryRevision is not null)
+            {
+                var liveDays = new List<DeviceHistoryDay>();
+                foreach (var device in stats.Devices)
+                {
+                    var hasHistory = await connection.ExecuteScalarAsync<bool>(
+                        "SELECT EXISTS(SELECT 1 FROM device_daily_model_usages WHERE hub_id = @hubId AND device_id = @DeviceId)",
+                        new { hubId, device.DeviceId });
+                    if (!hasHistory) continue;
+                    var previous = await connection.ExecuteScalarAsync<long>(
+                        "SELECT COALESCE(SUM(tokens), 0) FROM device_daily_model_usages WHERE hub_id = @hubId AND device_id = @DeviceId AND date = @date",
+                        new { hubId, device.DeviceId, date = device.PeriodWindows?.Today?.Key });
+                    if (HubDeviceHistory.LiveDay(device, previous, DateTimeOffset.Parse(receivedAt, CultureInfo.InvariantCulture)) is { } day)
+                        liveDays.Add(day);
+                }
+                history = liveDays;
+            }
+            if (history is not null)
+            {
+                foreach (var day in history)
+                {
+                    await connection.ExecuteAsync(
+                        "DELETE FROM device_daily_model_usages WHERE hub_id = @hubId AND device_id = @DeviceId AND date = @Date",
+                        new { hubId, day.DeviceId, day.Date });
+                    await connection.ExecuteAsync(
+                        """
+                        INSERT INTO device_daily_model_usages (hub_id, device_id, date, model, tokens, cost_usd)
+                        VALUES (@HubId, @DeviceId, @Date, @Model, @Tokens, @CostUsd)
+                        """,
+                        day.Models.Select(model => new { HubId = hubId, day.DeviceId, day.Date, model.Model, model.Tokens, model.CostUsd }));
+                }
+            }
         });
 
     // freshness は保存済みの状態を読まず、受信時刻とHub・端末の時刻・古さだけを更新する。
@@ -114,10 +148,13 @@ internal static class HubStateStore
             """
             DELETE FROM latest_limit_windows WHERE hub_id = @hubId;
             DELETE FROM latest_token_usages WHERE hub_id = @hubId;
-            DELETE FROM devices WHERE hub_id = @hubId;
             DELETE FROM hub_summaries WHERE hub_id = @hubId;
             """,
             new { hubId });
+
+        // 既存端末は保持し、通知から消えた端末だけを日次明細と一緒に削除する。
+        await connection.ExecuteAsync("DELETE FROM devices WHERE hub_id = @hubId AND device_id NOT IN @ids",
+            new { hubId, ids = stats.Devices.Select(device => device.DeviceId).ToArray() });
 
         // 日別の集計は、受け取った日付だけを上書きまたは追加する。受け取っていない日付の行は消さない。
         if (stats.HistoryPreview?.Daily is { } daily)
@@ -139,6 +176,9 @@ internal static class HubStateStore
             """
             INSERT INTO devices (hub_id, device_id, hostname, os_name, updated_at, stale)
             VALUES (@HubId, @DeviceId, @Hostname, @OsName, @UpdatedAt, @Stale)
+            ON CONFLICT (hub_id, device_id) DO UPDATE SET
+                hostname = excluded.hostname, os_name = excluded.os_name,
+                updated_at = excluded.updated_at, stale = excluded.stale
             """,
             stats.Devices.Select(device => new
             {

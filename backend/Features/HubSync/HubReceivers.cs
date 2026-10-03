@@ -116,6 +116,7 @@ internal sealed class HubReceivers(
         await using var stream = await response.Content.ReadAsStreamAsync(stoppingToken);
         using var reader = new StreamReader(stream, new UTF8Encoding(false, throwOnInvalidBytes: true));
         var snapshotReceived = false;
+        string? historyRevision = null;
         var eventName = "";
         var data = new List<string>();
         while (true)
@@ -165,13 +166,40 @@ internal sealed class HubReceivers(
             // 各接続で最初の snapshot より前の差分通知は受け付けない。
             if (!snapshotReceived && notification.Kind != HubNotificationKind.Snapshot) return "invalid-notification";
 
+            IReadOnlyList<DeviceHistoryDay>? history = null;
+            string? nextHistoryRevision = historyRevision;
+            if (notification.Freshness is null)
+            {
+                var stats = HubNotification.ReadStats(notification.Stats);
+                nextHistoryRevision = stats.DeviceHistoryRevision ?? historyRevision;
+                if (notification.Kind == HubNotificationKind.Snapshot ||
+                    stats.DeviceHistoryRevision is not null && stats.DeviceHistoryRevision != historyRevision)
+                {
+                    using var historyTimeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                    historyTimeout.CancelAfter(TimeSpan.FromSeconds(15));
+                    using var historyRequest = new HttpRequestMessage(HttpMethod.Get, new Uri(hub.Origin, "/api/devices"));
+                    historyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", hub.Token);
+                    historyRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    try
+                    {
+                        using var historyResponse = await client.SendAsync(historyRequest, historyTimeout.Token);
+                        if (!historyResponse.IsSuccessStatusCode) return $"history-response Status={(int)historyResponse.StatusCode}";
+                        history = HubDeviceHistory.Read(await historyResponse.Content.ReadAsStringAsync(historyTimeout.Token), stats,
+                            DateTimeOffset.Parse(receivedAt));
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { throw; }
+                    catch (JsonException) { return "invalid-history"; }
+                    catch (Exception error) { return $"history Error={error.GetType().Name}"; }
+                }
+            }
+
             try
             {
                 // 保存は終了要求で中断せず、COMMITまたはロールバックまで進める。
                 if (notification.Freshness is { } freshness)
                     await HubStateStore.SaveFreshnessAsync(database, hub.Id, freshness, receivedAt);
                 else
-                    await HubStateStore.SaveAsync(database, hub.Id, notification, receivedAt);
+                    await HubStateStore.SaveAsync(database, hub.Id, notification, receivedAt, history);
             }
             catch (Exception)
             {
@@ -186,7 +214,10 @@ internal sealed class HubReceivers(
                     fresh.UpdatedAt,
                     [.. fresh.Devices.Select(device => new DeviceFreshnessChanged(device.DeviceId, device.UpdatedAt, device.Stale))]));
             else
+            {
+                historyRevision = nextHistoryRevision;
                 notifications.Publish();
+            }
             saved();
             snapshotReceived = true;
             logger.LogInformation("Hubの最新状態を保存しました。HubId={HubId} Event={Event} ReceivedAt={ReceivedAt}",

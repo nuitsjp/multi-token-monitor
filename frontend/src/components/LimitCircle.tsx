@@ -95,7 +95,7 @@ export function LimitCircle({
           styles={{
             tooltip: { background: '#111215', color: '#e4e5e9', border: '1px solid #3a3d48' },
           }}
-          label="各枠の上限額を月換算し、最も小さい金額を採用した参考値です。"
+          label="Reference estimate: the lowest monthly equivalent of the window limits."
         >
           <span className="limit-monthly">{costWhole(monthly)}/mo</span>
         </Tooltip>

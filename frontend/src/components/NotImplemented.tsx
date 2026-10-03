@@ -6,7 +6,7 @@ export function NotImplemented({ title }: { title: string }) {
       <Title order={1} size="h2" fw={600} mb="md">
         {title}
       </Title>
-      <Text className="muted">未実装のページです。</Text>
+      <Text className="muted">This page is not implemented yet.</Text>
     </Container>
   );
 }

@@ -28,3 +28,9 @@ globalThis.EventSource = class {
   addEventListener() {}
   close() {}
 } as unknown as typeof EventSource;
+
+// jsdom has no Web Animations API; reel behavior is verified in browser E2E tests.
+Object.defineProperty(Element.prototype, 'getAnimations', { value: () => [] });
+Object.defineProperty(Element.prototype, 'animate', {
+  value: () => ({ cancel() {}, onfinish: null, oncancel: null }),
+});
