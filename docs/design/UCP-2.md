@@ -67,4 +67,4 @@ sequenceDiagram
 | 表示集計 | 受け取った対象Hubの日次明細をモデル名で合算し、コスト順（不明は最後、同順位は名前順）で返す。期間・集約単位ごとの積み上げ、タイルの日次推移、未選択モデルのOtherを返す。集約単位を変えても期間合計を変えず、不明なコストをゼロにしない | `frontend/src/model-usage.ts` |
 | 画面 | Allまたは個別Hubで集計対象を絞り、Tokens／Costのソートでタイルと両グラフの系列・色を揃える。初期ソートはTokensとし、初回・Hub変更・ソート変更で表示先頭5モデルを選び直す。期間・集約単位変更では選択をモデル名で保持する。個別Hub名横の状態アイコンとTooltip、三状態のSelect all、グラフの伸縮、Hub・期間・集約単位の操作欄を共用部品で表示する | `frontend/src/routes/by-model.tsx`、`frontend/src/components/HubUsageChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
 
-動作合意用のモックはBy modelの取得関数1箇所で合成し、`fetchHubUsage` と同じ `HubUsageData` 型の固定データを返す。開発起動時に限り `VITE_MODEL_USAGE_MOCK=1` で有効にし、通常起動と配布構成では実APIを使う。固定データは `frontend/src/mocks/model-usage.ts` に置き、段階4で取得関数の切り替えと一緒に削除する。通信失敗時に固定データへ切り替えない。変更の購読は既存の画面全体で1つの通知接続を共用し、新たなEventSourceを作らない（[UCP-3](UCP-3.md)）。
+開発構成と配布構成の両方で `useHubUsage(fetchHubUsage)` から実APIを呼び、保存済み明細を取得する。固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。変更の購読は既存の画面全体で1つの通知接続を共用し、新たなEventSourceを作らない（[UCP-3](UCP-3.md)）。

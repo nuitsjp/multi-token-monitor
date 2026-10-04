@@ -27,11 +27,6 @@ export const Route = createFileRoute('/by-model')({ component: ByModel });
 
 const noneHidden: ReadonlySet<string> = new Set();
 const tokens = (value: number | null) => (value === null ? '—' : full.format(value));
-const loadModelUsage =
-  import.meta.env.DEV && import.meta.env.VITE_MODEL_USAGE_MOCK === '1'
-    ? () => import('../mocks/model-usage.ts').then(({ modelUsageMock }) => modelUsageMock)
-    : fetchHubUsage;
-
 type ModelSort = 'tokens' | 'cost';
 
 function modelUsageFor(
@@ -67,7 +62,7 @@ function modelUsageFor(
 }
 
 export function ByModel() {
-  const { data, error } = useHubUsage(loadModelUsage);
+  const { data, error } = useHubUsage(fetchHubUsage);
   return (
     <Container component="main" size="xl" py="md" className="by-model-page">
       {error ? (
