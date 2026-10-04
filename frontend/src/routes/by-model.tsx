@@ -1,6 +1,16 @@
 import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Alert, Checkbox, Container, Group, Loader, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Checkbox,
+  Container,
+  Group,
+  Loader,
+  SegmentedControl,
+  Text,
+  Title,
+  Tooltip,
+} from '@mantine/core';
 import { fetchHubUsage, type HubUsageData } from '../api/hub-usage.ts';
 import { useHubUsage } from '../app/use-hub-usage.ts';
 import { HubUsageChart } from '../components/HubUsageChart.tsx';
@@ -9,7 +19,7 @@ import { SlotNumber } from '../components/SlotNumber.tsx';
 import { UsageRangeControls } from '../components/UsageRangeControls.tsx';
 import { cost, full } from '../format.ts';
 import { rangeForPreset, sumCosts, type AggregationUnit, type RangePreset } from '../hub-usage.ts';
-import { aggregateModels, groupUnselected, type ModelUsage } from '../model-usage.ts';
+import { aggregateModels, groupUnselected, modelPalette, type ModelUsage } from '../model-usage.ts';
 import '../hub-chart.css';
 import '../by-model.css';
 
@@ -17,6 +27,39 @@ export const Route = createFileRoute('/by-model')({ component: ByModel });
 
 const noneHidden: ReadonlySet<string> = new Set();
 const tokens = (value: number | null) => (value === null ? '—' : full.format(value));
+type ModelSort = 'tokens' | 'cost';
+
+function modelUsageFor(
+  data: HubUsageData,
+  hubId: string,
+  start: string,
+  end: string,
+  unit: AggregationUnit,
+  sortBy: ModelSort,
+) {
+  const aggregate = aggregateModels(
+    { ...data, hubs: hubId === '' ? data.hubs : data.hubs.filter((hub) => hub.hubId === hubId) },
+    start,
+    end,
+    unit,
+  );
+  const order = aggregate.models.map((model, index) => ({ model, index }));
+  if (sortBy === 'tokens')
+    order.sort(
+      (a, b) => b.model.tokens - a.model.tokens || a.model.name.localeCompare(b.model.name),
+    );
+  return {
+    models: order.map(({ model }, index) => ({
+      ...model,
+      color: modelPalette[index % modelPalette.length],
+    })),
+    buckets: aggregate.buckets.map((bucket) => ({
+      ...bucket,
+      tokens: order.map(({ index }) => bucket.tokens[index]),
+      costs: order.map(({ index }) => bucket.costs[index]),
+    })),
+  };
+}
 
 export function ByModel() {
   const { data, error } = useHubUsage(fetchHubUsage);
@@ -33,16 +76,23 @@ export function ByModel() {
 }
 
 function ModelDashboard({ data }: { data: HubUsageData }) {
+  const [hubId, setHubId] = useState('');
+  const [sortBy, setSortBy] = useState<ModelSort>('tokens');
   const [preset, setPreset] = useState<RangePreset | 'custom'>('2w');
   const [custom, setCustom] = useState(() => rangeForPreset('2w', data.today));
   const [unit, setUnit] = useState<AggregationUnit>('daily');
   const range = preset === 'custom' ? custom : rangeForPreset(preset, data.today);
   const usage = useMemo(
-    () => aggregateModels(data, range.start, range.end, unit),
-    [data, range.start, range.end, unit],
+    () => modelUsageFor(data, hubId, range.start, range.end, unit, sortBy),
+    [data, hubId, range.start, range.end, unit, sortBy],
   );
-  // 選択はモデル名で保持する。最初の表示では、コストの大きい順の上位5モデルを選ぶ。
   const [chosen, setChosen] = useState(() => new Set(usage.models.slice(0, 5).map((m) => m.name)));
+  const changeScope = (nextHubId: string, nextSortBy: ModelSort) => {
+    const nextUsage = modelUsageFor(data, nextHubId, range.start, range.end, unit, nextSortBy);
+    setHubId(nextHubId);
+    setSortBy(nextSortBy);
+    setChosen(new Set(nextUsage.models.slice(0, 5).map((model) => model.name)));
+  };
   const selected = usage.models.filter((model) => chosen.has(model.name));
   const chart = groupUnselected(usage, chosen);
   const toggle = (name: string) =>
@@ -88,6 +138,39 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
             </Group>
           </Group>
         </Group>
+        <SegmentedControl
+          aria-label="Hub"
+          color="violet"
+          value={hubId}
+          data={[
+            { value: '', label: 'All' },
+            ...data.hubs.map((hub) => {
+              const status = hub.connected
+                ? 'Connected'
+                : hub.receivedAt === null
+                  ? 'Not received'
+                  : 'Reconnecting';
+              return {
+                value: hub.hubId,
+                label: (
+                  <Group gap={6} wrap="nowrap">
+                    <span>{hub.name}</span>
+                    <Tooltip label={status} withArrow>
+                      <span
+                        role="img"
+                        aria-label={status}
+                        style={{ color: hub.connected ? '#0ca30c' : '#fab219' }}
+                      >
+                        ●
+                      </span>
+                    </Tooltip>
+                  </Group>
+                ),
+              };
+            }),
+          ]}
+          onChange={(value) => changeScope(value, sortBy)}
+        />
       </Group>
       <div className="by-model-workspace">
         <section className="card by-model-card" aria-label="Usage over time">
@@ -156,6 +239,18 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
             <Title order={2} fz={17} fw={500} lh={1}>
               Models
             </Title>
+            <SegmentedControl
+              aria-label="Sort models"
+              size="xs"
+              color="violet"
+              ml="auto"
+              value={sortBy}
+              data={[
+                { value: 'tokens', label: 'Tokens' },
+                { value: 'cost', label: 'Cost' },
+              ]}
+              onChange={(value) => changeScope(hubId, value as ModelSort)}
+            />
           </Group>
           <div className="by-model-select-all">
             <Checkbox

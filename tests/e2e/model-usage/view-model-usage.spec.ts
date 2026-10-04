@@ -52,7 +52,7 @@ async function expectTotals(page: Page, days: number) {
 const verticalOverflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
 
-test('MOD-1 全Hubを合算し、コスト順の上位5モデルを選択して2W・Dailyで表示する', async ({
+test('MOD-1 全Hubを合算し、Tokens順の上位5モデルを選択して2W・Dailyで表示する', async ({
   page,
   app,
 }) => {
@@ -157,7 +157,7 @@ test('MOD-4 期間と集約単位を切り替えても選択を名前で保ち�
   await page.goto('/by-model');
   await expectTotals(page, 14);
   await tile(page, 'model-b').click();
-  // 選択はモデル名で保つ。表示の並びはその期間のコスト順で、4Wは同コストのarchive-modelとshared-modelを名前順に並べる。
+  // 選択はモデル名で保つ。表示の並びはその期間のTokens順で、4Wは同トークン数のarchive-modelとshared-modelを名前順に並べる。
   for (const [label, days, selected] of [
     ['7D', 7, ['shared-model', 'model-c', 'model-d', 'model-e']],
     ['4W', 28, ['model-c', 'model-d', 'shared-model', 'model-e']],
