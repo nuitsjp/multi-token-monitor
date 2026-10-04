@@ -27,7 +27,7 @@ const usd = new Intl.NumberFormat('en-US', {
 });
 const coordinate = (value: number) => Math.round(value * 10) / 10;
 
-function BucketTooltip({
+export function BucketTooltip({
   label,
   summary,
   x,

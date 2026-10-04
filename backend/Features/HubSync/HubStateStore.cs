@@ -1,6 +1,7 @@
 using System.Globalization;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using MultiTokenMonitor.Features.LimitHistory;
 using MultiTokenMonitor.Infrastructure.Configuration;
 using MultiTokenMonitor.Infrastructure.Persistence;
 
@@ -59,6 +60,7 @@ internal static class HubStateStore
             // 保存できた接続は受信中。再接続後の最初の保存で受信中に戻る。
             await connection.ExecuteAsync("UPDATE hubs SET connected = 1 WHERE hub_id = @hubId", new { hubId });
             await ReplaceDomainAsync(connection, hubId, stats, receivedAt);
+            await LimitHistoryStore.RecordAsync(connection, hubId, receivedAt);
             // 同じ履歴revisionの通知でも当日の利用は進む。取得済み端末だけを補完する。
             if (history is null && stats.DeviceHistoryRevision is not null)
             {
