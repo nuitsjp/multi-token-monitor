@@ -1,6 +1,6 @@
 import type { LimitHistoryData, LimitHistoryProduct } from './api/limit-history.ts';
 import { bucketKey, bucketLabel, dateKey, type AggregationUnit } from './hub-usage.ts';
-import { modelPalette } from './model-usage.ts';
+import { seriesPalette } from './usage-breakdown.ts';
 
 export type LimitPoint = { limitUsd: number; priceUsd: number | null; multiplier: number | null };
 export type LimitProductHistory = LimitHistoryProduct & {
@@ -38,7 +38,7 @@ export function aggregateLimitHistory(
       const last = records[records.length - 1];
       return {
         ...product,
-        color: modelPalette[index % modelPalette.length],
+        color: seriesPalette[index % seriesPalette.length],
         latest: pointOf(last),
         change: last.monthlyLimitUsd / first.monthlyLimitUsd - 1,
         trend: records.map((day) => day.monthlyLimitUsd),

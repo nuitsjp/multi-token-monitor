@@ -28,13 +28,6 @@
   margin-top: 16px;
   padding-top: 16px;
 }
-.by-hub-device-link {
-  text-decoration: none;
-  color: inherit;
-}
-.by-hub-device-link:hover {
-  color: var(--mantine-color-violet-4);
-}
 .by-hub-device-bar {
   display: grid;
   grid-template-columns: 42px minmax(40px, 1fr) 108px 44px;

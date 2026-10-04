@@ -31,7 +31,10 @@ async function expectTotals(page: Page, days: number, multiplier = 1) {
   expect(await chartTotal(costChart(page))).toBeCloseTo(dailyCost * days * multiplier, 2);
 }
 
-test('HUB-1 登録順で既定の2Wを表示し、Hubを切り替えて端末詳細へ移動する', async ({ page, app }) => {
+test('HUB-1 登録順で既定の2Wを表示し、Hubを切り替え、デバイス名はリンクにしない', async ({
+  page,
+  app,
+}) => {
   await waitSaved(app.databasePath);
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto('/by-hub');
@@ -41,7 +44,7 @@ test('HUB-1 登録順で既定の2Wを表示し、Hubを切り替えて端末詳
   await expectTotals(page, 14);
   await expect(tokenChart(page).locator('[role="graphics-symbol"]')).toHaveCount(14);
   const devices = page.getByRole('region', { name: 'Usage by device' });
-  await expect(devices.locator('.by-hub-device-link')).toHaveText([/Personal-1/, /Personal-2/]);
+  await expect(devices.locator('.by-hub-device-name')).toHaveText([/Personal-1/, /Personal-2/]);
   await expect(devices).toContainText('Stale');
   await expect(devices).toContainText('Last seen');
   await expect(devices.locator('.by-hub-device').first()).toContainText('39,200,000');
@@ -60,7 +63,7 @@ test('HUB-1 登録順で既定の2Wを表示し、Hubを切り替えて端末詳
   expect(shares[0].value).toBeCloseTo(100 / 3, 1);
   expect(shares[1].value).toBeCloseTo(200 / 3, 1);
   expect(shares.map((share) => share.color)).toEqual(['rgb(107, 158, 172)', 'rgb(151, 137, 199)']);
-  const nameOsCenters = await devices.locator('.by-hub-device-link').evaluateAll((links) =>
+  const nameOsCenters = await devices.locator('.by-hub-device-name').evaluateAll((links) =>
     links.map((link) => {
       const name = link.getBoundingClientRect();
       const os = link.nextElementSibling!.getBoundingClientRect();
@@ -68,7 +71,7 @@ test('HUB-1 登録順で既定の2Wを表示し、Hubを切り替えて端末詳
     }),
   );
   expect(nameOsCenters.every((difference) => difference < 1)).toBe(true);
-  const hostStyles = await devices.locator('.by-hub-device-link').evaluateAll((links) =>
+  const hostStyles = await devices.locator('.by-hub-device-name').evaluateAll((links) =>
     links.map((link) => {
       const style = getComputedStyle(link.firstElementChild!);
       return { fontSize: style.fontSize, fontWeight: style.fontWeight };
@@ -109,12 +112,10 @@ test('HUB-1 登録順で既定の2Wを表示し、Hubを切り替えて端末詳
     .getByRole('radiogroup', { name: 'Hub', exact: true })
     .getByText('Work', { exact: true })
     .click();
-  await expect(devices.locator('.by-hub-device-link')).toHaveText([/Work-1/, /Work-2/]);
+  await expect(devices.locator('.by-hub-device-name')).toHaveText([/Work-1/, /Work-2/]);
   await expect(page.getByRole('radio', { name: '2W', exact: true })).toBeChecked();
   await expectTotals(page, 14, 2);
-  await devices.getByRole('link', { name: 'Work-2' }).click();
-  await expect(page).toHaveURL(/\/devices\/device-22-2$/);
-  await expect(page.getByRole('heading', { name: /Work-2/ })).toBeVisible();
+  await expect(devices.getByRole('link')).toHaveCount(0);
 });
 
 test('HUB-2 期間と集約単位を共有して両グラフを更新し、集約だけでは合計と端末を変えない', async ({
