@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Alert, Checkbox, Container, Group, Loader, Text, Title } from '@mantine/core';
+import {
+  Alert,
+  Checkbox,
+  Container,
+  Group,
+  Loader,
+  SegmentedControl,
+  Text,
+  Title,
+} from '@mantine/core';
 import { fetchHubUsage, type HubUsageData } from '../api/hub-usage.ts';
 import { useHubUsage } from '../app/use-hub-usage.ts';
 import { HubUsageChart } from '../components/HubUsageChart.tsx';
@@ -9,7 +18,7 @@ import { SlotNumber } from '../components/SlotNumber.tsx';
 import { UsageRangeControls } from '../components/UsageRangeControls.tsx';
 import { cost, full } from '../format.ts';
 import { rangeForPreset, sumCosts, type AggregationUnit, type RangePreset } from '../hub-usage.ts';
-import { aggregateModels, groupUnselected, type ModelUsage } from '../model-usage.ts';
+import { aggregateModels, groupUnselected, modelPalette, type ModelUsage } from '../model-usage.ts';
 import '../hub-chart.css';
 import '../by-model.css';
 
@@ -17,9 +26,13 @@ export const Route = createFileRoute('/by-model')({ component: ByModel });
 
 const noneHidden: ReadonlySet<string> = new Set();
 const tokens = (value: number | null) => (value === null ? '—' : full.format(value));
+const loadModelUsage =
+  import.meta.env.DEV && import.meta.env.VITE_MODEL_USAGE_MOCK === '1'
+    ? () => import('../mocks/model-usage.ts').then(({ modelUsageMock }) => modelUsageMock)
+    : fetchHubUsage;
 
 export function ByModel() {
-  const { data, error } = useHubUsage(fetchHubUsage);
+  const { data, error } = useHubUsage(loadModelUsage);
   return (
     <Container component="main" size="xl" py="md" className="by-model-page">
       {error ? (
@@ -33,16 +46,45 @@ export function ByModel() {
 }
 
 function ModelDashboard({ data }: { data: HubUsageData }) {
+  const [hubId, setHubId] = useState('');
   const [preset, setPreset] = useState<RangePreset | 'custom'>('2w');
   const [custom, setCustom] = useState(() => rangeForPreset('2w', data.today));
   const [unit, setUnit] = useState<AggregationUnit>('daily');
   const range = preset === 'custom' ? custom : rangeForPreset(preset, data.today);
-  const usage = useMemo(
-    () => aggregateModels(data, range.start, range.end, unit),
-    [data, range.start, range.end, unit],
+  const costUsage = useMemo(
+    () =>
+      aggregateModels(
+        {
+          ...data,
+          hubs: hubId === '' ? data.hubs : data.hubs.filter((hub) => hub.hubId === hubId),
+        },
+        range.start,
+        range.end,
+        unit,
+      ),
+    [data, hubId, range.start, range.end, unit],
   );
   // 選択はモデル名で保持する。最初の表示では、コストの大きい順の上位5モデルを選ぶ。
-  const [chosen, setChosen] = useState(() => new Set(usage.models.slice(0, 5).map((m) => m.name)));
+  const [chosen, setChosen] = useState(
+    () => new Set(costUsage.models.slice(0, 5).map((m) => m.name)),
+  );
+  // タイルと両グラフを構成比順に揃える。コスト順は初期選択にだけ使う。
+  const usage = useMemo(() => {
+    const order = costUsage.models
+      .map((model, index) => ({ model, index }))
+      .sort((a, b) => b.model.share - a.model.share || a.model.name.localeCompare(b.model.name));
+    return {
+      models: order.map(({ model }, index) => ({
+        ...model,
+        color: modelPalette[index % modelPalette.length],
+      })),
+      buckets: costUsage.buckets.map((bucket) => ({
+        ...bucket,
+        tokens: order.map(({ index }) => bucket.tokens[index]),
+        costs: order.map(({ index }) => bucket.costs[index]),
+      })),
+    };
+  }, [costUsage]);
   const selected = usage.models.filter((model) => chosen.has(model.name));
   const chart = groupUnselected(usage, chosen);
   const toggle = (name: string) =>
@@ -88,6 +130,16 @@ function ModelDashboard({ data }: { data: HubUsageData }) {
             </Group>
           </Group>
         </Group>
+        <SegmentedControl
+          aria-label="Hub"
+          color="violet"
+          value={hubId}
+          data={[
+            { value: '', label: 'All' },
+            ...data.hubs.map((hub) => ({ value: hub.hubId, label: hub.name })),
+          ]}
+          onChange={setHubId}
+        />
       </Group>
       <div className="by-model-workspace">
         <section className="card by-model-card" aria-label="Usage over time">

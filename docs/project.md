@@ -32,7 +32,7 @@
 | [Hubから利用状況を同期する](usecases/Hubから利用状況を同期する/README.md) | 利用者 | 設定したHubの最新利用状況をローカルに保存し、閲覧できる状態に保つ | 1 | [UCP-1](design/UCP-1.md)、[UCP-3](design/UCP-3.md) | 対象外（UI確認不要） |
 | [利用状況を閲覧する](usecases/利用状況を閲覧する/README.md) | 利用者 | 登録したHubの最新利用状況を1画面で確認する | 2 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 | [Hub情報を表示する](usecases/Hub情報を表示する/README.md) | 利用者 | 選択したHubのモデル別利用量・推定コストの変遷とデバイス別利用状況・鮮度を確認する | 3 | [UCP-1](design/UCP-1.md)、[UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
-| [モデル情報を表示する](usecases/モデル情報を表示する/README.md) | 利用者 | 全Hub合算のモデル別利用量・推定コストの変遷とモデル間の構成を、モデルを選びながら確認する | 4 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
+| [モデル情報を表示する](usecases/モデル情報を表示する/README.md) | 利用者 | 全Hubまたは選択したHubのモデル別利用量・推定コストの変遷とモデル間の構成を、モデルを選びながら確認する | 4 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 
 <a id="design"></a>
 ## 4. 確認した事実
@@ -113,4 +113,6 @@ Hubの接続設定を準備し、開発構成は `mise run dev` で起動して 
 
 Hubの接続設定を準備し、開発構成は `mise run dev` で起動して `http://127.0.0.1:5173/by-model`、配布構成は `mise run start` で起動して `http://127.0.0.1:3000/by-model` を開きます。停止は起動したターミナルでCtrl+Cです。
 
-初期表示は2W・Dailyで、コストの大きい順の上位5モデルを選択します。タイルの選択、Select all、期間・集約単位の切り替えが、グラフ（未選択はOther）とタイルに反映されます。上部のTokens・Costは選択によらず全モデルの合計です。ブラウザーのネットワーク欄に `GET /api/hub-usage` の要求があり、APIがローカルDBの保存済み明細を返すことで実処理を確認します。固定データと環境変数によるモックの切り替えは設けず、API失敗時に固定データへ切り替えません。取得境界は [UCP-2](design/UCP-2.md) に記載します。
+初期表示はAll・2W・Dailyで、コストの大きい順の上位5モデルを選択します。Hub・タイルの選択、Select all、期間・集約単位の切り替えが、グラフ（未選択はOther）とタイルに反映されます。タイルは選択対象のHub・期間のトークン構成比降順です。上部のTokens・Costはモデルの選択によらず、選択対象のHubの全モデルの合計です。通常起動と配布構成では、ブラウザーのネットワーク欄に `GET /api/hub-usage` の要求があり、APIがローカルDBの保存済み明細を返すことで実処理を確認します。API失敗時に固定データへ切り替えません。取得境界は [UCP-2](design/UCP-2.md) に記載します。
+
+動作合意用のモックは、PowerShellで `$env:VITE_MODEL_USAGE_MOCK = '1'` を設定してから `mise run dev` で起動し、`http://127.0.0.1:5173/by-model` を開きます。All・Personal・Work・Emptyの切り替え、コスト順位と利用率順位が異なるモデル、期間変更による並び替えを同じ固定データで確認できます。モックを無効にする場合はCtrl+Cで停止し、`Remove-Item Env:VITE_MODEL_USAGE_MOCK` を実行してから起動し直します。配布構成ではこの設定にかかわらず実APIを使います。
