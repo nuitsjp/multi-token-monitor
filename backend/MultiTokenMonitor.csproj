@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Infrastructure/Persistence/Migrations/*.sql" LogicalName="MultiTokenMonitor.Migrations.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Features/LimitHistory/plan-prices.json" LogicalName="MultiTokenMonitor.plan-prices.json" />
   </ItemGroup>
   <Target Name="BuildFrontend" BeforeTargets="PrepareForBuild" Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipFrontendBuild)' != 'true'">
     <Error Condition="'$(MiseExecutable)' == '' or !Exists('$(MiseExecutable)')" Text="miseの実体パスが未設定または無効です。プロジェクトのルートで mise run setup を実行してください。" />

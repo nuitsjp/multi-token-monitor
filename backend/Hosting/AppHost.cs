@@ -1,4 +1,5 @@
 using MultiTokenMonitor.Features.HubSync;
+using MultiTokenMonitor.Features.LimitHistory;
 using MultiTokenMonitor.Infrastructure.Configuration;
 using MultiTokenMonitor.Infrastructure.Notifications;
 using MultiTokenMonitor.Infrastructure.Persistence;
@@ -44,6 +45,7 @@ internal static class AppHost
             var database = new Database(config.DatabasePath);
             await database.InitializeAsync();
             removedHubs = await HubStateStore.RegisterHubsAsync(database, hubs);
+            await LimitHistoryStore.ApplyBundledPricesAsync(database);
             builder.Services.AddSingleton(database);
             builder.Services.AddSingleton<ChangeNotifications>();
             builder.Services.AddHostedService(services => new HubReceivers(

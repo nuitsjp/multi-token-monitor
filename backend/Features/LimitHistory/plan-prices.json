@@ -1,0 +1,254 @@
+[
+  {
+    "provider": "claude",
+    "plan": "Pro",
+    "monthlyUsd": 20,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "claude",
+    "plan": "Max 5x",
+    "monthlyUsd": 100,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "claude",
+    "plan": "Max 20x",
+    "monthlyUsd": 200,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "codex",
+    "plan": "Plus",
+    "monthlyUsd": 20,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "codex",
+    "plan": "Go",
+    "monthlyUsd": 8,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "codex",
+    "plan": "Pro 5x",
+    "monthlyUsd": 100,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "codex",
+    "plan": "Pro 20x",
+    "monthlyUsd": 200,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "cursor",
+    "plan": "Pro",
+    "monthlyUsd": 20,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "cursor",
+    "plan": "Pro+",
+    "monthlyUsd": 60,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "cursor",
+    "plan": "Ultra",
+    "monthlyUsd": 200,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "copilot",
+    "plan": "Pro",
+    "monthlyUsd": 10,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "copilot",
+    "plan": "Pro+",
+    "monthlyUsd": 39,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "copilot",
+    "plan": "Max",
+    "monthlyUsd": 100,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "zed",
+    "plan": "Zed Pro",
+    "monthlyUsd": 10,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "kiro",
+    "plan": "Pro",
+    "monthlyUsd": 20,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "kiro",
+    "plan": "Pro+",
+    "monthlyUsd": 40,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "kiro",
+    "plan": "Pro Max",
+    "monthlyUsd": 100,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "kiro",
+    "plan": "Power",
+    "monthlyUsd": 200,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "kiro",
+    "plan": "Q Developer Pro",
+    "monthlyUsd": 19,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "qoder",
+    "plan": "Pro",
+    "monthlyUsd": 20,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "qoder",
+    "plan": "Pro+",
+    "monthlyUsd": 60,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "qoder",
+    "plan": "Ultra",
+    "monthlyUsd": 200,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "commandcode",
+    "plan": "Go",
+    "monthlyUsd": 1,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "commandcode",
+    "plan": "GOAT",
+    "monthlyUsd": 10,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "commandcode",
+    "plan": "Pro",
+    "monthlyUsd": 20,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "commandcode",
+    "plan": "Max 10x",
+    "monthlyUsd": 100,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "commandcode",
+    "plan": "Max 20x",
+    "monthlyUsd": 200,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "zai",
+    "plan": "GLM Coding Lite",
+    "monthlyUsd": 18,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "zai",
+    "plan": "GLM Coding Pro",
+    "monthlyUsd": 80,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "zai",
+    "plan": "GLM Coding Max",
+    "monthlyUsd": 168,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "ollama",
+    "plan": "Pro",
+    "monthlyUsd": 20,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "ollama",
+    "plan": "Max",
+    "monthlyUsd": 100,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "antigravity",
+    "plan": "Plus",
+    "monthlyUsd": 4.99,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "antigravity",
+    "plan": "Pro",
+    "monthlyUsd": 19.99,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "alibaba",
+    "plan": "Lite",
+    "monthlyUsd": 8,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "alibaba",
+    "plan": "Essential",
+    "monthlyUsd": 16,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "alibaba",
+    "plan": "Standard",
+    "monthlyUsd": 25,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "alibaba",
+    "plan": "Pro",
+    "monthlyUsd": 80,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "mimo",
+    "plan": "Lite",
+    "monthlyUsd": 6,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "mimo",
+    "plan": "Standard",
+    "monthlyUsd": 16,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "mimo",
+    "plan": "Pro",
+    "monthlyUsd": 50,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  },
+  {
+    "provider": "mimo",
+    "plan": "Max",
+    "monthlyUsd": 100,
+    "updatedAt": "2026-10-04T00:00:00Z"
+  }
+]

@@ -73,10 +73,11 @@ sequenceDiagram
 
 画面の表示・操作は [月換算上限額の推移を表示する](../usecases/月換算上限額の推移を表示する/README.md) に従う。
 
-| 役割 | 責務 | 実装パス（段階4完了時に記入） |
+| 役割 | 責務 | 実装パス |
 | --- | --- | --- |
-| 取得と購読 | `fetchLimitHistory` を唯一の取得境界とし、保存確定の通知で取得し直す | `frontend/src/api/limit-history.ts`、`frontend/src/routes/limits.tsx` |
+| 取得と購読 | `fetchLimitHistory` を唯一の取得境界とし、`GET /api/limit-history` を呼ぶ。契約はOpenAPIから生成するTypeScriptの型で画面と共有する。保存確定の通知で取得し直す | `frontend/src/api/limit-history.ts`、`frontend/src/routes/limits.tsx`、`backend/Presentation/Http/Contracts.cs`、`backend/Presentation/Http/ApiEndpoints.cs` |
+| 月換算上限額の閲覧クエリ | 読み取り専用のトランザクションで日次記録・Hub・現在の利用枠を読み、製品をHubの登録順、Homeと同じ契約の順（現在の枠の最小残量の昇順。報告されなくなった契約は最後）、枠グループの順に並べて返す。記録の中で契約の枠グループが1種類だけなら枠グループ名を返さない。製品の表示名には最新の記録のプラン名を使う | `backend/Features/LimitHistory/LimitHistoryQuery.cs` |
 | 表示集計 | 受け取った日次記録から、選択期間の製品ごとの最新値・変化率・日次推移と、集約単位ごとの最後の記録の点を返す | `frontend/src/limit-history.ts` |
 | 画面 | 製品のタイルと、Monthly limit・Multiplier の折れ線グラフを、期間・集約単位の共用部品で表示する | `frontend/src/routes/limits.tsx`、`frontend/src/components/LimitTrendChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
 
-- モックに置き換える境界と合成点: 動作合意では `fetchLimitHistory` 1箇所を合成点とし、本番の応答型（`LimitHistoryData`）で算術生成した固定データを返す。段階4で `GET /api/limit-history` の呼び出しに置き換え、固定データを削除する。
+- モックに置き換える境界と合成点: 動作合意では `fetchLimitHistory` 1箇所を合成点とし、合意後に固定データを削除した。固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。

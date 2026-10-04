@@ -117,3 +117,14 @@ Hubの接続設定を準備し、開発構成は `mise run dev` で起動して 
 初期表示はAll・2W・Daily・Tokensのソートで、表示先頭5モデルを選択します。Models見出しのTokens／Costを切り替えると、選択項目の降順で並び直します。同順位はモデル名順、Cost不明は最後です。初回・Hub変更・ソート変更で先頭5モデルを選び直し、5件未満なら全件、0件なら選択なしにします。その後はタイルとSelect allで手動選択でき、期間・集約単位変更ではモデル名で選択を保持します。個別Hubでは、そのHubの選択期間に明細があるモデルだけを表示します。個別Hub名横の状態アイコンは、緑色のConnected、黄色のNot receivedまたはReconnectingをTooltipで示し、時刻は表示しません。上部のTokens・Costはモデルの選択によらず、選択対象のHubの全モデルの合計です。開発構成と配布構成の両方で、ブラウザーのネットワーク欄に `GET /api/hub-usage` の要求があり、APIがローカルDBの保存済み明細を返すことで実処理を確認します。操作でAPIを呼び直さず、API失敗時に固定データへ切り替えません。取得境界は [UCP-2](design/UCP-2.md) に記載します。
 
 実APIからデータを取得したうえで、All・個別Hubの絞り込みとTokens／Costのソートを操作し、選択対象のHub・期間の保存済み明細から求めたトークン数・コストの順位と照合します。切り替え時の先頭5モデルの選び直し、個別Hubだけにあるモデル、状態アイコン、期間変更時の選択保持と並び替えも、取得したデータに対応する条件で確認します。固定データと環境変数によるモックの切り替えは設けません。
+
+### 月換算上限額の推移を表示する画面の動作確認
+
+Hubの接続設定を準備し、開発構成は `mise run dev` で起動して `http://127.0.0.1:5173/limits`、配布構成は `mise run start` で起動して `http://127.0.0.1:3000/limits` を開きます。停止は起動したターミナルでCtrl+Cです。
+
+初期表示は3M・Weeklyで、選択期間に記録がある製品をすべて選択します。記録は、同期が snapshot・stats を保存するたびに、月換算上限額が求まった製品の当日の行を上書きして作ります。そのため、導入直後は当日の1点だけです。ブラウザーのネットワーク欄に `GET /api/limit-history` の要求があり、APIがローカルDBの日次記録を返すことで実処理を確認します。期間・集約単位・タイルの操作ではAPIを呼び直さず、API失敗時に固定データへ切り替えません。価格表は起動時に、アプリに同梱した価格一覧を適用して作ります。
+
+| 目的 | コマンド | 期待結果 |
+| --- | --- | --- |
+| 日次記録の閲覧用APIの確認 | `curl.exe -s http://127.0.0.1:3000/api/limit-history` | 現地日付、製品（Hub・提供元・プラン・枠グループ）、製品ごとの日次記録（月換算上限額と支払額）をJSONで返します。URLと認証トークンは含みません |
+| 日次記録と価格表の確認 | `python -c "import sqlite3; db = sqlite3.connect('file:data/app.sqlite?mode=ro', uri=True); print(db.execute('SELECT hub_id, provider, limit_group, date, plan, monthly_limit_usd, price_usd FROM daily_monthly_limits').fetchall()); print(db.execute('SELECT COUNT(*) FROM plan_prices').fetchone())"` | 月換算上限額が求まった製品ごとに1日1行があり、価格表に同梱の価格一覧のプランが入っています |

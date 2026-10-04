@@ -75,7 +75,7 @@ public sealed class DatabaseTests
             // Assert
             // -------------------------------------------------------------
             await using var connection = await fixture.Database.OpenAsync();
-            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(6);
+            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(7);
             (await connection.ExecuteScalarAsync<string>("PRAGMA journal_mode")).ShouldBe("wal");
         }
 
@@ -121,6 +121,8 @@ public sealed class DatabaseTests
                 // 版5の利用枠（コストを列に持つ）に戻して、行を1つ入れる。
                 await connection.ExecuteAsync(
                     """
+                    DROP TABLE daily_monthly_limits;
+                    DROP TABLE plan_prices;
                     DROP TABLE limit_window_baseline_costs;
                     DROP TABLE latest_limit_windows;
                     DROP TABLE hub_accounts;
@@ -160,7 +162,7 @@ public sealed class DatabaseTests
             // Assert
             // -------------------------------------------------------------
             await using var migrated = await fixture.Database.OpenAsync();
-            (await migrated.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(6);
+            (await migrated.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(7);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM latest_limit_windows")).ShouldBe(0);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM hubs")).ShouldBe(1);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM accounts")).ShouldBe(1);
@@ -270,7 +272,7 @@ public sealed class DatabaseTests
             // -------------------------------------------------------------
             // Assert
             // -------------------------------------------------------------
-            result.Version.ShouldBe(6);
+            result.Version.ShouldBe(7);
             result.IsHealthy.ShouldBeTrue();
         }
     }

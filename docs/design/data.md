@@ -2,7 +2,8 @@
 
 保存形式と現在のテーブル設計の正本です。変更範囲と論点は [設計標準](../standards/design-and-documentation.md#architecture-method) に従って会話で提示します。
 
-Hubから受信したstats全体は受信データとして `hub_states` にそのまま保存し、同じトランザクションで本システムのドメインモデル（Hub・端末・トークン利用実績・日別の集計・端末別の日次モデル明細・アカウント・利用枠）へ変換して保存します。閲覧はドメインモデルのテーブルだけを読み、受信データの形式に依存しません。
+Hubから受信したstats全体は受信データとして `hub_states` にそのまま保存し、同じトランザクションで本システムのドメインモデル（Hub・端末・トークン利用実績・日別の集計・端末別の日次モデル明細・アカウント・利用枠・月換算上限額の日次記録）へ変換して保存します。閲覧はドメインモデルのテーブルだけを読み、受信データの形式に依存しません。
+プランごとの月額は価格表 `plan_prices` に持ち、アプリに同梱した価格一覧（`backend/Features/LimitHistory/plan-prices.json`、埋め込みリソース）を起動時に適用します。
 
 ```mermaid
 erDiagram
@@ -16,6 +17,7 @@ erDiagram
   hub_accounts ||--o{ latest_limit_windows : "利用枠"
   latest_limit_windows ||--o{ limit_window_baseline_costs : "基準点のコスト"
   devices ||--o{ device_daily_model_usages : "日次モデル明細"
+  hubs ||--o{ daily_monthly_limits : "月換算上限額の日次記録"
   hubs {
     TEXT hub_id PK
     TEXT name
@@ -98,6 +100,23 @@ erDiagram
     TEXT device_id PK
     TEXT model PK
     REAL cost_usd
+  }
+  plan_prices {
+    TEXT provider PK
+    TEXT plan PK
+    REAL monthly_usd
+    TEXT updated_at
+  }
+  daily_monthly_limits {
+    TEXT hub_id PK,FK
+    TEXT provider PK
+    TEXT account_key PK
+    TEXT limit_group PK
+    TEXT date PK
+    TEXT plan
+    REAL monthly_limit_usd
+    REAL price_usd
+    TEXT recorded_at
   }
 ```
 
@@ -243,9 +262,36 @@ Hubが報告した契約の利用枠。メーターを表示する枠だけを�
 | model | TEXT | 不可 | PK | モデル識別子 |
 | cost_usd | REAL | 不可 |  | 1つ目の計測点での累計推定コスト（USD） |
 
+### plan_prices
+
+プランごとの月額。起動時の同梱一覧の適用が書き込みます。日次記録とは外部キーで結ばず、記録した時点の値を日次記録へ写します。
+
+| カラム | 型 | NULL | キー | 説明 |
+| --- | --- | --- | --- | --- |
+| provider | TEXT | 不可 | PK | 提供元の識別子（`claude`・`codex` など） |
+| plan | TEXT | 不可 | PK | Hubが報告するプラン名。大文字・小文字を区別しない（`COLLATE NOCASE`） |
+| monthly_usd | REAL | 不可 |  | 月額（USD） |
+| updated_at | TEXT | 不可 |  | 最終更新日時。UTC の ISO 8601 |
+
+### daily_monthly_limits
+
+製品（Hub × 契約 × 枠グループ）ごと、日ごとに1行の月換算上限額と支払額。
+
+| カラム | 型 | NULL | キー | 説明 |
+| --- | --- | --- | --- | --- |
+| hub_id | TEXT | 不可 | PK、FK → hubs.hub_id | 契約を報告したHub |
+| provider | TEXT | 不可 | PK | 契約の提供元。`accounts` への外部キーは設けない（報告されなくなった契約でも記録を残すため） |
+| account_key | TEXT | 不可 | PK | 契約のアカウント識別子 |
+| limit_group | TEXT | 不可 | PK | 枠グループ名。名前が無いグループは空文字 |
+| date | TEXT | 不可 | PK | アプリを動かしているPCの現地日付（`YYYY-MM-DD`） |
+| plan | TEXT | 可 |  | その時点のプラン名（`plan_label`、空なら `account_label`）。どちらも無ければNULL |
+| monthly_limit_usd | REAL | 不可 |  | その日に最後に求まった月換算上限額（USD） |
+| price_usd | REAL | 可 |  | 同じ時点で価格表から引いた月額。価格表にプランが無ければNULL |
+| recorded_at | TEXT | 不可 |  | 最後にこの行を書いた受信時刻。UTC の ISO 8601 |
+
 ## 保存と変換の規則
 
-- 起動時に、設定にある全Hubの ID と表示名を登録し、`connected` を1にします。同じ ID は表示名と `connected` を更新します。設定にないHubは同じトランザクションで `hubs` の行を削除し、`hub_states`・`hub_summaries`・`devices`・`latest_token_usages`・`daily_token_usages`・`device_daily_model_usages`・`hub_accounts` の行は連鎖削除で消え、続けて `latest_limit_windows`・`limit_window_baseline_costs` の行も連鎖して消えます。続けて、どの `hub_accounts` からも参照されない `accounts` の行を削除します。
+- 起動時に、設定にある全Hubの ID と表示名を登録し、`connected` を1にします。同じ ID は表示名と `connected` を更新します。設定にないHubは同じトランザクションで `hubs` の行を削除し、`hub_states`・`hub_summaries`・`devices`・`latest_token_usages`・`daily_token_usages`・`device_daily_model_usages`・`hub_accounts`・`daily_monthly_limits` の行は連鎖削除で消え、続けて `latest_limit_windows`・`limit_window_baseline_costs` の行も連鎖して消えます。続けて、どの `hub_accounts` からも参照されない `accounts` の行を削除します。
 - 受信が止まったHubは `connected` を0にします。再接続後の保存で、受信データと同じトランザクションで1に戻します。起動直後の最初の接続中も1です。
 - `snapshot` と `stats` は `hub_states` を全体置換し、同じトランザクションで当該Hubの `hub_summaries`・`latest_token_usages` を新しい stats から作り直し、`hub_accounts`・`latest_limit_windows` は新しい stats の内容で更新します（行は作り直さず upsert し、報告されなくなった行だけを削除します。基準点のコストを消さないためです）。`devices` は報告された端末を追加または更新し、報告から消えた端末だけを削除します。端末をすべて消してから作り直す処理は行わず、残った端末の日次明細を維持します。`accounts` は報告された行を登録し、ラベルを最新の値で更新します。
 - 端末の日次モデル明細は同期側が `GET /api/devices` から取得します。`snapshot` 受信時はrevisionの報告有無にかかわらず取得し、`stats` では報告された `deviceHistoryRevision` が変わった場合だけ取得します。同じrevisionのstatsと `freshness` では再取得しません。revisionを報告しないstatsは日次明細を更新しません。取得を完了してから、通知のstatsと日次明細を同じトランザクションで保存します。取得・検証・保存の失敗時は以前の保存値を維持し、当該Hubだけを再接続します。閲覧側への通知はCOMMIT完了後だけ発行します。
@@ -256,5 +302,7 @@ Hubが報告した契約の利用枠。メーターを表示する枠だけを�
 - `latest_limit_windows` は Hub集約の `limits.providers` のうち、`showMeter` が真で `remainingPercent` が数値の枠から作ります。同じアカウントの同じ枠を複数のHubが報告した場合は Hub ごとに行を持ち、閲覧ではHubを選んで表示します。`window_minutes` は枠の `windowMinutes`（数値。無ければNULL）をそのまま保存します。`meter_changed_at` は更新前の行と残量が同じなら引き継ぎ、変わった場合と新規の場合は今回の受信時刻にします。
 - `latest_limit_windows` の1つ目の計測点は、更新前の行があり、受信時刻が更新前の行の `resets_at` より前（`resets_at` が無ければ条件なし）で、残量が前回以下なら引き継ぎます。`resets_at` の値は受信のたびに変わりうるため、値の一致では判定しません。新規の枠、受信時刻が更新前の行の `resets_at` を過ぎた場合、残量が増えた（使用率が減った）場合は、今回の受信時刻・残量を1つ目の計測点にし、同じトランザクションで、その枠の `limit_window_baseline_costs` を消して、今回の `latest_token_usages` の累計（allTime）のうち、枠の提供元と同じツールで推定コストのある端末×モデルの行から作り直します。
 - 閲覧では、枠のコストの範囲の決定と推定上限額を、[UCP-1](UCP-1.md) の純粋関数で求めます。入力は、同じHub・同じ提供元の `hub_accounts`・`latest_limit_windows`、現在の `latest_token_usages`（allTime）と、各枠の `limit_window_baseline_costs` です。コストの増分は、範囲に入る端末×モデルごとの「現在のコスト − 1つ目の計測点のコスト」の合計で、組ごとの増分は0を下限とし、1つ目の計測点にない組は0として扱います。推定上限額は `コストの増分 ÷ (base_remaining_percent − remaining_percent) × 100` で、残量の差が1ポイント未満か、コストの増分が0以下なら「推定中」（Estimating）、範囲を確定できなければ「N/A」とします。
+- `snapshot`・`stats` の保存では、ドメインモデルの更新と同じトランザクションで、当該Hubの枠の推定上限額を閲覧と同じ純粋関数で求め、契約×枠グループごとに月換算上限額を [UCP-1](UCP-1.md) の純粋関数で求めます。求まった製品は、受信時刻の現地日付の `daily_monthly_limits` の行を upsert し、`plan` と、価格表から引いた `price_usd` を同じ行に書きます。求まらない製品の行は変えません。`freshness` では記録しません。
+- 起動時に、Hubの登録の後、同梱の価格一覧を `plan_prices` へ適用します。行の無いプランは追加し、同梱の `updatedAt` が `updated_at` より新しいプランだけを上書きします。同梱の一覧に無いプランの行は消しません。
 - URLと認証トークンは保存しません。セッション、プロジェクト、月次履歴、トークンの内訳（キャッシュ・出力など）、アカウントのメールアドレス・氏名はドメインモデルに含めません（受信データには含まれます）。
-- `hubs` を参照する外部キー、`hub_accounts` を参照する外部キー、`latest_limit_windows` を参照する外部キーは連鎖削除を設けます。`devices` を参照する外部キー（`latest_token_usages`・`device_daily_model_usages`）は連鎖削除を設け、`accounts` を参照する外部キーには設けません。連鎖更新は設けません。スキーマ版0から1への移行で初期テーブルを作成し、版1から2への移行で `latest_limit_windows` を作り直します（既存の行は移さず、次の `snapshot`・`stats` で作り直します）。版2から3への移行で `latest_limit_windows` に `window_minutes` を追加します（既存の行はNULLのままで、次の `snapshot`・`stats` で値が入ります）。版3から4への移行で `daily_token_usages` を追加します。版4から5への移行で `device_daily_model_usages` を追加し、既存データは保持します。新しいテーブルは空の状態から始まり、同期の取り込みで行を作ります。版5から6への移行で `latest_limit_windows` を作り直し（`base_cost_usd`・`cost_usd` を持たず、外部キーを `hub_accounts` に付け替える。既存の行は移さない）、`hub_accounts` と `limit_window_baseline_costs` を作成します。次の `snapshot`・`stats` で、契約・枠・1つ目の計測点が作られます。移行と版の更新は同一トランザクションで行います。
+- `hubs` を参照する外部キー、`hub_accounts` を参照する外部キー、`latest_limit_windows` を参照する外部キーは連鎖削除を設けます。`devices` を参照する外部キー（`latest_token_usages`・`device_daily_model_usages`）は連鎖削除を設け、`accounts` を参照する外部キーには設けません。連鎖更新は設けません。スキーマ版0から1への移行で初期テーブルを作成し、版1から2への移行で `latest_limit_windows` を作り直します（既存の行は移さず、次の `snapshot`・`stats` で作り直します）。版2から3への移行で `latest_limit_windows` に `window_minutes` を追加します（既存の行はNULLのままで、次の `snapshot`・`stats` で値が入ります）。版3から4への移行で `daily_token_usages` を追加します。版4から5への移行で `device_daily_model_usages` を追加し、既存データは保持します。新しいテーブルは空の状態から始まり、同期の取り込みで行を作ります。版5から6への移行で `latest_limit_windows` を作り直し（`base_cost_usd`・`cost_usd` を持たず、外部キーを `hub_accounts` に付け替える。既存の行は移さない）、`hub_accounts` と `limit_window_baseline_costs` を作成します。次の `snapshot`・`stats` で、契約・枠・1つ目の計測点が作られます。版6から7への移行で `plan_prices` と `daily_monthly_limits` を空の状態で作成し、既存データは保持します。移行と版の更新は同一トランザクションで行います。

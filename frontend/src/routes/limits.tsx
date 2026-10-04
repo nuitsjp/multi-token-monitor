@@ -25,18 +25,23 @@ export function UsageLimits() {
   const [error, setError] = useState<string>();
   const { subscribeNotifications } = useOverview();
   useEffect(() => {
+    // 取得が重なったときは、最後に始めた取得の結果だけを表示する。
+    let latest = 0;
     let active = true;
-    const refresh = () =>
+    const refresh = () => {
+      const request = ++latest;
       void fetchLimitHistory().then(
         (value) => {
-          if (!active) return;
+          if (!active || request !== latest) return;
           setData(value);
           setError(undefined);
         },
         (reason: unknown) => {
-          if (active) setError(reason instanceof Error ? reason.message : String(reason));
+          if (active && request === latest)
+            setError(reason instanceof Error ? reason.message : String(reason));
         },
       );
+    };
     const unsubscribe = subscribeNotifications((notification) => {
       if (notification.type === 'changed') refresh();
     });
