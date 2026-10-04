@@ -1,7 +1,16 @@
 import type { HubUsageData } from '../api/hub-usage.ts';
 
 // 動作合意用の固定データ。段階4で取得境界の切り替えと一緒に削除する。
-const models = ['model-a', 'model-b', 'model-c', 'model-d', 'model-e', 'model-f', 'model-g'];
+const personalModels = [
+  'model-a',
+  'model-b',
+  'model-c',
+  'model-d',
+  'model-e',
+  'model-f',
+  'model-personal',
+];
+const workModels = ['model-a', 'model-b', 'model-c', 'model-d', 'model-e', 'model-f', 'model-work'];
 
 export const modelUsageMock: HubUsageData = {
   today: '2026-10-03',
@@ -15,7 +24,7 @@ export const modelUsageMock: HubUsageData = {
       days: Array.from({ length: 28 }, (_, offset) => {
         const date = new Date('2026-10-03T00:00:00Z');
         date.setUTCDate(date.getUTCDate() - offset);
-        return models.map((model, index) => ({
+        return personalModels.map((model, index) => ({
           date: date.toISOString().slice(0, 10),
           deviceId: 'personal-device',
           model,
@@ -27,13 +36,13 @@ export const modelUsageMock: HubUsageData = {
     {
       hubId: 'work',
       name: 'Work',
-      connected: true,
+      connected: false,
       receivedAt: '2026-10-03T12:00:00Z',
       devices: [],
       days: Array.from({ length: 28 }, (_, offset) => {
         const date = new Date('2026-10-03T00:00:00Z');
         date.setUTCDate(date.getUTCDate() - offset);
-        return models.map((model, index) => ({
+        return workModels.map((model, index) => ({
           date: date.toISOString().slice(0, 10),
           deviceId: 'work-device',
           model,
