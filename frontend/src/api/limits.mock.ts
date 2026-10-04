@@ -45,15 +45,15 @@ const claudeMax: Account = {
   hubId: 'personal',
   provider: 'claude',
   accountKey: 'a1',
-  accountLabel: 'Personal',
-  planLabel: 'Max 20x',
+  accountLabel: 'Pro',
+  planLabel: null,
 };
 const codexPro: Account = {
   hubId: 'personal',
   provider: 'codex',
   accountKey: 'c1',
-  accountLabel: 'Personal',
-  planLabel: 'Pro 20x',
+  accountLabel: 'Pro',
+  planLabel: null,
 };
 const claudeTeam: Account = {
   hubId: 'work',
@@ -71,7 +71,7 @@ const copilotPro: Account = {
 };
 
 // 枠グループが複数で全グループに値がある契約（antigravity: $555 + $23 = $578/mo）、
-// グループが1つの契約（claude Max 20x）、一部のグループが Estimating の契約（codex: ≥）、
+// グループが1つの契約（claude Pro）、一部のグループが Estimating の契約（codex: ≥）、
 // 全グループが Estimating の契約（claude Team: 金額なし）、約1か月の枠の契約（copilot）を並べる。
 const limitWindows: LimitWindow[] = [
   window(antigravity, 'Gemini 5h', 'session', 300, 100, 4.98, null),
@@ -128,9 +128,9 @@ const contracts: (LimitHistoryContract & {
     hubId: 'personal',
     hubName: 'Personal',
     provider: 'claude',
-    plan: 'Max 20x',
+    plan: 'Pro',
     since: 110,
-    priceUsd: 200,
+    priceUsd: 20,
     value: (day) => 1300 + 90 * Math.sin(day / 9) + day * 0.6,
   },
   {
@@ -138,9 +138,10 @@ const contracts: (LimitHistoryContract & {
     hubId: 'personal',
     hubName: 'Personal',
     provider: 'codex',
-    plan: 'Pro 20x',
+    plan: 'Pro',
     since: 110,
-    priceUsd: 200,
+    // codex の「Pro」は価格表に無いため、支払額と倍率は N/A になる。
+    priceUsd: null,
     value: (day) => (day >= 108 ? 1151 : 1650 + 110 * Math.sin(day / 6 + 1)),
     lowerBound: (day) => day >= 108,
   },
