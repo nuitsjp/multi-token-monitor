@@ -107,7 +107,7 @@ export function LimitCircle({
   );
   return (
     <div className="limit-circle" aria-label={name}>
-      <svg viewBox="0 2 200 180" width={176} height={158} role="img" aria-label={name}>
+      <svg viewBox="0 2 200 190" width={176} height={167} role="img" aria-label={name}>
         {circle.windows.map((window, index) => (
           <Arc
             key={windowKey(window)}
@@ -118,7 +118,8 @@ export function LimitCircle({
         ))}
         <text
           x={100}
-          y={inner === undefined ? 178 : 174}
+          // 円弧の端（丸めた端を含む）より下に置き、長い枠グループ名でも円弧に重ねない。
+          y={187}
           textAnchor="middle"
           fontSize={14}
           fontWeight={500}
@@ -134,7 +135,7 @@ export function LimitCircle({
               label="Reference estimate: the lowest monthly equivalent of this group's window limits."
             >
               <tspan className="limit-group-monthly" fill="#8b8e99" fontWeight={400}>
-                {`${label === '' ? '' : ' · '}${costWhole(monthly)}`}
+                {`${label === '' ? '' : ' '}${costWhole(monthly)}/mo`}
               </tspan>
             </Tooltip>
           )}

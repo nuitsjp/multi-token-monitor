@@ -142,5 +142,5 @@ Hubの接続設定を準備し、開発構成は `mise run dev` で起動して 
 
 | 目的 | コマンド | 期待結果 |
 | --- | --- | --- |
-| モック有効で開発起動 | PowerShellで `$env:VITE_LIMITS_MOCK='1'; mise run dev` | `http://127.0.0.1:5173/` のPersonalで、antigravityの見出しに `$578/mo`、円のラベルに `Gemini · $555`・`Claude/GPT · $23`、codexの見出しに `≥ $1,151/mo` が出ます。`/limits` は5つの契約のタイルを示し、codexは `≥ $1,151/mo` で、価格表に無いプラン（Pro）のため支払額と倍率は `N/A` です |
+| モック有効で開発起動 | PowerShellで `$env:VITE_LIMITS_MOCK='1'; mise run dev` | `http://127.0.0.1:5173/` のPersonalで、antigravityの見出しに `$578/mo`、円のラベルに `Gemini $555/mo`・`Claude/GPT $23/mo`、codexの見出しに `≥ $1,151/mo` が出ます。`/limits` は5つの契約のタイルを示し、codexは `≥ $1,151/mo` で、価格表に無いプラン（Pro）のため支払額と倍率は `N/A` です |
 | モック無効の確認 | 環境変数を外して `mise run dev` | 画面は `GET /api/overview` と `GET /api/limit-history` を呼び、固定データのHub名（Personal・Work）は表示されません |
