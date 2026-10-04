@@ -115,6 +115,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.by-model-tile-detail {
+  margin-top: 2px;
+}
 .by-model-tile-cost {
   display: block;
   margin-top: 4px;

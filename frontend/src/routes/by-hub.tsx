@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import {
   Alert,
   Container,
@@ -214,13 +214,9 @@ function HubDashboard({ data }: { data: HubUsageData }) {
               <div className="by-hub-device" key={device.deviceId}>
                 <Group justify="space-between" gap={6} mb={12}>
                   <Group gap={8} wrap="nowrap">
-                    <Link
-                      to="/devices/$deviceId"
-                      params={{ deviceId: device.deviceId }}
-                      className="by-hub-device-link"
-                    >
-                      <Text size="sm">{device.hostname} ↗</Text>
-                    </Link>
+                    <span className="by-hub-device-name">
+                      <Text size="sm">{device.hostname}</Text>
+                    </span>
                     <Text size="xs" c="dimmed">
                       {device.osName}
                     </Text>

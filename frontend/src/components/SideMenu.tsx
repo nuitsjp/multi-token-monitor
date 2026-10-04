@@ -11,12 +11,11 @@ export const joinLabels = (...values: (string | null)[]) => values.filter(Boolea
 export const contractLabel = (account: { provider: string; planLabel: string | null }) =>
   joinLabels(account.provider, account.planLabel);
 
-// 左の縦メニュー。Usage limits は Hub → 契約、Devices は端末の階層。選択中のページを含む階層は開いておく。
+// 左の縦メニュー。Usage limits は Hub → 契約の階層。選択中のページを含む階層は開いておく。
 export function SideMenu() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { overview } = useOverview();
   const hubs = overview?.hubs ?? [];
-  const devices = [...new Map((overview?.devices ?? []).map((d) => [d.deviceId, d])).values()];
   const inside = (prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);
 
   return (
@@ -47,6 +46,13 @@ export function SideMenu() {
         label="By model"
         leftSection={<MenuIcon name="model" />}
         active={pathname === '/by-model'}
+      />
+      <NavLink
+        component={Link}
+        to="/by-device"
+        label="By device"
+        leftSection={<MenuIcon name="devices" />}
+        active={pathname === '/by-device'}
       />
       <NavLink
         label="Usage limits"
@@ -83,22 +89,6 @@ export function SideMenu() {
             </NavLink>
           );
         })}
-      </NavLink>
-      <NavLink
-        label="Devices"
-        leftSection={<MenuIcon name="devices" />}
-        defaultOpened={inside('/devices')}
-      >
-        {devices.map((device) => (
-          <NavLink
-            key={device.deviceId}
-            renderRoot={(props) => (
-              <Link to="/devices/$deviceId" params={{ deviceId: device.deviceId }} {...props} />
-            )}
-            label={device.hostname}
-            active={pathname === `/devices/${encodeURIComponent(device.deviceId)}`}
-          />
-        ))}
       </NavLink>
     </nav>
   );

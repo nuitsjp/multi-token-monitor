@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { HubUsageData, HubUsageDay } from '../../frontend/src/api/hub-usage.ts';
-import {
-  aggregateModels,
-  groupUnselected,
-  modelPalette,
-  otherColor,
-} from '../../frontend/src/model-usage.ts';
+import { aggregateModels } from '../../frontend/src/model-usage.ts';
+import { groupUnselected, otherColor, seriesPalette } from '../../frontend/src/usage-breakdown.ts';
 
 const day = (date: string, model: string, tokens: number, costUsd: number | null, hub = 'a') => ({
   hubId: hub,
@@ -36,7 +32,7 @@ describe('aggregateModels', () => {
       day('2026-10-01', 'unknown-1', 10, null),
       day('2026-10-01', 'cheap', 1, 1),
     ]);
-    const { models } = aggregateModels(data, '2026-10-01', '2026-10-02', 'daily');
+    const { items: models } = aggregateModels(data, '2026-10-01', '2026-10-02', 'daily');
     expect(models.map((model) => model.name)).toEqual([
       'a',
       'b',
@@ -46,12 +42,12 @@ describe('aggregateModels', () => {
     ]);
     expect(models[0]).toMatchObject({ tokens: 150, costUsd: 10 });
     expect(models[3].costUsd).toBeNull();
-    expect(models.map((model) => model.color)).toEqual(modelPalette.slice(0, 5));
+    expect(models.map((model) => model.color)).toEqual(seriesPalette.slice(0, 5));
   });
 
   it('adds only known costs when a model has some unknown costs', () => {
     const data = dataOf([day('2026-10-01', 'a', 10, 3), day('2026-10-02', 'a', 10, null)]);
-    const { models } = aggregateModels(data, '2026-10-01', '2026-10-02', 'daily');
+    const { items: models } = aggregateModels(data, '2026-10-01', '2026-10-02', 'daily');
     expect(models[0]).toMatchObject({ tokens: 20, costUsd: 3 });
   });
 
@@ -59,9 +55,9 @@ describe('aggregateModels', () => {
     const rows = Array.from({ length: 10 }, (_, index) =>
       day('2026-10-01', `m${index}`, 10, 100 - index),
     );
-    const { models } = aggregateModels(dataOf(rows), '2026-10-01', '2026-10-01', 'daily');
-    expect(models[8].color).toBe(modelPalette[0]);
-    expect(models[9].color).toBe(modelPalette[1]);
+    const { items: models } = aggregateModels(dataOf(rows), '2026-10-01', '2026-10-01', 'daily');
+    expect(models[8].color).toBe(seriesPalette[0]);
+    expect(models[9].color).toBe(seriesPalette[1]);
     expect(models[0].share).toBeCloseTo(0.1);
   });
 
@@ -84,13 +80,13 @@ describe('aggregateModels', () => {
     expect(daily.buckets).toHaveLength(5);
     expect(daily.buckets[1].tokens).toEqual([null, null]);
     expect(daily.buckets[1].costs).toEqual([null, null]);
-    expect(daily.models[0].trend).toEqual([10, 0, 0, 0, 30]);
+    expect(daily.items[0].trend).toEqual([10, 0, 0, 0, 30]);
   });
 
   it('returns nothing when no day falls in the range', () => {
     const data = dataOf([day('2026-09-01', 'a', 10, 1)]);
     expect(aggregateModels(data, '2026-10-01', '2026-10-03', 'daily')).toEqual({
-      models: [],
+      items: [],
       buckets: [],
     });
   });
@@ -109,7 +105,7 @@ describe('groupUnselected', () => {
   it('sums unselected models into one Other series after the selected ones', () => {
     const { series, buckets } = groupUnselected(usage, new Set(['a']));
     expect(series.map((entry) => entry.name)).toEqual(['a', 'Other']);
-    expect(series[0].color).toBe(usage.models[0].color);
+    expect(series[0].color).toBe(usage.items[0].color);
     expect(series[1].color).toBe(otherColor);
     expect(buckets.map((bucket) => bucket.tokens)).toEqual([
       [100, 25],
