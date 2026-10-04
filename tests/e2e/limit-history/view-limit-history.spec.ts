@@ -3,6 +3,7 @@ import type { FakeHub } from '../hub-sync/fake-hub.ts';
 import {
   addCost,
   estimateAll,
+  execute,
   expect,
   insertRecords,
   localDate,
@@ -264,4 +265,36 @@ test('LMH-5 記録が無いときは No history を示し、高さ640pxでは画
   expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBe(0);
   const list = page.locator('.by-model-tiles');
   expect(await list.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+});
+
+test('LMH-6 記録のない枠グループがある日は契約の合計を下限値とし、線は値のまま結んで、ツールチップとタイルに「≥」を付ける', async ({
+  page,
+  app,
+  alpha,
+}) => {
+  await prepare(app, alpha);
+  await page.goto('/limits');
+  await page.getByText('4W', { exact: true }).click();
+  await page.getByLabel('Aggregation').selectOption('daily');
+
+  // 当日は codex の2つの枠グループ（$1,500 と $500）がそろい、合計は下限値ではない。
+  const today = await tooltipOf(page, limitChart(page), 27);
+  await expect(today).toContainText('codex · Pro 20x$2,000/mo · $200/mo · ×10.0');
+  // 前日は Spark の記録が無いため、記録のある $1,500 を下限値として示す。
+  const yesterday = await tooltipOf(page, limitChart(page), 26);
+  await expect(yesterday).toContainText('codex · Pro 20x≥ $1,500/mo · $200/mo · ≥ ×7.5');
+  // 下限値の点も途切れさせず、記録のある20日前から当日までを1本の線で結ぶ。
+  await expect(limitChart(page).locator('polyline[stroke="#9789c7"]')).toHaveCount(1);
+
+  // 最新の記録が下限値のときは、タイルの月換算上限額と倍率にも「≥」を付ける（当日の名前のないグループの行を消す）。
+  execute(
+    app.databasePath,
+    'DELETE FROM daily_monthly_limits WHERE provider = ? AND limit_group = ? AND date = ?',
+    'codex',
+    '',
+    localDate(),
+  );
+  await page.reload();
+  await expect(tile(page, 0)).toContainText('≥ $500/mo');
+  await expect(tile(page, 0)).toContainText('$200/mo · ≥ ×2.5');
 });

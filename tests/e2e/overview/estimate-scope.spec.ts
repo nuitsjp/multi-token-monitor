@@ -155,6 +155,27 @@ test.describe('枠グループが複数の契約', () => {
       )
       .toEqual(['$44/mo', '$443/mo']);
     await expect(limits.locator('.limit-heading .limit-monthly')).toHaveText('$487/mo');
+    // 円の下のラベルは「枠グループ名 金額/mo」で、長いラベルも円弧の端（丸めた端を含む）より下に置く。
+    const labels = limits.locator('.limit-circle svg[role="img"] > text[font-size="14"]');
+    await expect
+      .poll(async () => (await labels.allTextContents()).sort())
+      .toEqual(['Claude/GPT $443/mo', 'Gemini $44/mo']);
+    const clearances = await limits.locator('.limit-circle svg[role="img"]').evaluateAll((svgs) =>
+      svgs.map((svg) => {
+        const label = svg.querySelector<SVGTextElement>(':scope > text[font-size="14"]')!;
+        const arcBottom = Math.max(
+          ...[...svg.querySelectorAll<SVGCircleElement>(':scope > circle')].map(
+            (arc) =>
+              arc.cy.baseVal.value +
+              arc.r.baseVal.value * Math.SQRT1_2 +
+              Number(arc.getAttribute('stroke-width')) / 2,
+          ),
+        );
+        return label.getBBox().y - arcBottom;
+      }),
+    );
+    expect(clearances).toHaveLength(2);
+    for (const clearance of clearances) expect(clearance).toBeGreaterThan(0);
 
     // Act: Claude/GPT のモデルだけ、使用率を動かさずにコストを増やす。
     await send(alpha, db, (next) => {
@@ -232,6 +253,15 @@ test.describe('個別ルールのある提供元', () => {
           .sort(),
       )
       .toEqual(['$20/mo', '$40/mo']);
+    // 値を持たない Grok Bot は名前だけを示し、見出しの合計は値を持つグループだけの下限値になる。
+    await expect(
+      limits.locator('.limit-circle[aria-label="cursor · Grok Bot"] svg > text[font-size="14"]'),
+    ).toHaveText('Grok Bot');
+    await expect(limits.locator('.limit-heading .limit-monthly')).toHaveText('≥ $60/mo');
+    await limits.locator('.limit-heading .limit-monthly').hover();
+    await expect(
+      page.getByRole('tooltip').filter({ hasText: 'so this is a lower bound' }),
+    ).toBeVisible();
   });
 });
 
