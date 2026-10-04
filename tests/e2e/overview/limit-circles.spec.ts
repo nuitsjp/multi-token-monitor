@@ -357,15 +357,16 @@ test.describe('月換算上限額', () => {
     await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(before);
 
     // Assert: 週次の推定上限額 $30 は 30 ÷ 10,080 × 44,640 で $133、月次の $30 は換算しない。
-    // 枠グループ（この契約は全体で1グループ）の最小値 $30 を、見出し行の右端に1つだけ示す（円は2つあるが、円の右上には出ない）。
+    // 枠グループ（この契約は全体で1グループ）の最小値 $30 を、見出し行の右端に1つだけ示す（円は2つあるが、円には出ない）。
     await expect(limits.locator('.limit-heading .limit-monthly')).toHaveText('$30/mo');
     await expect(limits.locator('.limit-monthly')).toHaveCount(1);
+    await expect(limits.locator('.limit-group-monthly')).toHaveCount(0);
     await expect(limits.locator('.limit-circle')).toHaveCount(2);
 
-    // Act & Assert: マウスオーバーで、換算した参考値であることを英語で示す。
+    // Act & Assert: マウスオーバーで、枠グループの月換算上限額を合計した参考値であることを英語で示す。
     await limits.locator('.limit-heading .limit-monthly').hover();
     await expect(
-      page.getByRole('tooltip').filter({ hasText: 'the lowest monthly equivalent' }),
+      page.getByRole('tooltip').filter({ hasText: 'the total of the monthly limits' }),
     ).toBeVisible();
   });
 });

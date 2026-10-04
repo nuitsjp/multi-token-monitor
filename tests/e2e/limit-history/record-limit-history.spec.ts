@@ -28,13 +28,13 @@ const price = (db: string, provider: string, plan: string) =>
     plan,
   )[0];
 
-test('REC-1 同じ日の受信では製品ごとの当日の行を1つだけ持ち、最後に求まった値と、その時点の支払額を記録する', async ({
+test('REC-1 同じ日の受信では枠グループごとの当日の行を1つだけ持ち、最後に求まった値と、その時点の支払額を記録する', async ({
   app,
   alpha,
 }) => {
   const db = app.databasePath;
   await expect.poll(() => receivedAt(db, 'alpha')).toBeTruthy();
-  // 最初の受信は1つ目の計測点だけで、どの製品も月換算上限額が求まらないため、行を作らない。
+  // 最初の受信は1つ目の計測点だけで、どの枠グループも月換算上限額が求まらないため、行を作らない。
   expect(records(db)).toEqual([]);
 
   await estimateAll(alpha, db);
@@ -51,7 +51,7 @@ test('REC-1 同じ日の受信では製品ごとの当日の行を1つだけ持�
     ['claude', '', today, 'Max 20x', 2000, 200],
     ['codex', '', today, 'Pro 20x', 1500, 200],
     ['codex', 'GPT-5.3-Codex-Spark', today, 'Pro 20x', 500, 200],
-    // 価格表にプランが無い製品は、支払額を空にする。
+    // 価格表にプランが無い契約の枠グループは、支払額を空にする。
     ['grok', '', today, 'SuperGrok', 400, null],
   ]);
   const firstRecordedAt = row(db, 'claude')!.recorded_at;

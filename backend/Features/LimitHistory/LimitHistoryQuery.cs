@@ -1,6 +1,5 @@
 using System.Globalization;
 using Dapper;
-using MultiTokenMonitor.Features.Overview;
 using MultiTokenMonitor.Infrastructure.Persistence;
 using MultiTokenMonitor.Presentation.Http;
 
@@ -8,7 +7,8 @@ namespace MultiTokenMonitor.Features.LimitHistory;
 
 internal static class LimitHistoryQuery
 {
-    // 製品は、Hubの登録順、Homeの利用枠と同じ契約の順（現在の枠の最小残量の昇順。報告されなくなった契約は最後）、枠グループの順に並べる。
+    // 契約は、Hubの登録順、Homeの利用枠と同じ契約の順（現在の枠の最小残量の昇順。報告されなくなった契約は最後）に並べる。
+    // 日次記録は枠グループごとの行を契約・日付ごとに合計する。契約の記録に現れた枠グループのうち、その日に行のないものがあれば下限値とする。
     internal static Task<LimitHistoryOutput> ReadAsync(Database database) =>
         database.InReadTransactionAsync(async connection =>
         {
@@ -20,61 +20,54 @@ internal static class LimitHistoryQuery
                     hub_id AS HubId, provider AS Provider, account_key AS AccountKey, limit_group AS LimitGroup,
                     date AS Date, plan AS Plan, monthly_limit_usd AS MonthlyLimitUsd, price_usd AS PriceUsd
                 FROM daily_monthly_limits
-                ORDER BY date
+                ORDER BY date, recorded_at
                 """)).AsList();
             var windows = (await connection.QueryAsync<WindowRow>(
                 """
-                SELECT hub_id AS HubId, provider AS Provider, account_key AS AccountKey, label AS Label,
+                SELECT hub_id AS HubId, provider AS Provider, account_key AS AccountKey,
                        remaining_percent AS RemainingPercent
                 FROM latest_limit_windows
-                ORDER BY hub_id, provider, account_key, kind, limit_key
                 """)).AsList();
             var contractRanks = windows.GroupBy(window => (window.HubId, window.Provider, window.AccountKey))
                 .ToDictionary(contract => contract.Key, contract => contract.Min(window => window.RemainingPercent));
-            var groupRanks = windows
-                .Select(window => (window.HubId, window.Provider, window.AccountKey, Group: LimitEstimator.GroupOf(window.Label)))
-                .Distinct()
-                .Select((key, index) => (key, index))
-                .ToDictionary(item => item.key, item => item.index);
             var hubIndexes = hubs.Select((hub, index) => (hub.HubId, index)).ToDictionary(item => item.HubId, item => item.index);
             var names = hubs.ToDictionary(hub => hub.HubId, hub => hub.Name);
 
-            var products = records
-                .GroupBy(record => (record.HubId, record.Provider, record.AccountKey, record.LimitGroup))
-                .Select(product => (
-                    product.Key,
-                    Plan: product.Last().Plan,
-                    Single: records.Where(record => (record.HubId, record.Provider, record.AccountKey) ==
-                            (product.Key.HubId, product.Key.Provider, product.Key.AccountKey))
-                        .Select(record => record.LimitGroup).Distinct().Count() == 1))
-                .OrderBy(product => hubIndexes[product.Key.HubId])
-                .ThenBy(product => contractRanks.GetValueOrDefault(
-                    (product.Key.HubId, product.Key.Provider, product.Key.AccountKey), double.PositiveInfinity))
-                .ThenBy(product => product.Key.Provider, StringComparer.Ordinal)
-                .ThenBy(product => product.Key.AccountKey, StringComparer.Ordinal)
-                .ThenBy(product => groupRanks.GetValueOrDefault(product.Key, int.MaxValue))
-                .ThenBy(product => product.Key.LimitGroup, StringComparer.Ordinal)
-                .Select(product => new LimitHistoryProductOutput(
-                    KeyOf(product.Key.HubId, product.Key.Provider, product.Key.AccountKey, product.Key.LimitGroup),
-                    product.Key.HubId,
-                    names[product.Key.HubId],
-                    product.Key.Provider,
-                    product.Plan,
-                    product.Single ? null : product.Key.LimitGroup))
+            var contracts = records
+                .GroupBy(record => (record.HubId, record.Provider, record.AccountKey))
+                .OrderBy(contract => hubIndexes[contract.Key.HubId])
+                .ThenBy(contract => contractRanks.GetValueOrDefault(contract.Key, double.PositiveInfinity))
+                .ThenBy(contract => contract.Key.Provider, StringComparer.Ordinal)
+                .ThenBy(contract => contract.Key.AccountKey, StringComparer.Ordinal)
                 .ToList();
+
+            var days = new List<LimitHistoryDayOutput>();
+            foreach (var contract in contracts)
+            {
+                var key = KeyOf(contract.Key.HubId, contract.Key.Provider, contract.Key.AccountKey);
+                var groups = contract.Select(record => record.LimitGroup).Distinct().Count();
+                // 同じ日の行は記録順に並ぶため、支払額はその日に最後に記録した行の値を使う。
+                days.AddRange(contract.GroupBy(record => record.Date).Select(day => new LimitHistoryDayOutput(
+                    key,
+                    day.Key,
+                    day.Sum(record => record.MonthlyLimitUsd),
+                    day.Last().PriceUsd,
+                    day.Count() < groups)));
+            }
 
             return new LimitHistoryOutput(
                 DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                products,
-                records.Select(record => new LimitHistoryDayOutput(
-                    KeyOf(record.HubId, record.Provider, record.AccountKey, record.LimitGroup),
-                    record.Date,
-                    record.MonthlyLimitUsd,
-                    record.PriceUsd)).ToList());
+                contracts.Select(contract => new LimitHistoryContractOutput(
+                    KeyOf(contract.Key.HubId, contract.Key.Provider, contract.Key.AccountKey),
+                    contract.Key.HubId,
+                    names[contract.Key.HubId],
+                    contract.Key.Provider,
+                    contract.Last().Plan)).ToList(),
+                days);
         });
 
-    private static string KeyOf(string hubId, string provider, string accountKey, string group) =>
-        string.Join('/', hubId, provider, accountKey, group);
+    private static string KeyOf(string hubId, string provider, string accountKey) =>
+        string.Join('/', hubId, provider, accountKey);
 
     private sealed record RecordRow(
         string HubId,
@@ -86,5 +79,5 @@ internal static class LimitHistoryQuery
         double MonthlyLimitUsd,
         double? PriceUsd);
 
-    private sealed record WindowRow(string HubId, string Provider, string AccountKey, string? Label, double RemainingPercent);
+    private sealed record WindowRow(string HubId, string Provider, string AccountKey, double RemainingPercent);
 }

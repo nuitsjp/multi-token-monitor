@@ -28,8 +28,8 @@ internal static class LimitHistoryStore
             prices));
     }
 
-    // 製品（契約×枠グループ）ごとの月換算上限額と、その時点の支払額を、受信した日の現地日付の行へ上書きする。
-    // 月換算上限額が求まらない製品は、その日の既存の行を変えない。
+    // 契約の枠グループごとの月換算上限額と、その時点の支払額を、受信した日の現地日付の行へ上書きする。
+    // 月換算上限額が求まらない枠グループは、その日の既存の行を変えない。
     internal static async Task RecordAsync(SqliteConnection connection, string hubId, string receivedAt)
     {
         var date = DateTimeOffset.Parse(receivedAt, CultureInfo.InvariantCulture).ToLocalTime()

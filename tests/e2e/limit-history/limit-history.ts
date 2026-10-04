@@ -97,7 +97,7 @@ export async function send(
 }
 
 /**
- * 全製品の推定上限額を金額にする。月換算上限額は claude $2,000、codex $1,500、Spark $500、grok $400。
+ * 全枠グループの推定上限額を金額にする。月換算上限額は claude $2,000、codex $1,500、Spark $500、grok $400。
  * 価格表の月額は claude・codex が200、grok は収録なし。
  */
 export async function estimateAll(hub: FakeHub, db: string) {

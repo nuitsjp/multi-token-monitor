@@ -26,20 +26,24 @@ internal sealed record HubUsageDayOutput(string Date, string DeviceId, string Mo
 /// <summary>Today はアプリを動かしているPCの現地日付（YYYY-MM-DD）。</summary>
 internal sealed record LimitHistoryOutput(
     string Today,
-    IReadOnlyList<LimitHistoryProductOutput> Products,
+    IReadOnlyList<LimitHistoryContractOutput> Contracts,
     IReadOnlyList<LimitHistoryDayOutput> Days);
 
-/// <summary>製品は Hub × 契約 × 枠グループ。Group は契約の枠グループが1つなら null、名前のないグループは空文字。</summary>
-internal sealed record LimitHistoryProductOutput(
+/// <summary>契約は Hub × 提供元 × アカウント。</summary>
+internal sealed record LimitHistoryContractOutput(
     string Key,
     string HubId,
     string HubName,
     string Provider,
-    string? Plan,
-    string? Group);
+    string? Plan);
 
-/// <summary>1日1行。PriceUsd は価格表にプランが無ければ null。</summary>
-internal sealed record LimitHistoryDayOutput(string ProductKey, string Date, double MonthlyLimitUsd, double? PriceUsd);
+/// <summary>契約ごと1日1行。MonthlyLimitUsd は枠グループの月換算上限額の合計で、記録のない枠グループがあれば LowerBound（下限値）。PriceUsd は価格表にプランが無ければ null。</summary>
+internal sealed record LimitHistoryDayOutput(
+    string ContractKey,
+    string Date,
+    double MonthlyLimitUsd,
+    double? PriceUsd,
+    bool LowerBound);
 
 internal sealed record OverviewOutput(
     IReadOnlyList<OverviewHubOutput> Hubs,

@@ -10,15 +10,15 @@ import { joinLabels } from '../components/SideMenu.tsx';
 import { SlotNumber } from '../components/SlotNumber.tsx';
 import { UsageRangeControls } from '../components/UsageRangeControls.tsx';
 import { rangeForPreset, type AggregationUnit, type RangePreset } from '../hub-usage.ts';
-import { aggregateLimitHistory, type LimitProductHistory } from '../limit-history.ts';
+import { aggregateLimitHistory, type LimitContractHistory } from '../limit-history.ts';
 import '../hub-chart.css';
 import '../by-model.css';
 import '../limits.css';
 
 export const Route = createFileRoute('/limits')({ component: UsageLimits });
 
-const productName = (product: { provider: string; plan: string | null }) =>
-  joinLabels(product.provider, product.plan);
+const contractName = (contract: { provider: string; plan: string | null }) =>
+  joinLabels(contract.provider, contract.plan);
 
 export function UsageLimits() {
   const [data, setData] = useState<LimitHistoryData>();
@@ -72,12 +72,12 @@ function LimitDashboard({ data }: { data: LimitHistoryData }) {
     () => aggregateLimitHistory(data, range.start, range.end, unit),
     [data, range.start, range.end, unit],
   );
-  const [chosen, setChosen] = useState(() => new Set(history.products.map((p) => p.key)));
-  const selected = history.products.filter((product) => chosen.has(product.key));
-  const series = selected.map((product) => ({
-    key: product.key,
-    name: joinLabels(productName(product), product.group || null),
-    color: product.color,
+  const [chosen, setChosen] = useState(() => new Set(history.contracts.map((c) => c.key)));
+  const selected = history.contracts.filter((contract) => chosen.has(contract.key));
+  const series = selected.map((contract) => ({
+    key: contract.key,
+    name: contractName(contract),
+    color: contract.color,
   }));
   const toggle = (key: string) =>
     setChosen((previous) => {
@@ -86,7 +86,7 @@ function LimitDashboard({ data }: { data: LimitHistoryData }) {
       else next.add(key);
       return next;
     });
-  const empty = history.products.length === 0;
+  const empty = history.contracts.length === 0;
   return (
     <>
       <Group gap={10} wrap="nowrap" mb="md" style={{ flex: 'none' }}>
@@ -166,18 +166,18 @@ function LimitDashboard({ data }: { data: LimitHistoryData }) {
               color="violet"
               label="Select all"
               disabled={empty}
-              checked={!empty && selected.length === history.products.length}
-              indeterminate={selected.length > 0 && selected.length < history.products.length}
+              checked={!empty && selected.length === history.contracts.length}
+              indeterminate={selected.length > 0 && selected.length < history.contracts.length}
               onChange={() =>
                 setChosen(
-                  selected.length === history.products.length
+                  selected.length === history.contracts.length
                     ? new Set()
-                    : new Set(history.products.map((product) => product.key)),
+                    : new Set(history.contracts.map((contract) => contract.key)),
                 )
               }
             />
             <Text size="xs" c="dimmed" className="num">
-              {selected.length} / {history.products.length}
+              {selected.length} / {history.contracts.length}
             </Text>
           </div>
           <div className="by-model-tiles">
@@ -186,12 +186,12 @@ function LimitDashboard({ data }: { data: LimitHistoryData }) {
                 No history for selected range.
               </Text>
             ) : null}
-            {history.products.map((product) => (
+            {history.contracts.map((contract) => (
               <PlanTile
-                key={product.key}
-                product={product}
-                selected={chosen.has(product.key)}
-                onToggle={() => toggle(product.key)}
+                key={contract.key}
+                contract={contract}
+                selected={chosen.has(contract.key)}
+                onToggle={() => toggle(contract.key)}
               />
             ))}
           </div>
@@ -202,20 +202,21 @@ function LimitDashboard({ data }: { data: LimitHistoryData }) {
 }
 
 function PlanTile({
-  product,
+  contract,
   selected,
   onToggle,
 }: {
-  product: LimitProductHistory;
+  contract: LimitContractHistory;
   selected: boolean;
   onToggle: () => void;
 }) {
   // 上限額の変動は値の大きさに比べて小さいため、期間内の最小値から最大値までで描く。
-  const low = Math.min(...product.trend);
-  const span = Math.max(...product.trend) - low || 1;
-  const last = Math.max(product.trend.length - 1, 1);
-  const change = Math.round(product.change * 100);
-  const noPrice = product.latest.priceUsd === null;
+  const low = Math.min(...contract.trend);
+  const span = Math.max(...contract.trend) - low || 1;
+  const last = Math.max(contract.trend.length - 1, 1);
+  const change = Math.round(contract.change * 100);
+  const { latest } = contract;
+  const noPrice = latest.priceUsd === null;
   return (
     <button type="button" className="by-model-tile" aria-pressed={selected} onClick={onToggle}>
       <span className="by-model-tile-row">
@@ -232,9 +233,9 @@ function PlanTile({
               <path d="M2.5 6.5l2.5 2.5 4.5-5.5" />
             </svg>
           </span>
-          <span className="hub-chart-swatch" style={{ background: product.color }} />
-          <ProviderIcon provider={product.provider} size={16} />
-          <span>{productName(product)}</span>
+          <span className="hub-chart-swatch" style={{ background: contract.color }} />
+          <ProviderIcon provider={contract.provider} size={16} />
+          <span>{contractName(contract)}</span>
         </span>
         <Text component="span" size="xs" c="dimmed" className="num">
           {change >= 0 ? '+' : ''}
@@ -242,23 +243,23 @@ function PlanTile({
         </Text>
       </span>
       <Text component="span" size="xs" c="dimmed" display="block" className="limits-tile-scope">
-        {joinLabels(product.group || null, product.hubName)}
+        {contract.hubName}
       </Text>
       <span className="by-model-tile-cost num">
-        <SlotNumber text={perMonth(product.latest.limitUsd)} />
+        <SlotNumber text={perMonth(latest.limitUsd, latest.lowerBound)} />
       </span>
       <Tooltip label="No price for this plan." withArrow disabled={!noPrice}>
         <Text component="span" size="xs" c="dimmed" className="num" display="block">
-          {perMonth(product.latest.priceUsd)} · {times(product.latest.multiplier)}
+          {perMonth(latest.priceUsd)} · {times(latest.multiplier, latest.lowerBound)}
         </Text>
       </Tooltip>
       <svg className="by-model-spark" viewBox="0 0 120 24" preserveAspectRatio="none" aria-hidden>
         <polyline
           fill="none"
-          stroke={product.color}
+          stroke={contract.color}
           strokeWidth={1.6}
           vectorEffect="non-scaling-stroke"
-          points={product.trend
+          points={contract.trend
             .map((value, index) => `${(index / last) * 120},${22 - ((value - low) / span) * 20}`)
             .join(' ')}
         />

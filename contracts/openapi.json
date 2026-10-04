@@ -264,65 +264,13 @@
           }
         }
       },
-      "LimitHistoryDayOutput": {
-        "required": [
-          "productKey",
-          "date",
-          "monthlyLimitUsd",
-          "priceUsd"
-        ],
-        "type": "object",
-        "properties": {
-          "productKey": {
-            "type": "string"
-          },
-          "date": {
-            "type": "string"
-          },
-          "monthlyLimitUsd": {
-            "type": "number",
-            "format": "double"
-          },
-          "priceUsd": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          }
-        }
-      },
-      "LimitHistoryOutput": {
-        "required": [
-          "today",
-          "products",
-          "days"
-        ],
-        "type": "object",
-        "properties": {
-          "today": {
-            "type": "string"
-          },
-          "products": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LimitHistoryProductOutput"
-            }
-          },
-          "days": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LimitHistoryDayOutput"
-            }
-          }
-        }
-      },
-      "LimitHistoryProductOutput": {
+      "LimitHistoryContractOutput": {
         "required": [
           "key",
           "hubId",
           "hubName",
           "provider",
-          "plan",
-          "group"
+          "plan"
         ],
         "type": "object",
         "properties": {
@@ -341,10 +289,61 @@
           "plan": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "LimitHistoryDayOutput": {
+        "required": [
+          "contractKey",
+          "date",
+          "monthlyLimitUsd",
+          "priceUsd",
+          "lowerBound"
+        ],
+        "type": "object",
+        "properties": {
+          "contractKey": {
+            "type": "string"
           },
-          "group": {
-            "type": "string",
+          "date": {
+            "type": "string"
+          },
+          "monthlyLimitUsd": {
+            "type": "number",
+            "format": "double"
+          },
+          "priceUsd": {
+            "type": "number",
+            "format": "double",
             "nullable": true
+          },
+          "lowerBound": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LimitHistoryOutput": {
+        "required": [
+          "today",
+          "contracts",
+          "days"
+        ],
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "string"
+          },
+          "contracts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LimitHistoryContractOutput"
+            }
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LimitHistoryDayOutput"
+            }
           }
         }
       },

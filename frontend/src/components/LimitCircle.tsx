@@ -1,6 +1,6 @@
 import { Tooltip } from '@mantine/core';
-import { cost } from '../format.ts';
-import { MonthlyLimit } from './MonthlyLimit.tsx';
+import { cost, costWhole } from '../format.ts';
+import { monthlyTooltipStyles } from './MonthlyLimit.tsx';
 import {
   stateOf,
   remainingText,
@@ -107,8 +107,7 @@ export function LimitCircle({
   );
   return (
     <div className="limit-circle" aria-label={name}>
-      {monthly !== null && <MonthlyLimit value={monthly} />}
-      <svg viewBox="0 2 200 180" width={176} height={158} role="img" aria-label={name}>
+      <svg viewBox="0 2 200 190" width={176} height={167} role="img" aria-label={name}>
         {circle.windows.map((window, index) => (
           <Arc
             key={windowKey(window)}
@@ -119,13 +118,27 @@ export function LimitCircle({
         ))}
         <text
           x={100}
-          y={inner === undefined ? 178 : 174}
+          // 円弧の端（丸めた端を含む）より下に置き、長い枠グループ名でも円弧に重ねない。
+          y={187}
           textAnchor="middle"
           fontSize={14}
           fontWeight={500}
           fill="#e4e5e9"
         >
           {label}
+          {monthly !== null && (
+            <Tooltip
+              multiline
+              w={240}
+              withArrow
+              styles={monthlyTooltipStyles}
+              label="Reference estimate: the lowest monthly equivalent of this group's window limits."
+            >
+              <tspan className="limit-group-monthly" fill="#8b8e99" fontWeight={400}>
+                {`${label === '' ? '' : ' '}${costWhole(monthly)}/mo`}
+              </tspan>
+            </Tooltip>
+          )}
         </text>
         {outer !== undefined && line(outer, inner === undefined ? 108 : 92)}
         {inner !== undefined && line(inner, 123)}
