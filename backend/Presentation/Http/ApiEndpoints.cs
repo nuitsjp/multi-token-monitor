@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
 using MultiTokenMonitor.Features.Overview;
 using MultiTokenMonitor.Features.HubUsage;
+using MultiTokenMonitor.Features.LimitHistory;
 using MultiTokenMonitor.Infrastructure.Notifications;
 using MultiTokenMonitor.Infrastructure.Persistence;
 
@@ -20,6 +21,9 @@ internal static class ApiEndpoints
         app.MapGet("/api/hub-usage", async ([FromServices] Database database) =>
                 TypedResults.Ok(await HubUsageQuery.ReadAsync(database)))
             .WithName("GetHubUsage");
+        app.MapGet("/api/limit-history", async ([FromServices] Database database) =>
+                TypedResults.Ok(await LimitHistoryQuery.ReadAsync(database)))
+            .WithName("GetLimitHistory");
         // SSEは型契約の対象にせず、合図の名前だけを画面と共有する。
         app.MapGet("/api/events", StreamEventsAsync)
             .ExcludeFromDescription();

@@ -68,3 +68,16 @@ sequenceDiagram
 | 画面 | Allまたは個別Hubで集計対象を絞り、Tokens／Costのソートでタイルと両グラフの系列・色を揃える。初期ソートはTokensとし、初回・Hub変更・ソート変更で表示先頭5モデルを選び直す。期間・集約単位変更では選択をモデル名で保持する。個別Hub名横の状態アイコンとTooltip、三状態のSelect all、グラフの伸縮、Hub・期間・集約単位の操作欄を共用部品で表示する | `frontend/src/routes/by-model.tsx`、`frontend/src/components/HubUsageChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
 
 開発構成と配布構成の両方で `useHubUsage(fetchHubUsage)` から実APIを呼び、保存済み明細を取得する。固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。変更の購読は既存の画面全体で1つの通知接続を共用し、新たなEventSourceを作らない（[UCP-3](UCP-3.md)）。
+
+## 月換算上限額の推移を表示する固有の処理
+
+画面の表示・操作は [月換算上限額の推移を表示する](../usecases/月換算上限額の推移を表示する/README.md) に従う。
+
+| 役割 | 責務 | 実装パス |
+| --- | --- | --- |
+| 取得と購読 | `fetchLimitHistory` を唯一の取得境界とし、`GET /api/limit-history` を呼ぶ。契約はOpenAPIから生成するTypeScriptの型で画面と共有する。保存確定の通知で取得し直す | `frontend/src/api/limit-history.ts`、`frontend/src/routes/limits.tsx`、`backend/Presentation/Http/Contracts.cs`、`backend/Presentation/Http/ApiEndpoints.cs` |
+| 月換算上限額の閲覧クエリ | 読み取り専用のトランザクションで日次記録・Hub・現在の利用枠を読み、製品をHubの登録順、Homeと同じ契約の順（現在の枠の最小残量の昇順。報告されなくなった契約は最後）、枠グループの順に並べて返す。記録の中で契約の枠グループが1種類だけなら枠グループ名を返さない。製品の表示名には最新の記録のプラン名を使う | `backend/Features/LimitHistory/LimitHistoryQuery.cs` |
+| 表示集計 | 受け取った日次記録から、選択期間の製品ごとの最新値・変化率・日次推移と、集約単位ごとの最後の記録の点を返す | `frontend/src/limit-history.ts` |
+| 画面 | 製品のタイルと、Monthly limit・Multiplier の折れ線グラフを、期間・集約単位の共用部品で表示する | `frontend/src/routes/limits.tsx`、`frontend/src/components/LimitTrendChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
+
+- モックに置き換える境界と合成点: 動作合意では `fetchLimitHistory` 1箇所を合成点とし、合意後に固定データを削除した。固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。
