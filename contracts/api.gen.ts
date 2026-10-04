@@ -114,26 +114,26 @@ export interface components {
             /** Format: double */
             costUsd: number | null;
         };
-        LimitHistoryDayOutput: {
-            productKey: string;
-            date: string;
-            /** Format: double */
-            monthlyLimitUsd: number;
-            /** Format: double */
-            priceUsd: number | null;
-        };
-        LimitHistoryOutput: {
-            today: string;
-            products: components["schemas"]["LimitHistoryProductOutput"][];
-            days: components["schemas"]["LimitHistoryDayOutput"][];
-        };
-        LimitHistoryProductOutput: {
+        LimitHistoryContractOutput: {
             key: string;
             hubId: string;
             hubName: string;
             provider: string;
             plan: string | null;
-            group: string | null;
+        };
+        LimitHistoryDayOutput: {
+            contractKey: string;
+            date: string;
+            /** Format: double */
+            monthlyLimitUsd: number;
+            /** Format: double */
+            priceUsd: number | null;
+            lowerBound: boolean;
+        };
+        LimitHistoryOutput: {
+            today: string;
+            contracts: components["schemas"]["LimitHistoryContractOutput"][];
+            days: components["schemas"]["LimitHistoryDayOutput"][];
         };
         ModelUsageOutput: {
             tool: string;

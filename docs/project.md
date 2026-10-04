@@ -137,3 +137,10 @@ Hubの接続設定を準備し、開発構成は `mise run dev` で起動して 
 | --- | --- | --- |
 | 日次記録の閲覧用APIの確認 | `curl.exe -s http://127.0.0.1:3000/api/limit-history` | 現地日付、製品（Hub・提供元・プラン・枠グループ）、製品ごとの日次記録（月換算上限額と支払額）をJSONで返します。URLと認証トークンは含みません |
 | 日次記録と価格表の確認 | `python -c "import sqlite3; db = sqlite3.connect('file:data/app.sqlite?mode=ro', uri=True); print(db.execute('SELECT hub_id, provider, limit_group, date, plan, monthly_limit_usd, price_usd FROM daily_monthly_limits').fetchall()); print(db.execute('SELECT COUNT(*) FROM plan_prices').fetchone())"` | 月換算上限額が求まった製品ごとに1日1行があり、価格表に同梱の価格一覧のプランが入っています |
+
+契約単位の合計表示の動作合意用モックは、環境変数 `VITE_LIMITS_MOCK=1` を付けた開発起動で有効になります。Homeの利用枠と `/limits` は、閲覧用APIの代わりに `frontend/src/api/limits.mock.ts` の固定データを表示します（変更通知の購読は実APIのまま）。既定（未設定）は実APIを呼び、APIが失敗しても固定データは表示しません。段階4まで `GET /api/limit-history` は契約・記録とも空を返します。
+
+| 目的 | コマンド | 期待結果 |
+| --- | --- | --- |
+| モック有効で開発起動 | PowerShellで `$env:VITE_LIMITS_MOCK='1'; mise run dev` | `http://127.0.0.1:5173/` のPersonalで、antigravityの見出しに `$578/mo`、円のラベルに `Gemini · $555`・`Claude/GPT · $23`、codexの見出しに `≥ $1,151/mo` が出ます。`/limits` は5つの契約のタイルを示し、codexは `≥ $1,151/mo` と `≥ ×5.8` です |
+| モック無効の確認 | 環境変数を外して `mise run dev` | 画面は `GET /api/overview` と `GET /api/limit-history` を呼び、固定データのHub名（Personal・Work）は表示されません |

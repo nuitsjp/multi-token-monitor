@@ -12,12 +12,15 @@ type Props = {
   buckets: LimitHistoryAggregate['buckets'];
 };
 
-export const perMonth = (value: number | null) =>
-  value === null ? 'N/A' : `${costWhole(value)}/mo`;
-export const times = (value: number | null) => (value === null ? 'N/A' : `×${value.toFixed(1)}`);
+// 下限値（lowerBound）は「≥ 」を前に付ける。値が無ければ N/A。
+const atLeast = (lowerBound: boolean) => (lowerBound ? '≥ ' : '');
+export const perMonth = (value: number | null, lowerBound = false) =>
+  value === null ? 'N/A' : `${atLeast(lowerBound)}${costWhole(value)}/mo`;
+export const times = (value: number | null, lowerBound = false) =>
+  value === null ? 'N/A' : `${atLeast(lowerBound)}×${value.toFixed(1)}`;
 const coordinate = (value: number) => Math.round(value * 10) / 10;
 
-// 製品ごとの折れ線。記録の無い点で線を途切れさせ、点の位置に印を置く。置かれた領域の大きさに合わせて描く。
+// 契約ごとの折れ線。下限値の点も値のまま結ぶ。記録の無い点で線を途切れさせ、点の位置に印を置く。置かれた領域の大きさに合わせて描く。
 export function LimitTrendChart({ kind, series, buckets }: Props) {
   const titleId = useId();
   const [host, setHost] = useState<HTMLDivElement | null>(null);
@@ -141,7 +144,7 @@ export function LimitTrendChart({ kind, series, buckets }: Props) {
                         <Text size="xs" className="num">
                           {point === undefined
                             ? '—'
-                            : `${perMonth(point.limitUsd)} · ${perMonth(point.priceUsd)} · ${times(point.multiplier)}`}
+                            : `${perMonth(point.limitUsd, point.lowerBound)} · ${perMonth(point.priceUsd)} · ${times(point.multiplier, point.lowerBound)}`}
                         </Text>
                       </Group>
                     );

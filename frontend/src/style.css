@@ -205,20 +205,21 @@ body {
   text-align: right;
 }
 
+/* 契約の月換算上限額は、見出し行の右端に置く */
 .limit-monthly {
-  position: absolute;
-  top: 1px;
-  right: 0;
-  font-size: 12px;
-  color: #e4e5e9;
-  cursor: help;
-}
-/* 契約で1つの月換算上限額は、見出し行の右端に置く */
-.limit-heading .limit-monthly {
-  position: static;
   margin-left: auto;
   flex: none;
   padding-right: 2px;
+  font-size: 12px;
+  color: #e4e5e9;
+  white-space: nowrap;
+  cursor: help;
+}
+.limit-monthly-unit {
+  color: #8b8e99;
+}
+.limit-group-monthly {
+  cursor: help;
 }
 
 /* 全体の枠を持たない区画。右隣のカードのタイトルと見出しの高さを揃える */

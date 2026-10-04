@@ -537,7 +537,9 @@ function LimitCard({ overview }: { overview: Overview }) {
                     {account.accountLabel}
                   </Text>
                 )}
-                {account.monthlyUsd !== null && <MonthlyLimit value={account.monthlyUsd} />}
+                {account.monthlyUsd !== null && (
+                  <MonthlyLimit value={account.monthlyUsd} lowerBound={account.monthlyLowerBound} />
+                )}
               </Group>
               <div className="limit-circles">
                 {account.circles.map((circle) => (

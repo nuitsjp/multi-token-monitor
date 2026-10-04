@@ -91,4 +91,4 @@ sequenceDiagram
 | 表示集計 | 受け取った日次記録から、選択期間の製品ごとの最新値・変化率・日次推移と、集約単位ごとの最後の記録の点を返す | `frontend/src/limit-history.ts` |
 | 画面 | 製品のタイルと、Monthly limit・Multiplier の折れ線グラフを、期間・集約単位の共用部品で表示する | `frontend/src/routes/limits.tsx`、`frontend/src/components/LimitTrendChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
 
-- モックに置き換える境界と合成点: 動作合意では `fetchLimitHistory` 1箇所を合成点とし、合意後に固定データを削除した。固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。
+- モックに置き換える境界と合成点: 契約単位の合計表示の動作合意では、`VITE_LIMITS_MOCK=1` のときだけ `fetchLimitHistory` と `fetchOverview` が `frontend/src/api/limits.mock.ts` の固定データを本番の応答型で返す。既定は実APIで、通信失敗時にも固定データへ切り替えない。段階4で固定データと切り替えを削除する。
