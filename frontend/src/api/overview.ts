@@ -28,9 +28,6 @@ export function applyFreshness(overview: Overview, freshness: HubFreshness): Ove
 }
 
 export async function fetchOverview(): Promise<Overview> {
-  // 段階3の動作合意用。VITE_LIMITS_MOCK=1 のときだけ固定の全体状態を返す。
-  if (import.meta.env.VITE_LIMITS_MOCK === '1')
-    return (await import('./limits.mock.ts')).overviewMock();
   const response = await fetch('/api/overview');
   if (!response.ok) throw new Error(`Unable to load usage (HTTP ${response.status}).`);
   return (await response.json()) as Overview;

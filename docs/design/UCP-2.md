@@ -19,7 +19,7 @@ HomeとHub情報の閲覧画面に共通して適用する。画面上部と区�
 
 | 役割 | 責務 | 実装パス（段階4完了時に記入） |
 | --- | --- | --- |
-| 画面 | Hub別は2件ずつ表示する。利用枠は、枠グループ・長さ・ラベル・残り時間・ペース・月換算上限額を受け取った値から表示上で計算し、1分ごとに再計算する | `frontend/src/routes/index.tsx`、`frontend/src/components/LimitCircle.tsx`、`frontend/src/components/ActivityCalendar.tsx`、`frontend/src/components/providerIcons.ts`、`frontend/src/limits.ts` |
+| 画面 | Hub別は2件ずつ表示する。利用枠は、枠グループ・長さ・ラベル・残り時間・ペース・枠グループと契約の月換算上限額を受け取った値から表示上で計算し、1分ごとに再計算する | `frontend/src/routes/index.tsx`、`frontend/src/components/LimitCircle.tsx`、`frontend/src/components/ActivityCalendar.tsx`、`frontend/src/components/providerIcons.ts`、`frontend/src/limits.ts` |
 | 閲覧用API | `GET /api/overview` を提供し、全区画のデータを期間別にまとめて1回で返す。契約はOpenAPIから生成するTypeScriptの型で画面と共有する。Hostヘッダーをループバックの名前に限定する | `backend/Presentation/Http/ApiEndpoints.cs`、`backend/Presentation/Http/Contracts.cs`、`backend/Presentation/Http/HttpPresentationRegistration.cs` |
 | 閲覧クエリ | ドメインモデルのテーブルだけを読み取り専用で読み、集計して返す。受信データ（`hub_states.stats_json`）は読まない。各枠の推定上限額は、「金額」「推定中（Estimating）」「N/A（理由つき）」のいずれかとして返し、判定には [UCP-1](UCP-1.md) の「枠のコストの範囲の決定と推定」の純粋関数を呼ぶ。応答は、推定の状態（`estimated`・`estimating`・`unavailable`）と、`unavailable` の理由の区分を含める。理由の文言は画面が英語で示す | `backend/Features/Overview/OverviewQuery.cs`、`backend/Features/Overview/LimitEstimator.cs`、`backend/Infrastructure/Persistence/Database.cs` |
 
@@ -87,8 +87,8 @@ sequenceDiagram
 | 役割 | 責務 | 実装パス |
 | --- | --- | --- |
 | 取得と購読 | `fetchLimitHistory` を唯一の取得境界とし、`GET /api/limit-history` を呼ぶ。契約はOpenAPIから生成するTypeScriptの型で画面と共有する。保存確定の通知で取得し直す | `frontend/src/api/limit-history.ts`、`frontend/src/routes/limits.tsx`、`backend/Presentation/Http/Contracts.cs`、`backend/Presentation/Http/ApiEndpoints.cs` |
-| 月換算上限額の閲覧クエリ | 読み取り専用のトランザクションで日次記録・Hub・現在の利用枠を読み、製品をHubの登録順、Homeと同じ契約の順（現在の枠の最小残量の昇順。報告されなくなった契約は最後）、枠グループの順に並べて返す。記録の中で契約の枠グループが1種類だけなら枠グループ名を返さない。製品の表示名には最新の記録のプラン名を使う | `backend/Features/LimitHistory/LimitHistoryQuery.cs` |
-| 表示集計 | 受け取った日次記録から、選択期間の製品ごとの最新値・変化率・日次推移と、集約単位ごとの最後の記録の点を返す | `frontend/src/limit-history.ts` |
-| 画面 | 製品のタイルと、Monthly limit・Multiplier の折れ線グラフを、期間・集約単位の共用部品で表示する | `frontend/src/routes/limits.tsx`、`frontend/src/components/LimitTrendChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
+| 月換算上限額の閲覧クエリ | 読み取り専用のトランザクションで日次記録・Hub・現在の利用枠を読み、契約をHubの登録順、Homeと同じ契約の順（現在の枠の最小残量の昇順。報告されなくなった契約は最後）に並べて返す。日次記録は枠グループの行を契約・日付ごとに合計し、契約の記録に現れた枠グループのうちその日に行のないものがあれば下限値の印を付ける。支払額はその日に最後に記録した行の値、契約の表示名には最新の記録のプラン名を使う | `backend/Features/LimitHistory/LimitHistoryQuery.cs` |
+| 表示集計 | 受け取った日次記録から、選択期間の契約ごとの最新値・変化率・日次推移と、集約単位ごとの最後の記録の点を返す | `frontend/src/limit-history.ts` |
+| 画面 | 契約のタイルと、Monthly limit・Multiplier の折れ線グラフを、期間・集約単位の共用部品で表示する。下限値は「≥」を付けて示す | `frontend/src/routes/limits.tsx`、`frontend/src/components/LimitTrendChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
 
-- モックに置き換える境界と合成点: 契約単位の合計表示の動作合意では、`VITE_LIMITS_MOCK=1` のときだけ `fetchLimitHistory` と `fetchOverview` が `frontend/src/api/limits.mock.ts` の固定データを本番の応答型で返す。既定は実APIで、通信失敗時にも固定データへ切り替えない。段階4で固定データと切り替えを削除する。
+- モックに置き換える境界と合成点: 動作合意では `fetchLimitHistory`（Homeは `fetchOverview`）を合成点とし、合意後に固定データを削除した。固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。

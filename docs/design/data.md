@@ -275,7 +275,7 @@ Hubが報告した契約の利用枠。メーターを表示する枠だけを�
 
 ### daily_monthly_limits
 
-製品（Hub × 契約 × 枠グループ）ごと、日ごとに1行の月換算上限額と支払額。
+契約の枠グループ（Hub × 契約 × 枠グループ）ごと、日ごとに1行の枠グループの月換算上限額と支払額。閲覧では契約・日付ごとに合計する。
 
 | カラム | 型 | NULL | キー | 説明 |
 | --- | --- | --- | --- | --- |
@@ -285,7 +285,7 @@ Hubが報告した契約の利用枠。メーターを表示する枠だけを�
 | limit_group | TEXT | 不可 | PK | 枠グループ名。名前が無いグループは空文字 |
 | date | TEXT | 不可 | PK | アプリを動かしているPCの現地日付（`YYYY-MM-DD`） |
 | plan | TEXT | 可 |  | その時点のプラン名（`plan_label`、空なら `account_label`）。どちらも無ければNULL |
-| monthly_limit_usd | REAL | 不可 |  | その日に最後に求まった月換算上限額（USD） |
+| monthly_limit_usd | REAL | 不可 |  | その日に最後に求まった枠グループの月換算上限額（USD） |
 | price_usd | REAL | 可 |  | 同じ時点で価格表から引いた月額。価格表にプランが無ければNULL |
 | recorded_at | TEXT | 不可 |  | 最後にこの行を書いた受信時刻。UTC の ISO 8601 |
 
@@ -302,7 +302,7 @@ Hubが報告した契約の利用枠。メーターを表示する枠だけを�
 - `latest_limit_windows` は Hub集約の `limits.providers` のうち、`showMeter` が真で `remainingPercent` が数値の枠から作ります。同じアカウントの同じ枠を複数のHubが報告した場合は Hub ごとに行を持ち、閲覧ではHubを選んで表示します。`window_minutes` は枠の `windowMinutes`（数値。無ければNULL）をそのまま保存します。`meter_changed_at` は更新前の行と残量が同じなら引き継ぎ、変わった場合と新規の場合は今回の受信時刻にします。
 - `latest_limit_windows` の1つ目の計測点は、更新前の行があり、受信時刻が更新前の行の `resets_at` より前（`resets_at` が無ければ条件なし）で、残量が前回以下なら引き継ぎます。`resets_at` の値は受信のたびに変わりうるため、値の一致では判定しません。新規の枠、受信時刻が更新前の行の `resets_at` を過ぎた場合、残量が増えた（使用率が減った）場合は、今回の受信時刻・残量を1つ目の計測点にし、同じトランザクションで、その枠の `limit_window_baseline_costs` を消して、今回の `latest_token_usages` の累計（allTime）のうち、枠の提供元と同じツールで推定コストのある端末×モデルの行から作り直します。
 - 閲覧では、枠のコストの範囲の決定と推定上限額を、[UCP-1](UCP-1.md) の純粋関数で求めます。入力は、同じHub・同じ提供元の `hub_accounts`・`latest_limit_windows`、現在の `latest_token_usages`（allTime）と、各枠の `limit_window_baseline_costs` です。コストの増分は、範囲に入る端末×モデルごとの「現在のコスト − 1つ目の計測点のコスト」の合計で、組ごとの増分は0を下限とし、1つ目の計測点にない組は0として扱います。推定上限額は `コストの増分 ÷ (base_remaining_percent − remaining_percent) × 100` で、残量の差が1ポイント未満か、コストの増分が0以下なら「推定中」（Estimating）、範囲を確定できなければ「N/A」とします。
-- `snapshot`・`stats` の保存では、ドメインモデルの更新と同じトランザクションで、当該Hubの枠の推定上限額を閲覧と同じ純粋関数で求め、契約×枠グループごとに月換算上限額を [UCP-1](UCP-1.md) の純粋関数で求めます。求まった製品は、受信時刻の現地日付の `daily_monthly_limits` の行を upsert し、`plan` と、価格表から引いた `price_usd` を同じ行に書きます。求まらない製品の行は変えません。`freshness` では記録しません。
+- `snapshot`・`stats` の保存では、ドメインモデルの更新と同じトランザクションで、当該Hubの枠の推定上限額を閲覧と同じ純粋関数で求め、契約×枠グループごとに月換算上限額を [UCP-1](UCP-1.md) の純粋関数で求めます。求まった枠グループは、受信時刻の現地日付の `daily_monthly_limits` の行を upsert し、`plan` と、価格表から引いた `price_usd` を同じ行に書きます。求まらない枠グループの行は変えません。`freshness` では記録しません。
 - 起動時に、Hubの登録の後、同梱の価格一覧を `plan_prices` へ適用します。行の無いプランは追加し、同梱の `updatedAt` が `updated_at` より新しいプランだけを上書きします。同梱の一覧に無いプランの行は消しません。
 - URLと認証トークンは保存しません。セッション、プロジェクト、月次履歴、トークンの内訳（キャッシュ・出力など）、アカウントのメールアドレス・氏名はドメインモデルに含めません（受信データには含まれます）。
 - `hubs` を参照する外部キー、`hub_accounts` を参照する外部キー、`latest_limit_windows` を参照する外部キーは連鎖削除を設けます。`devices` を参照する外部キー（`latest_token_usages`・`device_daily_model_usages`）は連鎖削除を設け、`accounts` を参照する外部キーには設けません。連鎖更新は設けません。スキーマ版0から1への移行で初期テーブルを作成し、版1から2への移行で `latest_limit_windows` を作り直します（既存の行は移さず、次の `snapshot`・`stats` で作り直します）。版2から3への移行で `latest_limit_windows` に `window_minutes` を追加します（既存の行はNULLのままで、次の `snapshot`・`stats` で値が入ります）。版3から4への移行で `daily_token_usages` を追加します。版4から5への移行で `device_daily_model_usages` を追加し、既存データは保持します。新しいテーブルは空の状態から始まり、同期の取り込みで行を作ります。版5から6への移行で `latest_limit_windows` を作り直し（`base_cost_usd`・`cost_usd` を持たず、外部キーを `hub_accounts` に付け替える。既存の行は移さない）、`hub_accounts` と `limit_window_baseline_costs` を作成します。次の `snapshot`・`stats` で、契約・枠・1つ目の計測点が作られます。版6から7への移行で `plan_prices` と `daily_monthly_limits` を空の状態で作成し、既存データは保持します。移行と版の更新は同一トランザクションで行います。

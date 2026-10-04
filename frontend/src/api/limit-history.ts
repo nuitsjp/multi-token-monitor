@@ -8,9 +8,6 @@ export type LimitHistoryDay = components['schemas']['LimitHistoryDayOutput'];
 export type LimitHistoryData = components['schemas']['LimitHistoryOutput'];
 
 export async function fetchLimitHistory(): Promise<LimitHistoryData> {
-  // 段階3の動作合意用。VITE_LIMITS_MOCK=1 のときだけ固定データを返す。
-  if (import.meta.env.VITE_LIMITS_MOCK === '1')
-    return (await import('./limits.mock.ts')).limitHistoryMock();
   const response = await fetch('/api/limit-history');
   if (!response.ok) throw new Error(`Unable to load usage limits (HTTP ${response.status}).`);
   return (await response.json()) as LimitHistoryData;
