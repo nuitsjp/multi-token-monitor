@@ -33,7 +33,7 @@
 | [利用状況を閲覧する](usecases/利用状況を閲覧する/README.md) | 利用者 | 登録したHubの最新利用状況を1画面で確認する | 2 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 | [Hub情報を表示する](usecases/Hub情報を表示する/README.md) | 利用者 | 選択したHubのモデル別利用量・推定コストの変遷とデバイス別利用状況・鮮度を確認する | 3 | [UCP-1](design/UCP-1.md)、[UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 | [モデル情報を表示する](usecases/モデル情報を表示する/README.md) | 利用者 | 全Hubまたは選択したHubのモデル別利用量・推定コストの変遷とモデル間の構成を、モデルを選びながら確認する | 4 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
-| [月換算上限額の推移を表示する](usecases/月換算上限額の推移を表示する/README.md) | 利用者 | 製品ごとの月換算上限額と、支払額に対する倍率の推移を確認し、製品どうしで比較する | 5 | [UCP-1](design/UCP-1.md)、[UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
+| [月換算上限額の推移を表示する](usecases/月換算上限額の推移を表示する/README.md) | 利用者 | 契約ごとの月換算上限額と、支払額に対する倍率の推移を確認し、契約どうしで比較する | 5 | [UCP-1](design/UCP-1.md)、[UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 | [デバイス情報を表示する](usecases/デバイス情報を表示する/README.md) | 利用者 | 全Hubまたは選択したHubのデバイス別利用量・推定コストの変遷とデバイス間の構成を、デバイスを選びながら確認する | 6 | [UCP-2](design/UCP-2.md)、[UCP-3](design/UCP-3.md) | 対象 |
 
 <a id="design"></a>
