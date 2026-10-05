@@ -323,7 +323,7 @@ base.describe(() => {
       expect((await request.get('/health')).status()).toBe(200);
       expect(beta.connected).toBe(1);
 
-      // --- 共通の受け入れ条件: URLと認証トークンをDBとログに含めない
+      // --- 共通の受け入れ条件: URLと認証トークンを登録情報（hubs）の外、通知、ログに含めない
       const secrets = [
         alpha.url,
         beta.url,
@@ -336,7 +336,7 @@ base.describe(() => {
       ];
       const tables = query<{ name: string }>(
         db,
-        "SELECT name FROM sqlite_master WHERE type = 'table'",
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name <> 'hubs'",
       );
       const dump = JSON.stringify(tables.map(({ name }) => query(db, `SELECT * FROM "${name}"`)));
       for (const secret of secrets) {

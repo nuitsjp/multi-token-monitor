@@ -2,7 +2,7 @@ using System.Text.Json;
 using Dapper;
 using MultiTokenMonitor.Features.HubSync;
 using MultiTokenMonitor.Features.Overview;
-using MultiTokenMonitor.Infrastructure.Configuration;
+using MultiTokenMonitor.Features.HubRegistration;
 using MultiTokenMonitor.Infrastructure.Persistence;
 using Shouldly;
 using Xunit;
@@ -331,30 +331,6 @@ public sealed class HubStateStoreLimitTests
             (await fixture.CountAsync("hub_accounts")).ShouldBe(0);
             (await fixture.CountAsync("latest_limit_windows")).ShouldBe(0);
         }
-
-        [Fact]
-        public async Task RemovingTheHub_DeletesAccountsWindowsAndBaselinesAsync()
-        {
-            // -------------------------------------------------------------
-            // Arrange
-            // -------------------------------------------------------------
-            using var fixture = await SavedHub.CreateAsync();
-            await fixture.SaveAsync(Start, [Provider("codex", "a", "d1", Window("weekly", "", 90, Resets))], [Device("d1", ("codex", "m", 1.0))]);
-
-            // -------------------------------------------------------------
-            // Act
-            // -------------------------------------------------------------
-            await HubStateStore.RegisterHubsAsync(
-                fixture.Database, [new HubConnection("other", "Other", new Uri("http://127.0.0.1"), "token")]);
-
-            // -------------------------------------------------------------
-            // Assert
-            // -------------------------------------------------------------
-            (await fixture.CountAsync("hub_accounts")).ShouldBe(0);
-            (await fixture.CountAsync("latest_limit_windows")).ShouldBe(0);
-            (await fixture.CountAsync("limit_window_baseline_costs")).ShouldBe(0);
-            (await fixture.CountAsync("accounts")).ShouldBe(0);
-        }
     }
 
     public sealed class EstimateFromSavedState
@@ -516,8 +492,8 @@ public sealed class HubStateStoreLimitTests
             var fixture = new SavedHub { };
             fixture.Database = new Database(Path.Combine(fixture.directory, "app.sqlite"));
             await fixture.Database.InitializeAsync();
-            await HubStateStore.RegisterHubsAsync(
-                fixture.Database, [new HubConnection("hub", "Hub", new Uri("http://127.0.0.1"), "token")]);
+            await HubRegistry.RegisterAsync(
+                fixture.Database, new HubConnection("hub", "Hub", new Uri("http://127.0.0.1"), "token"));
             return fixture;
         }
 

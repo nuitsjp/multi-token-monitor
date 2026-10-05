@@ -1,6 +1,9 @@
 using System.Text.Json;
 using System.Threading.Channels;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using MultiTokenMonitor.Features.HubRegistration;
+using MultiTokenMonitor.Features.HubSync;
 using MultiTokenMonitor.Features.Overview;
 using MultiTokenMonitor.Features.HubUsage;
 using MultiTokenMonitor.Features.LimitHistory;
@@ -24,9 +27,32 @@ internal static class ApiEndpoints
         app.MapGet("/api/limit-history", async ([FromServices] Database database) =>
                 TypedResults.Ok(await LimitHistoryQuery.ReadAsync(database)))
             .WithName("GetLimitHistory");
+        app.MapGet("/api/hubs", async ([FromServices] Database database) =>
+                TypedResults.Ok(await HubRegistry.ListAsync(database)))
+            .WithName("GetHubs");
+        app.MapPost("/api/hubs", AddHubAsync)
+            .WithName("AddHub");
         // SSEは型契約の対象にせず、合図の名前だけを画面と共有する。
         app.MapGet("/api/events", StreamEventsAsync)
             .ExcludeFromDescription();
+    }
+
+    // 保存の確定後に受信を開始し、閲覧側へ変更を通知する。認証トークンは応答に含めない。
+    private static async Task<Results<Created<HubRegistrationOutput>, ValidationProblem>> AddHubAsync(
+        AddHubInput input,
+        [FromServices] Database database,
+        [FromServices] HubReceivers receivers,
+        [FromServices] ChangeNotifications notifications)
+    {
+        var (errors, origin) = HubRegistry.Validate(input.Name, input.Url, input.Token);
+        if (errors.Count > 0) return TypedResults.ValidationProblem(errors);
+
+        var hub = await HubRegistry.AddAsync(database, input.Name!, origin!, input.Token!);
+        receivers.Start(hub);
+        notifications.Publish();
+        return TypedResults.Created(
+            $"/api/hubs/{hub.Id}",
+            new HubRegistrationOutput(hub.Id, hub.Name, hub.Origin.GetLeftPart(UriPartial.Authority), "notReceived"));
     }
 
     private static async Task StreamEventsAsync(

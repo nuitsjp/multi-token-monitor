@@ -102,6 +102,7 @@ describePart16.describe('view-device-usage', () => {
         'By model',
         'By device',
         'Usage limits',
+        'Settings',
       ]);
 
       await expect(menu.getByText('Devices', { exact: true })).toHaveCount(0);

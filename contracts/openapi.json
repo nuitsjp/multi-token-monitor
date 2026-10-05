@@ -84,6 +84,67 @@
           }
         }
       }
+    },
+    "/api/hubs": {
+      "get": {
+        "tags": [
+          "MultiTokenMonitor"
+        ],
+        "operationId": "GetHubs",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HubRegistrationOutput"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ApiEndpoints"
+        ],
+        "operationId": "AddHub",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddHubInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubRegistrationOutput"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -110,6 +171,28 @@
           }
         }
       },
+      "AddHubInput": {
+        "required": [
+          "name",
+          "url",
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "EstimateStatus": {
         "enum": [
           "estimated",
@@ -123,6 +206,64 @@
         ],
         "type": "object",
         "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "HubRegistrationOutput": {
+        "required": [
+          "hubId",
+          "name",
+          "url",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "hubId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
           "status": {
             "type": "string"
           }
@@ -642,6 +783,9 @@
   "tags": [
     {
       "name": "MultiTokenMonitor"
+    },
+    {
+      "name": "ApiEndpoints"
     }
   ]
 }

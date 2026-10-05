@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Dapper;
 using MultiTokenMonitor.Features.HubSync;
-using MultiTokenMonitor.Infrastructure.Configuration;
+using MultiTokenMonitor.Features.HubRegistration;
 using MultiTokenMonitor.Infrastructure.Persistence;
 using Shouldly;
 using Xunit;
@@ -71,8 +71,8 @@ public sealed class HubStateStoreTests
             var fixture = new SavedHub();
             fixture.database = new Database(Path.Combine(fixture.directory, "app.sqlite"));
             await fixture.database.InitializeAsync();
-            await HubStateStore.RegisterHubsAsync(
-                fixture.database, [new HubConnection("hub", "Hub", new Uri("http://127.0.0.1"), "token")]);
+            await HubRegistry.RegisterAsync(
+                fixture.database, new HubConnection("hub", "Hub", new Uri("http://127.0.0.1"), "token"));
             return fixture;
         }
 

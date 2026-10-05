@@ -2,42 +2,12 @@ using System.Globalization;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using MultiTokenMonitor.Features.LimitHistory;
-using MultiTokenMonitor.Infrastructure.Configuration;
 using MultiTokenMonitor.Infrastructure.Persistence;
 
 namespace MultiTokenMonitor.Features.HubSync;
 
 internal static class HubStateStore
 {
-    // 同じIDは表示名を更新して受信状態を受信中に戻す。設定から外れたHubはその行ごと削除し、削除したIDを返す。
-    internal static async Task<IReadOnlyList<string>> RegisterHubsAsync(Database database, IReadOnlyList<HubConnection> hubs)
-    {
-        IReadOnlyList<string> removed = [];
-        await database.InTransactionAsync(async connection =>
-        {
-            await connection.ExecuteAsync(
-                """
-                INSERT INTO hubs (hub_id, name, connected)
-                VALUES (@Id, @Name, 1)
-                ON CONFLICT (hub_id) DO UPDATE SET name = excluded.name, connected = 1
-                """,
-                hubs.Select(hub => new { hub.Id, hub.Name }));
-            var ids = hubs.Select(hub => hub.Id).ToArray();
-            removed = (await connection.QueryAsync<string>(
-                "SELECT hub_id FROM hubs WHERE hub_id NOT IN @ids ORDER BY hub_id", new { ids })).AsList();
-            // Hubの行を消すと、受信データとドメインモデルの行も連鎖して消える。
-            await connection.ExecuteAsync("DELETE FROM hubs WHERE hub_id IN @removed", new { removed });
-            await connection.ExecuteAsync(
-                """
-                DELETE FROM accounts
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM hub_accounts a
-                    WHERE a.provider = accounts.provider AND a.account_key = accounts.account_key)
-                """);
-        });
-        return removed;
-    }
-
     internal static Task MarkReconnectingAsync(Database database, string hubId) =>
         database.InTransactionAsync(connection => connection.ExecuteAsync(
             "UPDATE hubs SET connected = 0 WHERE hub_id = @hubId", new { hubId }));
