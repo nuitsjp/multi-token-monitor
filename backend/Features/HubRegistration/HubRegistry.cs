@@ -61,15 +61,15 @@ internal static class HubRegistry
         (await database.InReadTransactionAsync(connection => connection.QueryAsync<ListRow>(
             """
             SELECT h.hub_id AS HubId, h.name AS Name, h.url AS Url, h.connected AS Connected,
-                   s.hub_id IS NOT NULL AS Received
+                   s.hub_id AS ReceivedHubId
             FROM hubs h LEFT JOIN hub_states s USING (hub_id)
             ORDER BY h.rowid
             """)))
         .Select(row => new HubRegistrationOutput(
             row.HubId, row.Name, row.Url,
-            row.Connected == 0 ? "reconnecting" : row.Received != 0 ? "connected" : "notReceived"))
+            row.Connected == 0 ? "reconnecting" : row.ReceivedHubId is not null ? "connected" : "notReceived"))
         .ToList();
 
     private sealed record ConnectionRow(string Id, string Name, string Url, string Token);
-    private sealed record ListRow(string HubId, string Name, string Url, long Connected, long Received);
+    private sealed record ListRow(string HubId, string Name, string Url, long Connected, string? ReceivedHubId);
 }

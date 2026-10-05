@@ -66,6 +66,15 @@ public sealed class HubRegistryTests
     public sealed class Storage
     {
         [Fact]
+        public async Task NoHubs_AreListedAsEmptyAsync()
+        {
+            using var fixture = await Fixture.CreateAsync();
+
+            (await HubRegistry.ListAsync(fixture.Database)).ShouldBeEmpty();
+            (await HubRegistry.LoadConnectionsAsync(fixture.Database)).ShouldBeEmpty();
+        }
+
+        [Fact]
         public async Task AddedHubs_AreListedInRegistrationOrderWithoutTokenAsync()
         {
             using var fixture = await Fixture.CreateAsync();
