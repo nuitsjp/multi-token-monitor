@@ -89,6 +89,9 @@ export function Settings() {
           </ul>
         )}
         <form className="settings-form" onSubmit={submit} noValidate aria-label="Add hub">
+          <Title order={3} fz={15} fw={500}>
+            Add hub
+          </Title>
           <TextInput
             label="Name"
             value={form.name}
