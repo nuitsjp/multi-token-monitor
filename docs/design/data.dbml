@@ -6,8 +6,8 @@ Table hubs {
   Note: '情報の提供元であるHub。利用者が設定画面から登録し、状態を受信する前から存在する。登録順は行の登録順（rowid）で表す。'
   hub_id text [not null, pk, note: '登録時にアプリケーションが採番する不変の識別子（UUID）']
   name text [not null, note: '利用者が登録する表示名。一意制約は設けない']
-  url text [not null, note: '接続先のURL（`http(s)://ホスト[:ポート]`）。設定画面にだけ返し、閲覧用API・ログ・通知には含めない']
-  token text [not null, note: '接続の認証トークン。平文で保存し、API応答・画面・ログ・通知には含めない']
+  url text [not null, note: '接続先のURL（`http(s)://ホスト[:ポート]`）。設定画面にだけ返し、閲覧用API・ログ・通知には含めない。移行前から存在するHubは空文字']
+  token text [not null, note: '接続の認証トークン。平文で保存し、API応答・画面・ログ・通知には含めない。移行前から存在するHubは空文字']
   connected boolean [not null, note: '受信状態が「受信中」なら1、「再接続中」なら0']
 }
 
