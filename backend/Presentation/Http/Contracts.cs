@@ -4,6 +4,11 @@ namespace MultiTokenMonitor.Presentation.Http;
 
 internal sealed record HealthOutput(string Status);
 
+/// <summary>設定画面に表示する登録済みのHub。認証トークンは含めない。Status は reconnecting・notReceived・connected。</summary>
+internal sealed record HubRegistrationOutput(string HubId, string Name, string Url, string Status);
+
+internal sealed record AddHubInput(string? Name, string? Url, string? Token);
+
 internal sealed record HubUsageDataOutput(string Today, IReadOnlyList<HubUsageHubOutput> Hubs);
 
 internal sealed record HubUsageHubOutput(

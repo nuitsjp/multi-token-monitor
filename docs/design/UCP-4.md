@@ -1,13 +1,13 @@
 # UCP-4. 画面から登録したHubをDBへ保存し、受信へ反映する
 
-適用条件と関与コンテナは [アーキテクチャの一覧](../architecture.md#patterns) を参照します。図は主成功系列を役割名で示し、UC 固有の逸脱は本書へ記録します。受信と保存は [UCP-1](UCP-1.md)、保存確定の通知と取得し直しは [UCP-3](UCP-3.md) をそのまま使います。実装パスは実装フェーズで記録します。
+適用条件と関与コンテナは [アーキテクチャの一覧](../architecture.md#patterns) を参照します。図は主成功系列を役割名で示し、UC 固有の逸脱は本書へ記録します。受信と保存は [UCP-1](UCP-1.md)、保存確定の通知と取得し直しは [UCP-3](UCP-3.md) をそのまま使います。
 
 | 役割 | 責務 | 実装パス |
 | --- | --- | --- |
-| 設定画面 | `/settings` で登録済みHubの一覧と追加フォームを表示する。Add hub を押したときに入力を検証し、該当した項目のそばにメッセージを示す。認証トークンは送信後に画面へ戻さない | 実装フェーズで記録 |
-| Hub管理API | Hub一覧の取得と追加を受け付ける。Hostヘッダーをループバックの名前に限定する。入力を設定画面と同じ規則で再検証し、不正な入力は保存せず項目ごとの理由を返す。応答に認証トークンを含めない | 実装フェーズで記録 |
-| Hub登録の保存処理 | IDを採番して表示名・URL・認証トークンを `hubs` へ保存する。保存の COMMIT 完了後に受信管理へ追加を伝え、変更を発行する | 実装フェーズで記録 |
-| 受信管理 | 起動時にDBの全Hubへ、追加の通知を受けたときは追加されたHubへ、Hub受信処理を開始する。Hubごとの受信は独立して動く | 実装フェーズで記録 |
+| 設定画面 | `/settings` で登録済みHubの一覧を表示し、追加のポップアップで入力を受ける。Add hub を押したときに入力を検証し、該当した項目のそばにメッセージを示す。一覧は変更の通知（[UCP-3](UCP-3.md)）を受けるたびに取り直し、認証トークンは送信後に画面へ戻さない | `frontend/src/routes/settings.tsx`、`frontend/src/api/hubs.ts`、`frontend/src/hub-form.ts` |
+| Hub管理API | `GET /api/hubs`（一覧）と `POST /api/hubs`（追加）を受け付ける。Hostヘッダーをループバックの名前に限定する。入力を設定画面と同じ規則で再検証し、不正な入力は保存せず400で項目ごとの理由を返す。応答に認証トークンを含めない | `backend/Presentation/Http/ApiEndpoints.cs`、`backend/Presentation/Http/Contracts.cs` |
+| Hub登録の保存処理 | 入力の検証、IDの採番、表示名・URL・認証トークンの `hubs` への保存、一覧の読み取りを行う。保存の COMMIT 完了後にAPIが受信管理へ追加を伝え、変更を発行する | `backend/Features/HubRegistration/HubRegistry.cs`、`backend/Infrastructure/Persistence/Migrations/008-hub-connection.sql` |
+| 受信管理 | 起動時にDBの接続情報を持つ全Hubへ、追加されたときは追加されたHubへ、Hub受信処理を開始する。Hubごとの受信は独立して動く | `backend/Features/HubSync/HubReceivers.cs`、`backend/Hosting/AppHost.cs` |
 
 ```mermaid
 sequenceDiagram
@@ -29,7 +29,7 @@ sequenceDiagram
 ```
 
 - 整合性: 状態更新の主体はHub登録の保存処理 / 結果確定点は COMMIT 完了 / 障害時の停止・継続は、保存に失敗したときは受信を変えずに失敗を返し、受信の開始に失敗しても当該Hubだけを再接続の対象とし、他のHubとWebサーバーを維持する / 境界は、COMMIT 前に受信を開始しないことと、認証トークンを応答・ログ・通知に出さないこと。
-- モックに置き換える境界と合成点: モック確認では画面側のHub管理APIを呼ぶ関数1箇所を合成点とし、登録済みのHubの固定表と、追加の成功を返す。実装フェーズで固定データを削除する。検証では外部のHubを制御可能なSSEサーバーに置き換え、追加のURLをそこへ向けて、本番の保存・受信処理を通す。
+- モックに置き換える境界と合成点: モック確認では合成点を `frontend/src/api/hubs.ts` の1箇所に置き、実装で固定データを削除してHub管理APIの呼び出しに置き換えた。検証では外部のHubを制御可能なSSEサーバーに置き換え、追加のURLをそこへ向けて、本番の保存・受信処理を通す。
 
 ## 保存と変換の規則
 

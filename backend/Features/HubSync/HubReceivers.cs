@@ -2,15 +2,15 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using MultiTokenMonitor.Infrastructure.Configuration;
+using MultiTokenMonitor.Features.HubRegistration;
 using MultiTokenMonitor.Infrastructure.Notifications;
 using MultiTokenMonitor.Infrastructure.Persistence;
 
 namespace MultiTokenMonitor.Features.HubSync;
 
 // Hubごとに独立したSSE受信を動かす。あるHubの失敗はそのHubだけを再接続させる。
+// 起動時にDBへ登録済みのHubの受信を開始し、登録されたHubは Start で再起動なしに受信を開始する。
 internal sealed class HubReceivers(
-    IReadOnlyList<HubConnection> hubs,
     Database database,
     ChangeNotifications notifications,
     ILogger<HubReceivers> logger,
@@ -21,8 +21,49 @@ internal sealed class HubReceivers(
         Timeout = Timeout.InfiniteTimeSpan,
     };
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
-        Task.WhenAll(hubs.Select(hub => Task.Run(() => ReceiveAsync(hub, stoppingToken), CancellationToken.None)));
+    private readonly object gate = new();
+    private readonly List<Task> receiving = [];
+    private CancellationToken stopping;
+    private bool running;
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var hubs = await HubRegistry.LoadConnectionsAsync(database);
+        lock (gate)
+        {
+            stopping = stoppingToken;
+            running = true;
+        }
+
+        foreach (var hub in hubs) Start(hub);
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // 終了要求。受信の終了を待つ。
+        }
+
+        Task[] tasks;
+        lock (gate)
+        {
+            running = false;
+            tasks = [.. receiving];
+        }
+
+        await Task.WhenAll(tasks);
+    }
+
+    // Hubごとの受信を開始する。終了要求の後は開始しない。
+    internal void Start(HubConnection hub)
+    {
+        lock (gate)
+        {
+            if (!running) return;
+            receiving.Add(Task.Run(() => ReceiveAsync(hub, stopping), CancellationToken.None));
+        }
+    }
 
     public override void Dispose()
     {
@@ -40,7 +81,7 @@ internal sealed class HubReceivers(
     // 受信が止まった理由を問わず、待ち時間を倍にしながら上限なく再接続する。
     private async Task ReceiveAsync(HubConnection hub, CancellationToken stoppingToken)
     {
-        // 起動時の登録で受信中に戻っている。
+        // 起動時または登録時に受信中になっている。
         var connected = true;
         var delay = FirstRetryDelay;
         while (true)

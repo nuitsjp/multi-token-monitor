@@ -18,7 +18,7 @@ public sealed class HubUsageQueryTests
             await database.InitializeAsync();
             await database.InTransactionAsync(connection => connection.ExecuteAsync(
                 """
-                INSERT INTO hubs VALUES ('first', 'Z Hub', 1), ('second', 'A Hub', 0);
+                INSERT INTO hubs (hub_id, name, connected) VALUES ('first', 'Z Hub', 1), ('second', 'A Hub', 0);
                 INSERT INTO hub_states VALUES ('first', 'not-json-secret', '2026-10-03T03:42:00Z');
                 INSERT INTO devices VALUES ('first', 'desktop', 'Desktop', 'Windows 11', '2026-10-03T03:41:00Z', 0),
                                            ('first', 'no-history', 'Laptop', NULL, '2026-10-03T01:00:00Z', 1);

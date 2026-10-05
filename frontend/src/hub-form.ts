@@ -5,10 +5,10 @@ export type HubInputErrors = Partial<Record<keyof HubInput, string>>;
 export function validateHubInput(input: HubInput): HubInputErrors {
   const errors: HubInputErrors = {};
   if (input.name.trim() === '') errors.name = 'Enter a name.';
-  if (!/^https?:\/\/[^\s/?#@]+$/i.test(input.url.trim()))
+  if (!/^https?:\/\/[^\s/?#@]+\/?$/i.test(input.url.trim()))
     errors.url = 'Enter a URL like http(s)://host[:port].';
   // eslint-disable-next-line no-control-regex
-  if (input.token === '' || /[\u0000-\u001f\u007f]/.test(input.token))
+  if (input.token.trim() === '' || /[\u0000-\u001f\u007f]/.test(input.token.trim()))
     errors.token = 'Enter a valid token.';
   return errors;
 }

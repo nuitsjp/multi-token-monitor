@@ -12,7 +12,14 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { addHub, fetchHubs, type HubStatus, type RegisteredHub } from '../api/hubs.ts';
+import {
+  addHub,
+  fetchHubs,
+  HubInputRejected,
+  type HubStatus,
+  type RegisteredHub,
+} from '../api/hubs.ts';
+import { useOverview } from '../app/overview.tsx';
 import { MenuIcon } from '../components/MenuIcon.tsx';
 import { validateHubInput, type HubInputErrors } from '../hub-form.ts';
 
@@ -35,16 +42,34 @@ export function Settings() {
     setErrors({});
     setAdding(true);
   };
-  const refresh = () =>
-    fetchHubs().then(setHubs, (reason: unknown) =>
-      setError(reason instanceof Error ? reason.message : String(reason)),
-    );
+  const { subscribeNotifications } = useOverview();
   useEffect(() => {
-    void refresh();
-    // 受信状態の変化を反映するため定期的に取得し直す（実装では保存の通知で取得し直す）。
-    const timer = setInterval(() => void refresh(), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    // 取得が重なったときは、最後に始めた取得の結果だけを表示する。
+    let latest = 0;
+    let active = true;
+    const refresh = () => {
+      const request = ++latest;
+      void fetchHubs().then(
+        (value) => {
+          if (!active || request !== latest) return;
+          setHubs(value);
+          setError(undefined);
+        },
+        (reason: unknown) => {
+          if (active && request === latest)
+            setError(reason instanceof Error ? reason.message : String(reason));
+        },
+      );
+    };
+    const unsubscribe = subscribeNotifications((notification) => {
+      if (notification.type === 'changed') refresh();
+    });
+    refresh();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [subscribeNotifications]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -52,11 +77,11 @@ export function Settings() {
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     void addHub(form).then(
-      () => {
-        setAdding(false);
-        return refresh();
+      () => setAdding(false),
+      (reason: unknown) => {
+        if (reason instanceof HubInputRejected) setErrors(reason.errors);
+        else setError(reason instanceof Error ? reason.message : String(reason));
       },
-      (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)),
     );
   };
 
@@ -114,8 +139,8 @@ export function Settings() {
                 <Text size="sm" c="dimmed">
                   {hub.url}
                 </Text>
-                <Text size="xs" c={statusView[hub.status].color}>
-                  ● {statusView[hub.status].label}
+                <Text size="xs" c={statusView[hub.status as HubStatus].color}>
+                  ● {statusView[hub.status as HubStatus].label}
                 </Text>
               </li>
             ))}

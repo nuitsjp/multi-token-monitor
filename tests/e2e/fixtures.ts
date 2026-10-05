@@ -1,6 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -24,17 +25,37 @@ export interface IsolatedApp {
   output: string;
   /** サーバーに通常終了を依頼し、終了を待つ。 */
   stop(): Promise<void>;
-  /** 停止したサーバーを同じDBと設定で起動し直す。 */
+  /** 停止したサーバーを同じDBで起動し直す。 */
   start(): Promise<void>;
-  /** 次の起動で読むHub接続設定を書き換える。 */
-  writeHubs(hubs: HubConfigEntry[]): Promise<void>;
 }
 
+/** 起動前にDBへ登録しておくHub。 */
 export interface HubConfigEntry {
   id: string;
   name: string;
   url: string;
   token: string;
+}
+
+const migrationsDirectory = resolve('backend/Infrastructure/Persistence/Migrations');
+
+/** サーバーの起動前に、移行を適用した新しいDBへHubを登録する。サーバーは同じ版のDBをそのまま使う。 */
+async function seedHubs(databasePath: string, hubs: HubConfigEntry[]) {
+  const migrations = (await readdir(migrationsDirectory))
+    .filter((name) => name.endsWith('.sql'))
+    .sort();
+  const database = new DatabaseSync(databasePath);
+  try {
+    for (const name of migrations)
+      database.exec(await readFile(join(migrationsDirectory, name), 'utf8'));
+    database.exec(`PRAGMA user_version = ${migrations.length}`);
+    const insert = database.prepare(
+      'INSERT INTO hubs (hub_id, name, url, token, connected) VALUES (?, ?, ?, ?, 1)',
+    );
+    for (const hub of hubs) insert.run(hub.id, hub.name, hub.url, hub.token);
+  } finally {
+    database.close();
+  }
 }
 
 type ProxyEntry = { target?: string };
@@ -113,14 +134,13 @@ export const test = base.extend<
   ],
   serveFrontend: [true, { option: true }],
   retryTimeScale: [1, { option: true }],
-  // 利用者のHub接続設定を読まないよう、既定では接続先のない専用設定を渡す。
+  // 利用者のHubを読まないよう、既定では接続先のない専用のHubを登録する。
   hubs: [[{ id: 'e2e', name: 'E2E', url: 'http://127.0.0.1:9', token: 'e2e' }], { option: true }],
   app: async ({ serveFrontend, hubs, retryTimeScale, sharedVite }, use, testInfo) => {
     // worker番号だけでなくmkdtempで分けるので、再試行・shard・複数コマンド同時実行でも衝突しない。
     const directory = await mkdtemp(join(tmpdir(), `aidd-e2e-${mode}-w${testInfo.workerIndex}-`));
     const databasePath = join(directory, 'app.sqlite');
-    const hubConfigPath = join(directory, 'hubs.json');
-    await writeFile(hubConfigPath, JSON.stringify({ hubs }));
+    await seedHubs(databasePath, hubs);
     let child: ChildProcess | undefined;
     let vite: ViteDevServer | undefined;
     let output = '';
@@ -190,7 +210,6 @@ export const test = base.extend<
           HOST: '127.0.0.1',
           PORT: '0',
           DB_PATH: databasePath,
-          HUB_CONFIG_PATH: hubConfigPath,
           HUB_RETRY_TIME_SCALE: String(retryTimeScale),
           AIDD_CONTROL_STDIN: '1',
           Logging__LogLevel__Default: 'Warning',
@@ -266,8 +285,6 @@ export const test = base.extend<
       },
       stop,
       start,
-      writeHubs: (next: HubConfigEntry[]) =>
-        writeFile(hubConfigPath, JSON.stringify({ hubs: next })),
     };
     try {
       await start();

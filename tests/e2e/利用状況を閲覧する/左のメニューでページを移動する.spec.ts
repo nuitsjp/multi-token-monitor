@@ -13,6 +13,7 @@ test('メニューから各閲覧ページへ移動する', async ({ page, app }
       'By model',
       'By device',
       'Usage limits',
+      'Settings',
     ]);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Home');
   });

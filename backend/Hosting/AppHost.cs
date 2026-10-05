@@ -1,3 +1,4 @@
+using MultiTokenMonitor.Features.HubRegistration;
 using MultiTokenMonitor.Features.HubSync;
 using MultiTokenMonitor.Features.LimitHistory;
 using MultiTokenMonitor.Infrastructure.Configuration;
@@ -37,29 +38,25 @@ internal static class AppHost
     internal static async Task<WebApplication> BuildAppAsync(AppConfig config, bool initializeDatabase = true)
     {
         var builder = config.CreateWebApplicationBuilder();
-        IReadOnlyList<string> removedHubs = [];
         if (initializeDatabase)
         {
-            // 接続設定とDBを準備し、全Hubを登録してから受信を開始する。
-            var hubs = HubConfigFile.Read(config.HubConfigPath);
+            // DBを準備し、登録済みのHubの受信状態を整えてから受信を開始する。
             var database = new Database(config.DatabasePath);
             await database.InitializeAsync();
-            removedHubs = await HubStateStore.RegisterHubsAsync(database, hubs);
+            await HubRegistry.ResetReceiveStatusAsync(database);
             await LimitHistoryStore.ApplyBundledPricesAsync(database);
             builder.Services.AddSingleton(database);
             builder.Services.AddSingleton<ChangeNotifications>();
-            builder.Services.AddHostedService(services => new HubReceivers(
-                hubs,
+            builder.Services.AddSingleton(services => new HubReceivers(
                 database,
                 services.GetRequiredService<ChangeNotifications>(),
                 services.GetRequiredService<ILogger<HubReceivers>>(),
                 config.RetryTimeScale));
+            builder.Services.AddHostedService(services => services.GetRequiredService<HubReceivers>());
         }
 
         var contractSources = builder.AddHttpPresentation(exportOpenApi: !initializeDatabase);
         var app = builder.Build();
-        foreach (var hubId in removedHubs)
-            app.Logger.LogWarning("設定から外したHubを削除しました。HubId={HubId}", hubId);
         app.UseHttpPresentation(config, contractSources);
         return app;
     }

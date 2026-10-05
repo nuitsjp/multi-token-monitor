@@ -1,35 +1,39 @@
-import type { HubInput } from '../hub-form.ts';
+import type { components } from '../../../contracts/api.gen.ts';
+import type { HubInput, HubInputErrors } from '../hub-form.ts';
 
-export type HubStatus = 'connected' | 'notReceived' | 'reconnecting';
 // 認証トークンは含めない。
-export type RegisteredHub = { hubId: string; name: string; url: string; status: HubStatus };
+export type RegisteredHub = components['schemas']['HubRegistrationOutput'];
+export type HubStatus = 'connected' | 'notReceived' | 'reconnecting';
 
-// モック確認用の合成点。実装フェーズで Hub管理API（GET・POST /api/hubs）の呼び出しに置き換え、固定表を削除する。
-// ?hubs=none で登録済みのHubが0件の状態から始める。
-const hubs: RegisteredHub[] =
-  new URLSearchParams(location.search).get('hubs') === 'none'
-    ? []
-    : [
-        { hubId: 'hub-1', name: 'Personal', url: 'https://hub.example.com', status: 'connected' },
-        { hubId: 'hub-2', name: 'Work', url: 'http://10.0.0.5:8080', status: 'reconnecting' },
-      ];
-let sequence = hubs.length;
+// サーバーが入力を拒んだとき、項目ごとのメッセージを持つ。
+export class HubInputRejected extends Error {
+  constructor(readonly errors: HubInputErrors) {
+    super('The hub was not saved.');
+  }
+}
 
 export async function fetchHubs(): Promise<RegisteredHub[]> {
-  return hubs.map((hub) => ({ ...hub }));
+  const response = await fetch('/api/hubs');
+  if (!response.ok) throw new Error(`Unable to load hubs (HTTP ${response.status}).`);
+  return (await response.json()) as RegisteredHub[];
 }
 
 export async function addHub(input: HubInput): Promise<RegisteredHub> {
-  const hub: RegisteredHub = {
-    hubId: `hub-${++sequence}`,
-    name: input.name.trim(),
-    url: input.url.trim(),
-    status: 'notReceived',
-  };
-  hubs.push(hub);
-  // 最初の全体状態を受けて Connected になる流れを再現する。
-  setTimeout(() => {
-    hub.status = 'connected';
-  }, 2000);
-  return { ...hub };
+  const response = await fetch('/api/hubs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (response.status === 400) {
+    const problem =
+      (await response.json()) as components['schemas']['HttpValidationProblemDetails'];
+    const errors = problem.errors ?? {};
+    throw new HubInputRejected({
+      name: errors.name?.[0],
+      url: errors.url?.[0],
+      token: errors.token?.[0],
+    });
+  }
+  if (!response.ok) throw new Error(`Unable to save the hub (HTTP ${response.status}).`);
+  return (await response.json()) as RegisteredHub;
 }

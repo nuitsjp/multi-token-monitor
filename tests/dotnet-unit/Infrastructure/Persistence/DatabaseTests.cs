@@ -75,7 +75,7 @@ public sealed class DatabaseTests
             // Assert
             // -------------------------------------------------------------
             await using var connection = await fixture.Database.OpenAsync();
-            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(7);
+            (await connection.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(8);
             (await connection.ExecuteScalarAsync<string>("PRAGMA journal_mode")).ShouldBe("wal");
         }
 
@@ -121,6 +121,8 @@ public sealed class DatabaseTests
                 // 版5の利用枠（コストを列に持つ）に戻して、行を1つ入れる。
                 await connection.ExecuteAsync(
                     """
+                    ALTER TABLE hubs DROP COLUMN url;
+                    ALTER TABLE hubs DROP COLUMN token;
                     DROP TABLE daily_monthly_limits;
                     DROP TABLE plan_prices;
                     DROP TABLE limit_window_baseline_costs;
@@ -162,11 +164,47 @@ public sealed class DatabaseTests
             // Assert
             // -------------------------------------------------------------
             await using var migrated = await fixture.Database.OpenAsync();
-            (await migrated.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(7);
+            (await migrated.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(8);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM latest_limit_windows")).ShouldBe(0);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM hubs")).ShouldBe(1);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM accounts")).ShouldBe(1);
             (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM hub_accounts")).ShouldBe(0);
+        }
+
+        [Fact]
+        public async Task VersionSevenFile_AddsEmptyHubConnectionAndKeepsTheHubAsync()
+        {
+            // -------------------------------------------------------------
+            // Arrange
+            // -------------------------------------------------------------
+            using var fixture = TemporaryDatabase.Create();
+            await fixture.Database.InitializeAsync();
+            await using (var connection = await fixture.Database.OpenAsync())
+            {
+                // 版7（URL・認証トークンの列がない）に戻して、Hubを1つ入れる。
+                await connection.ExecuteAsync(
+                    """
+                    ALTER TABLE hubs DROP COLUMN url;
+                    ALTER TABLE hubs DROP COLUMN token;
+                    INSERT INTO hubs (hub_id, name, connected) VALUES ('hub', 'Hub', 1);
+                    INSERT INTO daily_token_usages (hub_id, date, tokens, cost_usd) VALUES ('hub', '2026-10-01', 5, NULL);
+                    PRAGMA user_version = 7;
+                    """);
+            }
+
+            // -------------------------------------------------------------
+            // Act
+            // -------------------------------------------------------------
+            await fixture.Database.InitializeAsync();
+
+            // -------------------------------------------------------------
+            // Assert
+            // -------------------------------------------------------------
+            await using var migrated = await fixture.Database.OpenAsync();
+            (await migrated.ExecuteScalarAsync<int>("PRAGMA user_version")).ShouldBe(8);
+            (await migrated.QuerySingleAsync<(string Url, string Token)>("SELECT url, token FROM hubs WHERE hub_id = 'hub'"))
+                .ShouldBe(("", ""));
+            (await migrated.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM daily_token_usages")).ShouldBe(1);
         }
 
         [Fact]
@@ -272,7 +310,7 @@ public sealed class DatabaseTests
             // -------------------------------------------------------------
             // Assert
             // -------------------------------------------------------------
-            result.Version.ShouldBe(7);
+            result.Version.ShouldBe(8);
             result.IsHealthy.ShouldBeTrue();
         }
     }
