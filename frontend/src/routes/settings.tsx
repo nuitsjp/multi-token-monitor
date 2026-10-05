@@ -37,8 +37,9 @@ export function Settings() {
   const [error, setError] = useState<string>();
   const [form, setForm] = useState({ name: '', url: '', token: '' });
   const [errors, setErrors] = useState<HubInputErrors>({});
-  // 追加のときは 'add'、変更のときは対象のHub。閉じているときは undefined。
-  const [dialog, setDialog] = useState<'add' | RegisteredHub>();
+  // 追加のときは 'add'、変更のときは対象のHub。閉じる動作の間も見出しを保つため、閉じても値は残す。
+  const [dialog, setDialog] = useState<'add' | RegisteredHub>('add');
+  const [opened, setOpened] = useState(false);
   const [saving, setSaving] = useState(false);
   const open = (target: 'add' | RegisteredHub) => {
     setForm(
@@ -48,6 +49,7 @@ export function Settings() {
     );
     setErrors({});
     setDialog(target);
+    setOpened(true);
   };
   const { subscribeNotifications } = useOverview();
   useEffect(() => {
@@ -72,17 +74,15 @@ export function Settings() {
       if (notification.type === 'changed') refresh();
     });
     refresh();
-    window.addEventListener('mock-hubs-changed', refresh);
     return () => {
       active = false;
-      window.removeEventListener('mock-hubs-changed', refresh);
       unsubscribe();
     };
   }, [subscribeNotifications]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (dialog === undefined || saving) return;
+    if (saving) return;
     const found = validateHubInput(form, { tokenOptional: dialog !== 'add' });
     setErrors(found);
     if (Object.keys(found).length > 0) return;
@@ -90,7 +90,7 @@ export function Settings() {
     void (dialog === 'add' ? addHub(form) : updateHub(dialog.hubId, form)).then(
       () => {
         setSaving(false);
-        setDialog(undefined);
+        setOpened(false);
       },
       (reason: unknown) => {
         setSaving(false);
@@ -188,8 +188,8 @@ export function Settings() {
         )}
       </section>
       <Modal
-        opened={dialog !== undefined}
-        onClose={() => setDialog(undefined)}
+        opened={opened}
+        onClose={() => setOpened(false)}
         title={dialog === 'add' ? 'Add hub' : 'Edit hub'}
         centered
       >

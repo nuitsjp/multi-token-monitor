@@ -21,8 +21,10 @@ internal sealed class HubReceivers(
         Timeout = Timeout.InfiniteTimeSpan,
     };
 
+    private sealed record Receiving(CancellationTokenSource Cancellation, Task Task);
+
     private readonly object gate = new();
-    private readonly List<Task> receiving = [];
+    private readonly Dictionary<string, Receiving> receiving = [];
     private CancellationToken stopping;
     private bool running;
 
@@ -49,7 +51,7 @@ internal sealed class HubReceivers(
         lock (gate)
         {
             running = false;
-            tasks = [.. receiving];
+            tasks = [.. receiving.Values.Select(entry => entry.Task)];
         }
 
         await Task.WhenAll(tasks);
@@ -61,8 +63,30 @@ internal sealed class HubReceivers(
         lock (gate)
         {
             if (!running) return;
-            receiving.Add(Task.Run(() => ReceiveAsync(hub, stopping), CancellationToken.None));
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stopping);
+            receiving[hub.Id] = new Receiving(
+                cancellation,
+                Task.Run(() => ReceiveAsync(hub, cancellation.Token), CancellationToken.None));
         }
+    }
+
+    // 接続情報を変更したHubの受信を、変更前の受信の終了を待ってから、変更後の接続情報で開始し直す。
+    internal async Task RestartAsync(HubConnection hub)
+    {
+        Receiving? previous;
+        lock (gate)
+        {
+            receiving.Remove(hub.Id, out previous);
+        }
+
+        if (previous is not null)
+        {
+            await previous.Cancellation.CancelAsync();
+            await previous.Task;
+            previous.Cancellation.Dispose();
+        }
+
+        Start(hub);
     }
 
     public override void Dispose()

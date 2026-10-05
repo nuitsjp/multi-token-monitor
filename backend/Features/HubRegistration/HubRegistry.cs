@@ -6,6 +6,8 @@ namespace MultiTokenMonitor.Features.HubRegistration;
 
 internal sealed record HubConnection(string Id, string Name, Uri Origin, string Token);
 
+internal sealed record StoredHub(string Id, string Name, string Url, string Token);
+
 // 利用者が設定画面から登録したHubの接続情報をDBで管理する。認証トークンは一覧へ返さない。
 internal static class HubRegistry
 {
@@ -36,6 +38,21 @@ internal static class HubRegistry
         return hub;
     }
 
+    // 登録済みの接続情報を読む。存在しなければ null。移行前から存在するHubは Url・Token が空。
+    internal static Task<StoredHub?> FindAsync(Database database, string hubId) =>
+        database.InReadTransactionAsync(connection => connection.QuerySingleOrDefaultAsync<StoredHub>(
+            "SELECT hub_id AS Id, name AS Name, url AS Url, token AS Token FROM hubs WHERE hub_id = @hubId", new { hubId }));
+
+    // 表示名・URL・認証トークンを更新する。接続情報が変わるときは、新しい受信が始まるまで受信中として扱う。
+    internal static Task UpdateAsync(Database database, HubConnection hub, bool connectionChanged) =>
+        database.InTransactionAsync(connection => connection.ExecuteAsync(
+            """
+            UPDATE hubs SET name = @Name, url = @Url, token = @Token,
+                connected = CASE WHEN @ConnectionChanged THEN 1 ELSE connected END
+            WHERE hub_id = @Id
+            """,
+            new { hub.Id, hub.Name, Url = hub.Origin.GetLeftPart(UriPartial.Authority), hub.Token, ConnectionChanged = connectionChanged }));
+
     // 受信中として登録する。登録順は行の登録順（rowid）で表す。
     internal static Task RegisterAsync(Database database, HubConnection hub) =>
         database.InTransactionAsync(connection => connection.ExecuteAsync(
@@ -48,7 +65,7 @@ internal static class HubRegistry
             "UPDATE hubs SET connected = (url <> '' AND token <> '')"));
 
     internal static async Task<IReadOnlyList<HubConnection>> LoadConnectionsAsync(Database database) =>
-        (await database.InReadTransactionAsync(connection => connection.QueryAsync<ConnectionRow>(
+        (await database.InReadTransactionAsync(connection => connection.QueryAsync<StoredHub>(
             """
             SELECT hub_id AS Id, name AS Name, url AS Url, token AS Token
             FROM hubs WHERE url <> '' AND token <> '' ORDER BY rowid
@@ -57,6 +74,9 @@ internal static class HubRegistry
         .ToList();
 
     // 認証トークンを含めない。受信状態は、再接続中のHub、最初の全体状態を受ける前のHub、受信済みのHubに分ける。
+    internal static async Task<HubRegistrationOutput?> ReadAsync(Database database, string hubId) =>
+        (await ListAsync(database)).FirstOrDefault(hub => hub.HubId == hubId);
+
     internal static async Task<IReadOnlyList<HubRegistrationOutput>> ListAsync(Database database) =>
         (await database.InReadTransactionAsync(connection => connection.QueryAsync<ListRow>(
             """
@@ -70,6 +90,5 @@ internal static class HubRegistry
             row.Connected == 0 ? "reconnecting" : row.ReceivedHubId is not null ? "connected" : "notReceived"))
         .ToList();
 
-    private sealed record ConnectionRow(string Id, string Name, string Url, string Token);
     private sealed record ListRow(string HubId, string Name, string Url, long Connected, string? ReceivedHubId);
 }

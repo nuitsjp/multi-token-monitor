@@ -295,6 +295,8 @@ export async function startFakeHub(
       return;
     }
     response.writeHead(200, { 'content-type': 'text/event-stream' });
+    // 本物のHubと同じく、最初の通知より前に応答の先頭を返す。
+    response.flushHeaders();
     if (failure === 'invalid-notification') {
       response.write('event: snapshot\ndata: {"type":\n\n');
     } else if (hub.sendSnapshot) {

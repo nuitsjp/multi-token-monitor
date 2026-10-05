@@ -9,6 +9,9 @@ internal sealed record HubRegistrationOutput(string HubId, string Name, string U
 
 internal sealed record AddHubInput(string? Name, string? Url, string? Token);
 
+/// <summary>Hubの変更。Token が空なら登録済みの認証トークンを変更しない。</summary>
+internal sealed record UpdateHubInput(string? Name, string? Url, string? Token);
+
 internal sealed record HubUsageDataOutput(string Today, IReadOnlyList<HubUsageHubOutput> Hubs);
 
 internal sealed record HubUsageHubOutput(
