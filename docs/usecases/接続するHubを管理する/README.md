@@ -26,6 +26,7 @@
 
 ## シナリオ
 - [Hubを追加する](scenarios/Hubを追加する.md)
+- [Hubの登録情報を変更する](scenarios/Hubの登録情報を変更する.md)
 
 ## 実現パターン
 - [UCP-4. 画面から登録したHubをDBへ保存し、受信へ反映する](../../design/UCP-4.md)
