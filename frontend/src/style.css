@@ -355,7 +355,7 @@ body {
 }
 .settings-hub {
   display: grid;
-  grid-template-columns: 180px 1fr auto;
+  grid-template-columns: 180px 1fr auto auto;
   align-items: baseline;
   gap: 12px;
   padding: 10px 0;
