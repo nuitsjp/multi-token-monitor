@@ -92,6 +92,10 @@ run = "npm run format:check"
 description = "文書の整合性を検査する"
 run = "node scripts/check-docs.mjs"
 
+[tasks."check:dbml"]
+description = "DBMLによるテーブル設計の構文を検査する"
+run = "node scripts/check-dbml.mjs"
+
 [tasks.contracts]
 description = "C#からOpenAPIとReact用の型を生成する（DB・HTTP待受不要）"
 run = "node scripts/contracts.mjs"

@@ -5,6 +5,7 @@ await npm('run', 'typecheck');
 await npm('run', 'lint');
 await npm('run', 'format:check');
 await run(process.execPath, ['scripts/check-docs.mjs']);
+await run(process.execPath, ['scripts/check-dbml.mjs']);
 await npm('run', 'test:core');
 await npm('run', 'test:unit');
 // E2Eの構成は E2E_MODES（カンマ区切り）で絞れる。既定は dev と hosted の両方。

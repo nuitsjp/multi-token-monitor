@@ -17,7 +17,7 @@ HomeとHub情報の閲覧画面に共通して適用する。画面上部と区�
 
 以下の区画構成・利用枠・Hub別ページングはHomeに適用する。Hub情報の閲覧画面には適用しない。
 
-| 役割 | 責務 | 実装パス（段階4完了時に記入） |
+| 役割 | 責務 | 実装パス |
 | --- | --- | --- |
 | 画面 | Hub別は2件ずつ表示する。利用枠は、枠グループ・長さ・ラベル・残り時間・ペース・枠グループと契約の月換算上限額を受け取った値から表示上で計算し、1分ごとに再計算する | `frontend/src/routes/index.tsx`、`frontend/src/components/LimitCircle.tsx`、`frontend/src/components/ActivityCalendar.tsx`、`frontend/src/components/providerIcons.ts`、`frontend/src/limits.ts` |
 | 閲覧用API | `GET /api/overview` を提供し、全区画のデータを期間別にまとめて1回で返す。契約はOpenAPIから生成するTypeScriptの型で画面と共有する。Hostヘッダーをループバックの名前に限定する | `backend/Presentation/Http/ApiEndpoints.cs`、`backend/Presentation/Http/Contracts.cs`、`backend/Presentation/Http/HttpPresentationRegistration.cs` |
@@ -43,7 +43,7 @@ sequenceDiagram
 ```
 
 - 整合性: 状態更新の主体はなし（本パターンは状態を更新しない） / 結果確定点は読み取りトランザクションの完了 / 障害時の停止・継続は、読み取り失敗時に当該リクエストだけを失敗させ、Hubの受信とWebサーバーを維持する / 境界は、1回の応答を1つの読み取りトランザクションから作り、区画の間で値が食い違わないこと。
-- モックに置き換える境界と合成点: 動作合意では画面側で閲覧用APIを呼ぶ関数1箇所を合成点とし、合意後に固定データと切り替えを削除した。検証では Hub を制御可能な SSE サーバーに置き換えて本番の受信・保存処理で DB に状態を作り、閲覧用APIと画面から読む。
+- モックに置き換える境界と合成点: モック確認では画面側で閲覧用APIを呼ぶ関数1箇所を合成点とし、合意後に固定データと切り替えを削除した。検証では Hub を制御可能な SSE サーバーに置き換えて本番の受信・保存処理で DB に状態を作り、閲覧用APIと画面から読む。
 
 ## Hub情報を表示する固有の処理
 
@@ -91,4 +91,4 @@ sequenceDiagram
 | 表示集計 | 受け取った日次記録から、選択期間の契約ごとの最新値・変化率・日次推移と、集約単位ごとの最後の記録の点を返す | `frontend/src/limit-history.ts` |
 | 画面 | 契約のタイルと、Monthly limit・Multiplier の折れ線グラフを、期間・集約単位の共用部品で表示する。下限値は「≥」を付けて示す | `frontend/src/routes/limits.tsx`、`frontend/src/components/LimitTrendChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
 
-- モックに置き換える境界と合成点: 動作合意では `fetchLimitHistory`（Homeは `fetchOverview`）を合成点とし、合意後に固定データを削除した。固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。
+- モックに置き換える境界と合成点: モック確認では `fetchLimitHistory`（Homeは `fetchOverview`）を合成点とし、合意後に固定データを削除した。固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。
