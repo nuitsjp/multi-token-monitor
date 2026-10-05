@@ -74,34 +74,42 @@ function run(databasePath: string, hubConfigPath: string | undefined) {
 }
 
 test('接続設定が不正なら理由を出力して終了コード1で終わり、DBを変更しない', async ({ app }) => {
-  test.setTimeout(120_000);
-  // 正しい設定で一度起動したDBを用意する。
-  await app.stop();
-  const db = app.databasePath;
-  const before = databaseHash(db);
-  const directory = dirname(db);
+  const { db, before, cases } = await test.step('分岐条件', async () => {
+    test.setTimeout(120_000);
+    // 正しい設定で一度起動したDBを用意する。
+    await app.stop();
+    const db = app.databasePath;
+    const before = databaseHash(db);
+    const directory = dirname(db);
 
-  const cases: [string, string | undefined, string][] = [
-    [
-      'HUB_CONFIG_PATHが未設定',
-      undefined,
-      'HUB_CONFIG_PATHにHub接続設定ファイルを指定してください。',
-    ],
-    ...CASES.map(([condition, content, reason], index): [string, string | undefined, string] => {
-      const path = join(directory, `invalid-${index}.json`);
-      if (content !== undefined) writeFileSync(path, content);
-      return [condition, path, reason];
-    }),
-  ];
+    const cases: [string, string | undefined, string][] = [
+      [
+        'HUB_CONFIG_PATHが未設定',
+        undefined,
+        'HUB_CONFIG_PATHにHub接続設定ファイルを指定してください。',
+      ],
+      ...CASES.map(([condition, content, reason], index): [string, string | undefined, string] => {
+        const path = join(directory, `invalid-${index}.json`);
+        if (content !== undefined) writeFileSync(path, content);
+        return [condition, path, reason];
+      }),
+    ];
 
-  for (const [condition, hubConfigPath, reason] of cases) {
-    const result = run(db, hubConfigPath);
-    expect(result.status, condition).toBe(1);
-    expect(result.stderr.trim(), condition).toBe(reason);
-    // Webサーバーは起動しない。
-    expect(result.stdout, condition).not.toContain('AIDD_READY');
-    for (const secret of [TOKEN, ADDRESS])
-      expect(result.stdout + result.stderr, condition).not.toContain(secret);
-    expect(databaseHash(db), condition).toBe(before);
-  }
+    return { db, before, cases };
+  });
+
+  await test.step('手順1', async () => {
+    for (const [condition, hubConfigPath, reason] of cases) {
+      const result = await test.step('手順1', async () => run(db, hubConfigPath));
+      await test.step('受け入れ条件', async () => {
+        expect(result.status, condition).toBe(1);
+        expect(result.stderr.trim(), condition).toBe(reason);
+        // Webサーバーは起動しない。
+        expect(result.stdout, condition).not.toContain('AIDD_READY');
+        for (const secret of [TOKEN, ADDRESS])
+          expect(result.stdout + result.stderr, condition).not.toContain(secret);
+        expect(databaseHash(db), condition).toBe(before);
+      });
+    }
+  });
 });

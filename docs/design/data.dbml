@@ -1,0 +1,181 @@
+// テーブル構造と責務・値の規則の正本。保存形式とSQLite型の対応は data.md を参照。
+// 全テーブルはSQLite STRICT。主キー以外の一意制約・追加索引・CHECK制約は設けない。
+// 外部キーの更新時動作は全て NO ACTION。論理参照を外部キーに置き換えない。
+
+Table hubs {
+  Note: '情報の提供元であるHub。状態を受信する前から存在する。'
+  hub_id text [not null, pk, note: '設定で指定する安定した識別子']
+  name text [not null, note: '設定から登録する表示名。一意制約は設けない']
+  connected boolean [not null, note: '受信状態が「受信中」なら1、「再接続中」なら0']
+}
+
+Table hub_states {
+  Note: '受信データ。最後に受けた snapshot・stats の stats 全体をHubごとに0件または1件保持する。freshness は反映しない。'
+  hub_id text [not null, pk, note: '受信元のHub']
+  stats_json json [not null, note: 'stats 全体のJSON']
+  received_at timestamp [not null, note: '最後に保存に成功した通知のローカル受信時刻。UTC の ISO 8601']
+}
+
+Table hub_summaries {
+  Note: 'Hub単位の概要。'
+  hub_id text [not null, pk, note: '対象のHub']
+  updated_at timestamp [not null, note: 'Hubがデータを更新した時刻']
+  active_days integer [null, note: 'Hubが集計したアクティブ日数。Hubが送らない場合はNULL']
+}
+
+Table devices {
+  Note: 'Hubに利用状況を送っている端末。'
+  hub_id text [not null, note: '端末が属するHub']
+  device_id text [not null, note: 'Hub内の端末識別子']
+  hostname text [not null, note: 'ホスト名']
+  os_name text [null, note: 'OS名']
+  updated_at timestamp [not null, note: '端末が最後に送信した時刻']
+  stale boolean [not null, note: 'Hubが鮮度切れと判定した場合は1、それ以外は0']
+
+  indexes {
+    (hub_id, device_id) [pk]
+  }
+}
+
+Table latest_token_usages {
+  Note: '端末・期間・ツール・モデルごとのトークン利用実績。'
+  hub_id text [not null, note: '端末が属するHub']
+  device_id text [not null, note: '利用した端末']
+  period text [not null, note: '`today`・`month`・`all_time`']
+  tool text [not null, note: 'ツール識別子']
+  model text [not null, note: 'モデル識別子']
+  tokens integer [not null, note: 'トークン数']
+  cost_usd float [null, note: '推定コスト（USD）。Hubが送らない場合はNULL']
+
+  indexes {
+    (hub_id, device_id, period, tool, model) [pk]
+  }
+}
+
+Table daily_token_usages {
+  Note: 'Hubが送った日別のトークン利用実績。Hubごとに、日付1つにつき1行を持つ。受信のたびに、受け取った日付だけを上書きまたは追加し、他の日付の行は消さない。'
+  hub_id text [not null, note: '日別の集計を送ったHub']
+  date date [not null, note: 'Hubが送る日付（`YYYY-MM-DD`）。時刻帯の変換はしない']
+  tokens integer [not null, note: 'その日の合計トークン数']
+  cost_usd float [null, note: 'その日の推定コスト（USD）。Hubが送らない場合はNULL']
+
+  indexes {
+    (hub_id, date) [pk]
+  }
+}
+
+Table device_daily_model_usages {
+  Note: 'Hub・端末・日付・モデルごとの利用実績。同じモデル名はツール間で合算する。履歴取得可否のカラムは設けない。明細の有無は保存済みの行から判断する。'
+  hub_id text [not null, note: '端末が属するHub']
+  device_id text [not null, note: '利用した端末']
+  date date [not null, note: '端末が報告した日付（`YYYY-MM-DD`）。時刻帯の変換はしない']
+  model text [not null, note: 'モデル名']
+  tokens integer [not null, note: 'その日のトークン数']
+  cost_usd float [null, note: 'その日の推定コスト（USD）。不明ならNULL']
+
+  indexes {
+    (hub_id, device_id, date, model) [pk]
+  }
+}
+
+Table accounts {
+  Note: 'AIツールの利用アカウント。複数のHub・端末から同じアカウントが報告される。'
+  provider text [not null, note: '提供元のサービス']
+  account_key text [not null, note: 'Hubが付与するハッシュ化されたアカウント識別子']
+  account_label text [null, note: 'アカウントの表示ラベル']
+  plan_label text [null, note: '契約プランの表示ラベル']
+
+  indexes {
+    (provider, account_key) [pk]
+  }
+}
+
+Table hub_accounts {
+  Note: 'Hubが利用枠を報告した契約（Hub×アカウント）。メーターを表示する枠を1つ以上報告した契約だけを保持する。'
+  hub_id text [not null, note: '報告したHub']
+  provider text [not null, note: 'アカウントの提供元']
+  account_key text [not null, note: 'アカウント識別子']
+  source_device_id text [null, note: 'Hubが報告した、アカウントの利用枠を取得した端末（`sourceDeviceId`）。`devices.device_id` への論理参照で、外部キーは設けない。Hubが送らない場合はNULL']
+
+  indexes {
+    (hub_id, provider, account_key) [pk]
+  }
+}
+
+Table latest_limit_windows {
+  Note: 'Hubが報告した契約の利用枠。メーターを表示する枠だけを保持する。推定上限額の2つの計測点のうち、1つ目の残量を `base_` のカラムに、2つ目（最新の受信）を `remaining_percent` に持つ。コストは保存せず、1つ目の計測点のコストは `limit_window_baseline_costs`、2つ目のコストは `latest_token_usages` から求める。'
+  hub_id text [not null, note: '報告したHub']
+  provider text [not null, note: 'アカウントの提供元']
+  account_key text [not null, note: 'アカウント識別子']
+  kind text [not null, note: '`session`・`daily`・`weekly`・`billing` などのリセット周期']
+  limit_key text [not null, note: '枠の識別子。無い場合は枠の表示名']
+  label text [null, note: '枠の表示名']
+  remaining_percent float [not null, note: '残量（%）']
+  used_percent float [null, note: '使用量（%）']
+  resets_at timestamp [null, note: '次のリセット時刻']
+  meter_changed_at timestamp [not null, note: 'remaining_percent・used_percent が最後に変わった保存時刻']
+  base_received_at timestamp [not null, note: '1つ目の計測点の受信時刻']
+  base_remaining_percent float [not null, note: '1つ目の計測点の残量（%）。枠の単位で1つ報告される値なので、端末・モデルには分けない']
+  window_minutes float [null, note: 'Hubが報告した枠の長さ（分）。Hubが送らない枠はNULL。画面は、NULLの枠の長さを `kind` の固定表で補う']
+
+  indexes {
+    (hub_id, provider, account_key, kind, limit_key) [pk]
+  }
+}
+
+Table limit_window_baseline_costs {
+  Note: '枠の1つ目の計測点を取った時点の、端末×モデル別の累計推定コスト。枠の提供元と同じツールの累計（allTime）で、推定コストのある実績だけを保持する。枠のコストの範囲は問わず、事実だけを保存する（範囲は閲覧時に UCP-1（UCP-1.md） の純粋関数が適用する）。'
+  hub_id text [not null, note: '枠を報告したHub']
+  provider text [not null, note: '枠の提供元']
+  account_key text [not null, note: 'アカウント識別子']
+  kind text [not null, note: '枠のリセット周期']
+  limit_key text [not null, note: '枠の識別子']
+  device_id text [not null, note: '利用した端末。`devices.device_id` への論理参照で、外部キーは設けない']
+  model text [not null, note: 'モデル識別子']
+  cost_usd float [not null, note: '1つ目の計測点での累計推定コスト（USD）']
+
+  indexes {
+    (hub_id, provider, account_key, kind, limit_key, device_id, model) [pk]
+  }
+}
+
+Table plan_prices {
+  Note: 'プランごとの月額。起動時の同梱一覧の適用が書き込みます。日次記録とは外部キーで結ばず、記録した時点の値を日次記録へ写します。'
+  provider text [not null, note: '提供元の識別子（`claude`・`codex` など）']
+  plan text [not null, note: 'Hubが報告するプラン名。大文字・小文字を区別しない（`COLLATE NOCASE`）']
+  monthly_usd float [not null, note: '月額（USD）']
+  updated_at timestamp [not null, note: '最終更新日時。UTC の ISO 8601']
+
+  indexes {
+    (provider, plan) [pk]
+  }
+}
+
+Table daily_monthly_limits {
+  Note: '契約の枠グループ（Hub × 契約 × 枠グループ）ごと、日ごとに1行の枠グループの月換算上限額と支払額。閲覧では契約・日付ごとに合計する。'
+  hub_id text [not null, note: '契約を報告したHub']
+  provider text [not null, note: '契約の提供元。`accounts` への外部キーは設けない（報告されなくなった契約でも記録を残すため）']
+  account_key text [not null, note: '契約のアカウント識別子']
+  limit_group text [not null, note: '枠グループ名。名前が無いグループは空文字']
+  date date [not null, note: 'アプリを動かしているPCの現地日付（`YYYY-MM-DD`）']
+  plan text [null, note: 'その時点のプラン名（`plan_label`、空なら `account_label`）。どちらも無ければNULL']
+  monthly_limit_usd float [not null, note: 'その日に最後に求まった枠グループの月換算上限額（USD）']
+  price_usd float [null, note: '同じ時点で価格表から引いた月額。価格表にプランが無ければNULL']
+  recorded_at timestamp [not null, note: '最後にこの行を書いた受信時刻。UTC の ISO 8601']
+
+  indexes {
+    (hub_id, provider, account_key, limit_group, date) [pk]
+  }
+}
+
+Ref: hubs.hub_id - hub_states.hub_id [delete: cascade, update: no action]
+Ref: hubs.hub_id - hub_summaries.hub_id [delete: cascade, update: no action]
+Ref: devices.hub_id > hubs.hub_id [delete: cascade, update: no action]
+Ref: latest_token_usages.(hub_id, device_id) > devices.(hub_id, device_id) [delete: cascade, update: no action]
+Ref: daily_token_usages.hub_id > hubs.hub_id [delete: cascade, update: no action]
+Ref: device_daily_model_usages.(hub_id, device_id) > devices.(hub_id, device_id) [delete: cascade, update: no action]
+Ref: hub_accounts.hub_id > hubs.hub_id [delete: cascade, update: no action]
+Ref: hub_accounts.(provider, account_key) > accounts.(provider, account_key) [delete: no action, update: no action]
+Ref: latest_limit_windows.(hub_id, provider, account_key) > hub_accounts.(hub_id, provider, account_key) [delete: cascade, update: no action]
+Ref: limit_window_baseline_costs.(hub_id, provider, account_key, kind, limit_key) > latest_limit_windows.(hub_id, provider, account_key, kind, limit_key) [delete: cascade, update: no action]
+Ref: daily_monthly_limits.hub_id > hubs.hub_id [delete: cascade, update: no action]

@@ -19,8 +19,8 @@ LINE_LIMITS = {"docs/project.md": 300, "docs/architecture.md": 200,
 PLACEHOLDER_HASH = "sha256:" + "0" * 64
 # 配布元が `--print-hashes` の出力で更新する。
 EXPECTED_HASHES = {
-    "docs/standards/design-and-documentation.md": "sha256:ee9c3044c4076302c6e8584c7cc48adfa0a6c79a2121fd71232e1d85a0451bc8",
-    "docs/standards/mock-driven-development.md": "sha256:651ae1cf9005be40864be6bfbf399363c1fa530d7ebfa8498a4e01aa80848858",
+    "docs/standards/design-and-documentation.md": "sha256:9137bbf8c5f8faad9ecd1d0f5e9cb059389724c54e264fdf97611b71fd4e0bcd",
+    "docs/standards/mock-driven-development.md": "sha256:bf5c64d2950841d9dc0f17e22bdf6fb357c8f637c09d2a09c2e80cf565996479",
 }
 
 DESIGN_UCP_HEAD_RE = re.compile(r"^#\s+UCP-(\d+)\.")
@@ -171,7 +171,7 @@ def check_abs_paths(root, docs):
 OLD_RECORD_LABEL_RE = re.compile(
     r"^(?:設計判断|決定(?:経緯|履歴|記録)|全体設計の合意|"
     r"(?:[^:：|/]+の)?(?:改訂合意(?:記録)?|合意記録|完成系監査記録)|"
-    r"完成系監査(?:記録|中の[^:：|/]*)|段階\s*3(?:の[^:：|/]*)?|進捗|現在地|"
+    r"完成系監査(?:記録|中の[^:：|/]*)|(?:段階\s*3|モック確認フェーズ)(?:の[^:：|/]*)?|進捗|現在地|"
     r"検証(?:結果|状況|状態)|承認(?:原文|の原文)|応答(?:の)?原文|利用者の(?:応答|承認)原文|提示コミット|"
     r"論点(?:と|への)回答)"
     r"(?:\s*(?:ID|番号))?(?:\s*[（(][^）)]*[）)])?\s*(?:[:：]|$)",
@@ -179,7 +179,7 @@ OLD_RECORD_LABEL_RE = re.compile(
 OLD_RECORD_HEADING_RE = re.compile(
     r"^(?:設計判断|決定(?:経緯|履歴|記録)|全体設計の合意|"
     r"(?:[^:：|/]+の)?(?:改訂合意(?:記録)?|合意記録|完成系監査記録)|"
-    r"完成系監査(?:記録|中の)|段階\s*3(?:の|[：:])(?:変更|差分|修正|保留|確認|記録|等)|"
+    r"完成系監査(?:記録|中の)|(?:段階\s*3|モック確認フェーズ)(?:の|[：:])(?:変更|差分|修正|保留|確認|記録|等)|"
     r"現在地|承認(?:原文|の原文)|応答(?:の)?原文|利用者の(?:応答|承認)原文|提示コミット|"
     r"論点(?:と|への)回答)(?=$|[\s：:（(])"
 )
@@ -236,7 +236,7 @@ def is_old_record_heading(line):
     base = re.split(r"[：:（(]", title, maxsplit=1)[0].strip()
     if OLD_RECORD_HEADING_RE.match(title):
         return True
-    if re.match(r"^(?:完成系監査中の.+|段階\s*[1-6]の(?:.*案採用|変更|表示調整|修正).*)", title):
+    if re.match(r"^(?:完成系監査中の.+|(?:段階\s*[1-6]|(?:仕様検討|モック確認|テーブル設計|実装|仕様固定)フェーズ)の(?:.*案採用|変更|表示調整|修正).*)", title):
         return True
     if base in {"検証結果", "検証状況", "検証状態"}:
         return True
@@ -593,6 +593,7 @@ def check_usecases(root, project_text, uc_docs):
     for path, parent in scenarios.items():
         if parent not in parents:
             problem(path, "所属するユースケースの README.md がない")
+    check_scenario_tests(root, scenarios, kinds, uc_docs, problem)
 
     body = section_body(project_text, "## 3. ユースケース一覧") if project_text else None
     catalog = parse_table(body) if body else None
@@ -624,6 +625,33 @@ def check_usecases(root, project_text, uc_docs):
     if before == NG_COUNT:
         emit("OK", "ユースケース構造: ユースケース %d 件、シナリオ %d 件が整合している"
              % (len(parents), len(scenarios)))
+
+
+def check_scenario_tests(root, scenarios, kinds, uc_docs, problem):
+    """`<ユースケース名>/<シナリオ名>.*` の E2E が手順表と同じ区切りを持つか。"""
+    tests = [here / name for here, _, filenames in walk(root, {"docs"})
+             for name in filenames if not name.lower().endswith(".md")]
+    found = 0
+    for path in sorted(scenarios):
+        usecase = path.parent.parent.name
+        files = [test for test in tests
+                 if test.parent.name == usecase and test.name.startswith(path.stem + ".")]
+        if not files:
+            continue
+        found += 1
+        body = document_structure(uc_docs[path])[1].get("手順", [[]])[0]
+        table = parse_table(list(enumerate(body, 1)))
+        steps = set(range(1, len(table[1]) + 1)) if table else set()
+        condition = "分岐条件" if kinds.get(path) == "拡張" else "開始条件"
+        for test in files:
+            text = read_text(test)
+            labels = [label for label in (condition, "受け入れ条件") if label not in text]
+            numbers = {int(n) for n in re.findall(r"手順(\d+)", text)}
+            if labels or numbers != steps:
+                problem(test, "の区切りは %s・手順1〜%d・受け入れ条件が必要（不足: %s）" % (
+                    condition, len(steps), "、".join(labels + ["手順%d" % n for n in sorted(steps - numbers)]
+                                              + ["余分な手順%d" % n for n in sorted(numbers - steps)])))
+    emit("報告", "シナリオのテスト: シナリオ %d 件中 %d 件に同名のテストがある" % (len(scenarios), found))
 
 
 def check_hashes(root):
