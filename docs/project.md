@@ -93,7 +93,7 @@ Hubは設定画面（`/settings`）から登録し、接続情報（表示名・
 | 目的 | コマンド | 期待結果 |
 | --- | --- | --- |
 | 登録済みHubの確認 | `curl.exe -s http://127.0.0.1:3000/api/hubs` | 登録順に、Hub ID・表示名・URL・受信状態（`connected`・`notReceived`・`reconnecting`）をJSONで返します。認証トークンは含みません |
-| Hubの登録 | `curl.exe -s -X POST -H "Content-Type: application/json" -d "{\"name\":\"Lab\",\"url\":\"https://lab.example.com\",\"token\":\"...\"}" http://127.0.0.1:3000/api/hubs` | 201でHubを返します。入力が不正なときは400で項目ごとの理由を返し、保存しません |
+| Hubの登録 | `curl.exe -s -X POST -H "Content-Type: application/json" -d "{\"name\":\"Lab\",\"url\":\"https://lab.example.com\",\"token\":\"...\"}" http://127.0.0.1:3000/api/hubs` | 201でHubを返します。入力が不正なとき、または保存前の接続確認に失敗したときは、項目ごとの理由を返し、保存しません |
 
 閲覧画面は `http://127.0.0.1:5173/`（開発起動）または `http://127.0.0.1:3000/`（配布物）で開き、閲覧用API `GET /api/overview` から保存済みの状態を読みます。APIはHostヘッダーが `localhost`・`127.0.0.1`・`[::1]` 以外の要求を400で拒否します。
 
@@ -148,4 +148,4 @@ Hubは設定画面（`/settings`）から登録し、接続情報（表示名・
 
 開発構成は `mise run dev` で起動して `http://127.0.0.1:5173/settings`、配布構成は `mise run start` で起動して `http://127.0.0.1:3000/settings` を開きます。停止は起動したターミナルでCtrl+Cです。
 
-「Hubs」見出しの右端の＋ボタンで追加のポップアップを開き、Name・URL・Tokenを入力して Add hub を押すと、`POST /api/hubs` でDBへ保存し、一覧に加わります。一覧は `GET /api/hubs` から読み、変更の通知を受けるたびに取得し直します。固定データと環境変数によるモックの切り替えは設けず、API失敗時に固定データへ切り替えません。起動前から存在したHub（URLと認証トークンが空）は受信せず、「Reconnecting」と表示します。
+「Hubs」見出しの右端の＋ボタンで追加のポップアップを開き、Name・URL・Tokenを入力して Add hub を押すと、入力を検証して接続を確認した後に `POST /api/hubs` でDBへ保存し、一覧に加わります。一覧の各行の変更ボタンから開くポップアップでは、表示名・URL・Tokenを変更できます（Tokenを空にすると登録済みの値を保ちます）。URLまたはTokenを変える場合は、保存前に接続を確認します。一覧は `GET /api/hubs` から読み、変更の通知を受けるたびに取得し直します。固定データと環境変数によるモックの切り替えは設けず、API失敗時に固定データへ切り替えません。起動前から存在したHub（URLと認証トークンが空）は受信せず、「Reconnecting」と表示します。
