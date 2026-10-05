@@ -364,11 +364,9 @@ body {
 .settings-form {
   display: grid;
   gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.settings-form > * {
-  max-width: 420px;
+/* Settings は現在のページでも背景を付けない（強調は文字とアイコンの色だけ） */
+.side-menu .side-menu-bottom[data-active] {
+  background: transparent;
 }

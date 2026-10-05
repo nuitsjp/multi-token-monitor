@@ -1,6 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { Alert, Button, Container, Group, Loader, Text, TextInput, Title } from '@mantine/core';
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Container,
+  Group,
+  Loader,
+  Modal,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
 import { addHub, fetchHubs, type HubStatus, type RegisteredHub } from '../api/hubs.ts';
 import { MenuIcon } from '../components/MenuIcon.tsx';
 import { validateHubInput, type HubInputErrors } from '../hub-form.ts';
@@ -18,6 +29,12 @@ export function Settings() {
   const [error, setError] = useState<string>();
   const [form, setForm] = useState({ name: '', url: '', token: '' });
   const [errors, setErrors] = useState<HubInputErrors>({});
+  const [adding, setAdding] = useState(false);
+  const open = () => {
+    setForm({ name: '', url: '', token: '' });
+    setErrors({});
+    setAdding(true);
+  };
   const refresh = () =>
     fetchHubs().then(setHubs, (reason: unknown) =>
       setError(reason instanceof Error ? reason.message : String(reason)),
@@ -36,7 +53,7 @@ export function Settings() {
     if (Object.keys(found).length > 0) return;
     void addHub(form).then(
       () => {
-        setForm({ name: '', url: '', token: '' });
+        setAdding(false);
         return refresh();
       },
       (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)),
@@ -59,18 +76,34 @@ export function Settings() {
         </Alert>
       ) : null}
       <section className="card settings-card" aria-label="Hubs">
-        <Group gap={8} wrap="nowrap" mb="md">
-          <span className="page-icon">
-            <MenuIcon name="hub" />
-          </span>
-          <Title order={2} fz={17} fw={500} lh={1}>
-            Hubs
-          </Title>
+        <Group justify="space-between" wrap="nowrap" mb="md">
+          <Group gap={8} wrap="nowrap">
+            <span className="page-icon">
+              <MenuIcon name="hub" />
+            </span>
+            <Title order={2} fz={17} fw={500} lh={1}>
+              Hubs
+            </Title>
+          </Group>
+          <ActionIcon variant="subtle" color="violet" aria-label="Add hub" onClick={open}>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </ActionIcon>
         </Group>
         {hubs === undefined ? (
           <Loader aria-label="Loading" />
         ) : hubs.length === 0 ? (
-          <Text c="dimmed" size="sm" mb="md">
+          <Text c="dimmed" size="sm">
             No hubs registered.
           </Text>
         ) : (
@@ -88,10 +121,9 @@ export function Settings() {
             ))}
           </ul>
         )}
+      </section>
+      <Modal opened={adding} onClose={() => setAdding(false)} title="Add hub" centered>
         <form className="settings-form" onSubmit={submit} noValidate aria-label="Add hub">
-          <Title order={3} fz={15} fw={500}>
-            Add hub
-          </Title>
           <TextInput
             label="Name"
             value={form.name}
@@ -117,7 +149,7 @@ export function Settings() {
             Add hub
           </Button>
         </form>
-      </section>
+      </Modal>
     </Container>
   );
 }
