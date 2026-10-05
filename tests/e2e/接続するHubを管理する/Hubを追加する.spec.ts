@@ -113,6 +113,8 @@ test('Settingsから追加したHubが、再起動なしに受信を開始して
     await dialog.getByLabel('URL').fill('http://127.0.0.1:9');
     await dialog.getByLabel('Token').fill('down-token');
     await dialog.getByRole('button', { name: 'Add hub' }).click();
+    // 閉じる動作の途中の入力欄を、画面の内容として読まない。
+    await expect(dialog).toHaveCount(0);
     const rows = list.getByRole('listitem');
     await expect(rows).toHaveCount(3);
     expect(new Set(hubRows().map((row) => row.hub_id)).size).toBe(3);
