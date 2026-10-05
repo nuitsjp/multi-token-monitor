@@ -52,6 +52,14 @@ export function SideMenu() {
         leftSection={<MenuIcon name="limits" />}
         active={pathname === '/limits'}
       />
+      <NavLink
+        component={Link}
+        to="/settings"
+        label="Settings"
+        className="side-menu-bottom"
+        leftSection={<MenuIcon name="settings" />}
+        active={pathname === '/settings'}
+      />
     </nav>
   );
 }

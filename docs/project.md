@@ -139,3 +139,7 @@ Hubの接続設定を準備し、開発構成は `mise run dev` で起動して 
 | --- | --- | --- |
 | 日次記録の閲覧用APIの確認 | `curl.exe -s http://127.0.0.1:3000/api/limit-history` | 現地日付、契約（Hub・提供元・プラン）、契約ごとの日次記録（枠グループの月換算上限額の合計、支払額、下限値かどうか）をJSONで返します。URLと認証トークンは含みません |
 | 日次記録と価格表の確認 | `python -c "import sqlite3; db = sqlite3.connect('file:data/app.sqlite?mode=ro', uri=True); print(db.execute('SELECT hub_id, provider, limit_group, date, plan, monthly_limit_usd, price_usd FROM daily_monthly_limits').fetchall()); print(db.execute('SELECT COUNT(*) FROM plan_prices').fetchone())"` | 月換算上限額が求まった枠グループごとに1日1行があり、価格表に同梱の価格一覧のプランが入っています |
+
+### 接続するHubを管理する画面の動作確認（モック確認）
+
+実装フェーズまでの暫定です。`mise run dev` で起動し、`http://127.0.0.1:5173/settings` を開きます。登録済みのHubは固定表（`frontend/src/api/hubs.ts`、本番の型を共有する合成点）から読み、追加はメモリ上だけに保持して、ページを再読み込みすると初期状態へ戻ります。`?hubs=none` を付けると0件の状態から始まります。追加したHubは2秒後に Connected になります。バックエンドの接続設定は起動のためだけに使い、この画面からは参照しません。実装フェーズで合成点をHub管理APIの呼び出しに置き換え、固定表を削除します。
