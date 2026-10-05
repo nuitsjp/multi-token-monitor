@@ -365,12 +365,3 @@ body {
   display: grid;
   gap: 12px;
 }
-
-/* Settings は現在のページでも強調せず、他の項目の通常の見た目にする */
-.side-menu .side-menu-bottom[data-active] {
-  background: transparent;
-  color: #b4b6bf;
-}
-.side-menu .side-menu-bottom[data-active] .mantine-NavLink-section {
-  color: #8b8e99;
-}
