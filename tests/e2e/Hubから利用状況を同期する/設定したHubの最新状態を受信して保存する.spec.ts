@@ -485,6 +485,132 @@ base.describe(() => {
     });
   });
 
+  test('報告されなくなった利用枠は次のリセット時刻まで報告中と同じ扱いで保持し、再び報告されたら計測点を引き継ぐ', async ({
+    app,
+    alpha,
+  }) => {
+    const db = app.databasePath;
+    await test.step('開始条件', async () => {
+      await expect.poll(() => receivedAt(db, 'alpha')).toBeTruthy();
+    });
+
+    let stats = alpha.stats;
+    const original = structuredClone(stats.limits.providers[0].windows);
+    // stats を送り、保存を待って受信時刻を返す。
+    const send = async (change: (value: FakeStats) => void) => {
+      const before = receivedAt(db, 'alpha');
+      stats = structuredClone(stats);
+      change(stats);
+      alpha.send('stats', stats);
+      await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(before);
+      return receivedAt(db, 'alpha')!;
+    };
+    // メーターを表示する枠をすべて報告から外す（契約は報告に残る）。
+    const unreport = (value: FakeStats) => {
+      value.limits.providers[0].windows = original.filter((window) => !window.showMeter);
+    };
+    // 元の枠を、Session の残量とリセット時刻を指定して報告する。
+    const report = (remaining: number, resetsAt?: string) => (value: FakeStats) => {
+      const windows = structuredClone(original);
+      windows[0].remainingPercent = remaining;
+      windows[0].usedPercent = 100 - remaining;
+      if (resetsAt) windows[0].resetsAt = resetsAt;
+      value.limits.providers[0].windows = windows;
+    };
+    const row = (limitKey: string) =>
+      points(db, 'alpha').find((item) => item.limit_key === limitKey);
+    const count = (table: string, limitKey?: string) =>
+      query<{ n: number }>(
+        db,
+        `SELECT COUNT(*) AS n FROM ${table} WHERE hub_id = 'alpha'${limitKey ? ` AND limit_key = '${limitKey}'` : ''}`,
+      )[0].n;
+    // 閲覧側が読む利用枠の一覧。
+    const shown = async () => {
+      const overview = (await (await fetch(`${app.url}/api/overview`)).json()) as {
+        limitWindows: { hubId: string; limitKey: string; remainingPercent: number }[];
+      };
+      return overview.limitWindows
+        .filter((window) => window.hubId === 'alpha')
+        .map((window) => `${window.limitKey}:${window.remainingPercent}`)
+        .sort();
+    };
+
+    const first = await test.step('手順2', async () => {
+      // --- snapshot で、Session（リセット時刻あり）と Weekly（リセット時刻なし）の計測点ができる
+      const session = row('codex')!;
+      expect(session.base_remaining_percent).toBe(90);
+      expect(row('Weekly')!.base_remaining_percent).toBe(60);
+      expect(count('limit_window_baseline_costs', 'codex')).toBeGreaterThan(0);
+      expect(await shown()).toEqual(['Weekly:60', 'codex:90']);
+      return { session, costRows: count('limit_window_baseline_costs', 'codex') };
+    });
+
+    await test.step('手順3', async () => {
+      // --- 報告から外れた枠は、次のリセット時刻より前なら、最後の値のまま残る。
+      // リセット時刻を持たない枠は、報告されなくなった保存で消える。契約は消えない。
+      await send((value) => {
+        unreport(value);
+        value.devices[0].periods.allTime.clientModelCosts.codex['gpt-5'] += 1;
+      });
+      expect(row('codex')).toMatchObject({
+        remaining_percent: 90,
+        base_received_at: first.session.base_received_at,
+        base_remaining_percent: 90,
+        resets_at: first.session.resets_at,
+      });
+      expect(count('limit_window_baseline_costs', 'codex')).toBe(first.costRows);
+      expect(row('Weekly')).toBeUndefined();
+      expect(count('limit_window_baseline_costs', 'Weekly')).toBe(0);
+      expect(count('hub_accounts')).toBe(1);
+      // 保持している枠は、報告中と同じように一覧に含まれる。
+      expect(await shown()).toEqual(['codex:90']);
+    });
+
+    await test.step('手順3', async () => {
+      // --- 再び報告され、使用率が最後に記録した値以下なら、1つ目の計測点は変わらず、2つ目が最新になる
+      const at = await send(report(85));
+      expect(row('codex')).toMatchObject({
+        remaining_percent: 85,
+        base_received_at: first.session.base_received_at,
+        base_remaining_percent: 90,
+      });
+      expect(row('codex')!.base_cost_usd).toBeCloseTo(first.session.base_cost_usd, 9);
+      // 消えていた Weekly は、新しい枠として、この受信を1つ目にする。
+      expect(row('Weekly')).toMatchObject({ base_received_at: at, base_remaining_percent: 60 });
+    });
+
+    await test.step('手順3', async () => {
+      // --- 外れている間に使用率が減った（残量が増えた）枠は、再び報告された受信を1つ目にする
+      await send(unreport);
+      const at = await send(report(95));
+      expect(row('codex')).toMatchObject({
+        remaining_percent: 95,
+        base_received_at: at,
+        base_remaining_percent: 95,
+      });
+      expect(row('codex')!.base_cost_usd).toBeCloseTo(codexCost(stats), 9);
+    });
+
+    await test.step('手順3', async () => {
+      // --- 報告されなくなった枠は、受信時刻が最後に記録した次のリセット時刻を過ぎた保存で、計測点のコストと一緒に消える
+      const resetsAt = Date.now() + 3000;
+      await send(report(95, new Date(resetsAt).toISOString()));
+      await send(unreport);
+      expect(row('codex')).toBeDefined();
+      await new Promise((resolve) => setTimeout(resolve, resetsAt - Date.now() + 200));
+      await send(unreport);
+      expect(row('codex')).toBeUndefined();
+      expect(count('limit_window_baseline_costs', 'codex')).toBe(0);
+    });
+
+    await test.step('受け入れ条件', async () => {
+      // 枠がすべて消えても、契約は報告されなくなっただけでは消えず、一覧には出ない。
+      expect(count('hub_accounts')).toBe(1);
+      expect(count('latest_limit_windows')).toBe(0);
+      expect(await shown()).toEqual([]);
+    });
+  });
+
   test('freshnessは保存済みの状態を読まずに、時刻と古さだけを更新する', async ({ app, alpha }) => {
     const { db } = await test.step('開始条件', async () => {
       const db = app.databasePath;
