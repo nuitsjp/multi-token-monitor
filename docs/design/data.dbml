@@ -93,7 +93,7 @@ Table accounts {
 }
 
 Table hub_accounts {
-  Note: 'Hubが利用枠を報告した契約（Hub×アカウント）。メーターを表示する枠を1つ以上報告した契約だけを保持する。'
+  Note: 'Hubが利用枠を報告した契約（Hub×アカウント）。メーターを表示する枠を一度でも報告した契約を保持し、報告されなくなっても削除しない（Hubの削除で消える）。利用枠の行を残すための親で、枠の行がすべて消えた契約の行は、閲覧・日次記録には現れない。'
   hub_id text [not null, note: '報告したHub']
   provider text [not null, note: 'アカウントの提供元']
   account_key text [not null, note: 'アカウント識別子']
@@ -105,7 +105,7 @@ Table hub_accounts {
 }
 
 Table latest_limit_windows {
-  Note: 'Hubが報告した契約の利用枠。メーターを表示する枠だけを保持する。推定上限額の2つの計測点のうち、1つ目の残量を `base_` のカラムに、2つ目（最新の受信）を `remaining_percent` に持つ。コストは保存せず、1つ目の計測点のコストは `limit_window_baseline_costs`、2つ目のコストは `latest_token_usages` から求める。'
+  Note: 'Hubが報告した契約の利用枠。メーターを表示する枠を保持し、報告されなくなった枠も、最後に記録した `resets_at` を過ぎるまで、残量・`resets_at`・計測点を最後に記録した値のまま残す（過ぎた後の、そのHubの次の保存で削除する。`resets_at` が無い枠は、報告されなくなった保存で削除する）。報告中の枠との区別は持たない。推定上限額の2つの計測点のうち、1つ目の残量を `base_` のカラムに、2つ目（最新の受信）を `remaining_percent` に持つ。コストは保存せず、1つ目の計測点のコストは `limit_window_baseline_costs`、2つ目のコストは `latest_token_usages` から求める。'
   hub_id text [not null, note: '報告したHub']
   provider text [not null, note: 'アカウントの提供元']
   account_key text [not null, note: 'アカウント識別子']
