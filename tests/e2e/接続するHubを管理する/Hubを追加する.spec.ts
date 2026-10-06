@@ -3,11 +3,17 @@ import { createStats, startFakeHub, type FakeHub } from '../hub-sync/fake-hub.ts
 import { query, watchEvents } from '../hub-sync/sync.ts';
 
 // 主成功シナリオ「Hubを追加する」を検証する。登録済みのHubが0件の状態から、画面で追加する。
-const test = base.extend<{ lab: FakeHub }>({
+const test = base.extend<{ lab: FakeHub; down: FakeHub }>({
   // eslint-disable-next-line no-empty-pattern -- Playwrightは依存のないfixtureにも分割代入を要求する
   lab: async ({}, use) => {
     // 最初の全体状態は、テストが送るまで返さない。
     const hub = await startFakeHub('lab-secret-token', createStats(4), { sendSnapshot: false });
+    await use(hub);
+    await hub.close();
+  },
+  // eslint-disable-next-line no-empty-pattern -- Playwrightは依存のないfixtureにも分割代入を要求する
+  down: async ({}, use) => {
+    const hub = await startFakeHub('down-token', createStats(5), { sendSnapshot: false });
     await use(hub);
     await hub.close();
   },
@@ -18,6 +24,7 @@ test('Settingsから追加したHubが、再起動なしに受信を開始して
   page,
   app,
   lab,
+  down,
 }) => {
   const db = app.databasePath;
   const menu = page.getByRole('navigation', { name: 'Menu' });
@@ -102,7 +109,7 @@ test('Settingsから追加したHubが、再起動なしに受信を開始して
     await menu.getByRole('link', { name: 'Settings' }).click();
     await expect(list.getByRole('listitem')).toHaveCount(1);
 
-    // 同じ表示名・同じURLのHubを複数追加でき、IDは別々に採番される。接続できないHubは Reconnecting になる。
+    // 同じ表示名・同じURLのHubを複数追加でき、IDは別々に採番される。保存後に接続が切れたHubは Reconnecting になる。
     await list.getByRole('button', { name: 'Add hub' }).click();
     await dialog.getByLabel('Name').fill('Lab');
     await dialog.getByLabel('URL').fill(lab.url);
@@ -110,11 +117,13 @@ test('Settingsから追加したHubが、再起動なしに受信を開始して
     await dialog.getByRole('button', { name: 'Add hub' }).click();
     await list.getByRole('button', { name: 'Add hub' }).click();
     await dialog.getByLabel('Name').fill('Down');
-    await dialog.getByLabel('URL').fill('http://127.0.0.1:9');
+    await dialog.getByLabel('URL').fill(down.url);
     await dialog.getByLabel('Token').fill('down-token');
     await dialog.getByRole('button', { name: 'Add hub' }).click();
     // 閉じる動作の途中の入力欄を、画面の内容として読まない。
     await expect(dialog).toHaveCount(0);
+    // 保存の前の接続の確認は通り、保存後にHubが落ちる。
+    await down.close();
     const rows = list.getByRole('listitem');
     await expect(rows).toHaveCount(3);
     expect(new Set(hubRows().map((row) => row.hub_id)).size).toBe(3);

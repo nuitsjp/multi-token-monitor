@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import {
   addHub,
+  updateHub,
   fetchHubs,
   HubInputRejected,
   type HubStatus,
@@ -36,11 +37,19 @@ export function Settings() {
   const [error, setError] = useState<string>();
   const [form, setForm] = useState({ name: '', url: '', token: '' });
   const [errors, setErrors] = useState<HubInputErrors>({});
-  const [adding, setAdding] = useState(false);
-  const open = () => {
-    setForm({ name: '', url: '', token: '' });
+  // 追加のときは 'add'、変更のときは対象のHub。閉じる動作の間も見出しを保つため、閉じても値は残す。
+  const [dialog, setDialog] = useState<'add' | RegisteredHub>('add');
+  const [opened, setOpened] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const open = (target: 'add' | RegisteredHub) => {
+    setForm(
+      target === 'add'
+        ? { name: '', url: '', token: '' }
+        : { name: target.name, url: target.url, token: '' },
+    );
     setErrors({});
-    setAdding(true);
+    setDialog(target);
+    setOpened(true);
   };
   const { subscribeNotifications } = useOverview();
   useEffect(() => {
@@ -73,12 +82,18 @@ export function Settings() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const found = validateHubInput(form);
+    if (saving) return;
+    const found = validateHubInput(form, { tokenOptional: dialog !== 'add' });
     setErrors(found);
     if (Object.keys(found).length > 0) return;
-    void addHub(form).then(
-      () => setAdding(false),
+    setSaving(true);
+    void (dialog === 'add' ? addHub(form) : updateHub(dialog.hubId, form)).then(
+      () => {
+        setSaving(false);
+        setOpened(false);
+      },
       (reason: unknown) => {
+        setSaving(false);
         if (reason instanceof HubInputRejected) setErrors(reason.errors);
         else setError(reason instanceof Error ? reason.message : String(reason));
       },
@@ -110,7 +125,12 @@ export function Settings() {
               Hubs
             </Title>
           </Group>
-          <ActionIcon variant="subtle" color="violet" aria-label="Add hub" onClick={open}>
+          <ActionIcon
+            variant="subtle"
+            color="violet"
+            aria-label="Add hub"
+            onClick={() => open('add')}
+          >
             <svg
               width="18"
               height="18"
@@ -142,13 +162,43 @@ export function Settings() {
                 <Text size="xs" c={statusView[hub.status as HubStatus].color}>
                   ● {statusView[hub.status as HubStatus].label}
                 </Text>
+                <ActionIcon
+                  variant="subtle"
+                  color="violet"
+                  aria-label="Edit hub"
+                  onClick={() => open(hub)}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" />
+                  </svg>
+                </ActionIcon>
               </li>
             ))}
           </ul>
         )}
       </section>
-      <Modal opened={adding} onClose={() => setAdding(false)} title="Add hub" centered>
-        <form className="settings-form" onSubmit={submit} noValidate aria-label="Add hub">
+      <Modal
+        opened={opened}
+        onClose={() => setOpened(false)}
+        title={dialog === 'add' ? 'Add hub' : 'Edit hub'}
+        centered
+      >
+        <form
+          className="settings-form"
+          onSubmit={submit}
+          noValidate
+          aria-label={dialog === 'add' ? 'Add hub' : 'Edit hub'}
+        >
           <TextInput
             label="Name"
             value={form.name}
@@ -164,14 +214,15 @@ export function Settings() {
           />
           <TextInput
             label="Token"
+            placeholder={dialog === 'add' ? undefined : 'Leave blank to keep the current token'}
             type="password"
             autoComplete="off"
             value={form.token}
             error={errors.token}
             onChange={(event) => setForm({ ...form, token: event.currentTarget.value })}
           />
-          <Button type="submit" color="violet">
-            Add hub
+          <Button type="submit" color="violet" loading={saving}>
+            {dialog === 'add' ? 'Add hub' : 'Save hub'}
           </Button>
         </form>
       </Modal>

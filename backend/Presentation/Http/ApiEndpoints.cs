@@ -32,20 +32,25 @@ internal static class ApiEndpoints
             .WithName("GetHubs");
         app.MapPost("/api/hubs", AddHubAsync)
             .WithName("AddHub");
+        app.MapPut("/api/hubs/{hubId}", UpdateHubAsync)
+            .WithName("UpdateHub");
         // SSEは型契約の対象にせず、合図の名前だけを画面と共有する。
         app.MapGet("/api/events", StreamEventsAsync)
             .ExcludeFromDescription();
     }
 
-    // 保存の確定後に受信を開始し、閲覧側へ変更を通知する。認証トークンは応答に含めない。
+    // 入力の検証と接続の確認の後に保存し、保存の確定後に受信を開始して閲覧側へ変更を通知する。認証トークンは応答に含めない。
     private static async Task<Results<Created<HubRegistrationOutput>, ValidationProblem>> AddHubAsync(
         AddHubInput input,
         [FromServices] Database database,
         [FromServices] HubReceivers receivers,
-        [FromServices] ChangeNotifications notifications)
+        [FromServices] ChangeNotifications notifications,
+        CancellationToken cancellationToken)
     {
         var (errors, origin) = HubRegistry.Validate(input.Name, input.Url, input.Token);
         if (errors.Count > 0) return TypedResults.ValidationProblem(errors);
+        if (await HubConnectionCheck.CheckAsync(origin!, input.Token!.Trim(), cancellationToken) is { } rejected)
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["token"] = [rejected] });
 
         var hub = await HubRegistry.AddAsync(database, input.Name!, origin!, input.Token!);
         receivers.Start(hub);
@@ -53,6 +58,33 @@ internal static class ApiEndpoints
         return TypedResults.Created(
             $"/api/hubs/{hub.Id}",
             new HubRegistrationOutput(hub.Id, hub.Name, hub.Origin.GetLeftPart(UriPartial.Authority), "notReceived"));
+    }
+
+    // Token が空なら登録済みの認証トークンを使う。URLまたは認証トークンが変わるときだけ、保存の前に接続を確認し、
+    // 保存の確定後に受信を新しい接続情報で開始し直す。
+    private static async Task<Results<Ok<HubRegistrationOutput>, NotFound, ValidationProblem>> UpdateHubAsync(
+        string hubId,
+        UpdateHubInput input,
+        [FromServices] Database database,
+        [FromServices] HubReceivers receivers,
+        [FromServices] ChangeNotifications notifications,
+        CancellationToken cancellationToken)
+    {
+        if (await HubRegistry.FindAsync(database, hubId) is not { } stored) return TypedResults.NotFound();
+        var token = string.IsNullOrWhiteSpace(input.Token) ? stored.Token : input.Token;
+        var (errors, origin) = HubRegistry.Validate(input.Name, input.Url, token);
+        if (errors.Count > 0) return TypedResults.ValidationProblem(errors);
+
+        var hub = new HubConnection(hubId, input.Name!.Trim(), origin!, token.Trim());
+        var connectionChanged = hub.Origin.GetLeftPart(UriPartial.Authority) != stored.Url || hub.Token != stored.Token;
+        if (connectionChanged &&
+            await HubConnectionCheck.CheckAsync(hub.Origin, hub.Token, cancellationToken) is { } rejected)
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["token"] = [rejected] });
+
+        await HubRegistry.UpdateAsync(database, hub, connectionChanged);
+        if (connectionChanged) await receivers.RestartAsync(hub);
+        notifications.Publish();
+        return TypedResults.Ok((await HubRegistry.ReadAsync(database, hubId))!);
     }
 
     private static async Task StreamEventsAsync(

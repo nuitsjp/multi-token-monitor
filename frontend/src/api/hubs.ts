@@ -19,8 +19,17 @@ export async function fetchHubs(): Promise<RegisteredHub[]> {
 }
 
 export async function addHub(input: HubInput): Promise<RegisteredHub> {
-  const response = await fetch('/api/hubs', {
-    method: 'POST',
+  return save('/api/hubs', 'POST', input);
+}
+
+// Tokenが空なら登録済みの認証トークンを変更しない。
+export async function updateHub(hubId: string, input: HubInput): Promise<RegisteredHub> {
+  return save(`/api/hubs/${encodeURIComponent(hubId)}`, 'PUT', input);
+}
+
+async function save(url: string, method: 'POST' | 'PUT', input: HubInput): Promise<RegisteredHub> {
+  const response = await fetch(url, {
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
