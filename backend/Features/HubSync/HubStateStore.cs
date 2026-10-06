@@ -113,9 +113,6 @@ internal static class HubStateStore
                 """,
                 new { hubId }))
             .ToDictionary(row => (row.Provider, row.AccountKey, row.Kind, row.LimitKey));
-        var previousAccounts = (await connection.QueryAsync<(string Provider, string AccountKey)>(
-                "SELECT provider, account_key FROM hub_accounts WHERE hub_id = @hubId", new { hubId }))
-            .ToHashSet();
 
         // 利用実績は受信のたびに作り直す。契約・利用枠・利用枠の基準点は、基準点のコストを残すため作り直さない。
         await connection.ExecuteAsync(
@@ -204,13 +201,7 @@ internal static class HubStateStore
                 provider.PlanLabel,
             }));
 
-        // 報告されなくなった契約と枠だけを削除する（契約の削除で枠と基準点のコストも、枠の削除で基準点のコストも連鎖して消える）。
-        var reportedAccounts = providers.Select(provider => (provider.Provider, provider.AccountKey)).ToHashSet();
-        await connection.ExecuteAsync(
-            "DELETE FROM hub_accounts WHERE hub_id = @HubId AND provider = @Provider AND account_key = @AccountKey",
-            previousAccounts.Where(account => !reportedAccounts.Contains(account))
-                .Select(account => new { HubId = hubId, account.Provider, account.AccountKey }));
-
+        // 契約は、報告されなくなっても削除しない（枠の行と基準点のコストを残す親のため。Hubの削除で消える）。
         await connection.ExecuteAsync(
             """
             INSERT INTO hub_accounts (hub_id, provider, account_key, source_device_id)
@@ -249,14 +240,16 @@ internal static class HubStateStore
             return (Row: row, Rebased: !keepBase);
         }).ToArray();
 
+        // 報告されなくなった枠は、最後に記録した次のリセット時刻を過ぎるまで、最後の値のまま行を残す。
+        // 次のリセット時刻を持たない枠は、期限を決められないため、報告されなくなった時点で削除する（基準点のコストも連鎖して消える）。
         var reportedWindows = rows.Select(item => (item.Row.Provider, item.Row.AccountKey, item.Row.Kind, item.Row.LimitKey)).ToHashSet();
         await connection.ExecuteAsync(
             """
             DELETE FROM latest_limit_windows
             WHERE hub_id = @HubId AND provider = @Provider AND account_key = @AccountKey AND kind = @Kind AND limit_key = @LimitKey
             """,
-            previousWindows.Keys.Where(key => !reportedWindows.Contains(key))
-                .Select(key => new { HubId = hubId, key.Provider, key.AccountKey, key.Kind, key.LimitKey }));
+            previousWindows.Where(entry => !reportedWindows.Contains(entry.Key) && IsExpired(entry.Value.ResetsAt, now))
+                .Select(entry => new { HubId = hubId, entry.Key.Provider, entry.Key.AccountKey, entry.Key.Kind, entry.Key.LimitKey }));
 
         await connection.ExecuteAsync(
             """
@@ -305,6 +298,9 @@ internal static class HubStateStore
                 cost.CostUsd,
             })));
     }
+
+    private static bool IsExpired(string? resetsAt, DateTimeOffset now) =>
+        resetsAt is null || now >= DateTimeOffset.Parse(resetsAt, CultureInfo.InvariantCulture);
 
     private static IEnumerable<object> TokenUsages(string hubId, HubDevice device, DateTimeOffset receivedAt)
     {
