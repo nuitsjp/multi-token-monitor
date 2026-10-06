@@ -126,8 +126,49 @@ public sealed class HubRegistryTests
             (await HubRegistry.ListAsync(fixture.Database)).Select(hub => (hub.HubId, hub.Status))
                 .ShouldBe([(added.Id, "notReceived"), ("old", "reconnecting")]);
         }
-    }
 
+        [Fact]
+        public async Task Update_KeepsIdAndOrderAndMarksChangedConnectionAsReceivingAsync()
+        {
+            using var fixture = await Fixture.CreateAsync();
+            var first = await HubRegistry.AddAsync(fixture.Database, "A", new Uri("https://a.example.com"), "t1");
+            var second = await HubRegistry.AddAsync(fixture.Database, "B", new Uri("https://b.example.com"), "t2");
+            await using (var connection = await fixture.Database.OpenAsync())
+                await connection.ExecuteAsync("UPDATE hubs SET connected = 0 WHERE hub_id = @Id", new { first.Id });
+
+            await HubRegistry.UpdateAsync(fixture.Database, first with { Name = "A2", Origin = new Uri("https://c.example.com"), Token = "t3" }, connectionChanged: true);
+
+            var stored = await HubRegistry.FindAsync(fixture.Database, first.Id);
+            stored.ShouldBe(new StoredHub(first.Id, "A2", "https://c.example.com", "t3"));
+            (await HubRegistry.ListAsync(fixture.Database)).Select(hub => (hub.HubId, hub.Name, hub.Status))
+                .ShouldBe([(first.Id, "A2", "notReceived"), (second.Id, "B", "notReceived")]);
+        }
+
+        [Fact]
+        public async Task Update_WithoutConnectionChange_KeepsReceiveStatusAsync()
+        {
+            using var fixture = await Fixture.CreateAsync();
+            var hub = await HubRegistry.AddAsync(fixture.Database, "A", new Uri("https://a.example.com"), "t");
+            await using (var connection = await fixture.Database.OpenAsync())
+                await connection.ExecuteAsync("UPDATE hubs SET connected = 0 WHERE hub_id = @Id", new { hub.Id });
+
+            await HubRegistry.UpdateAsync(fixture.Database, hub with { Name = "Renamed" }, connectionChanged: false);
+
+            (await HubRegistry.ListAsync(fixture.Database)).Select(item => (item.Name, item.Status))
+                .ShouldBe([("Renamed", "reconnecting")]);
+        }
+
+        [Fact]
+        public async Task Find_ReturnsNullForUnknownHubAndEmptyConnectionForMigratedHubAsync()
+        {
+            using var fixture = await Fixture.CreateAsync();
+            await using (var connection = await fixture.Database.OpenAsync())
+                await connection.ExecuteAsync("INSERT INTO hubs (hub_id, name, connected) VALUES ('old', 'Old', 1)");
+
+            (await HubRegistry.FindAsync(fixture.Database, "missing")).ShouldBeNull();
+            (await HubRegistry.FindAsync(fixture.Database, "old")).ShouldBe(new StoredHub("old", "Old", "", ""));
+        }
+    }
     private sealed class Fixture : IDisposable
     {
         private readonly string directory = Path.Combine(Path.GetTempPath(), $"aidd-registry-unit-{Guid.NewGuid():N}");

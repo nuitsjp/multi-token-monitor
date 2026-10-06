@@ -198,6 +198,8 @@ export interface FakeHub {
   sendSnapshot: boolean;
   /** 認証を拒否した接続数。 */
   readonly rejected: number;
+  /** 認証に成功したSSE接続の要求数（すでに閉じた接続を含む）。 */
+  readonly accepted: number;
   /** 受け付けて開いているSSE接続数。 */
   readonly connected: number;
   send(event: 'snapshot' | 'stats' | 'freshness', stats: unknown): void;
@@ -218,6 +220,7 @@ export async function startFakeHub(
   const streams = new Set<ServerResponse>();
   let historyDevices: unknown[] = stats.devices;
   let rejected = 0;
+  let accepted = 0;
   const failures: FakeFailure[] = [];
   const hub = {
     url: '',
@@ -226,6 +229,9 @@ export async function startFakeHub(
     sendSnapshot: options.sendSnapshot !== false,
     get rejected() {
       return rejected;
+    },
+    get accepted() {
+      return accepted;
     },
     get connected() {
       return streams.size;
@@ -290,6 +296,7 @@ export async function startFakeHub(
       response.writeHead(400).end();
       return;
     }
+    accepted++;
     if (failure === 'redirect') {
       response.writeHead(302, { location: `${hub.url}/api/stats/stream` }).end();
       return;
