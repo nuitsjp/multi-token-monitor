@@ -190,7 +190,7 @@ public sealed class HubStateStoreLimitTests
         }
 
         [Fact]
-        public async Task WindowNoLongerReported_IsDeletedWithItsBaselineButOthersRemainAsync()
+        public async Task WindowNoLongerReported_IsKeptWithItsBaselineBeforeItsResetTimeAsync()
         {
             // -------------------------------------------------------------
             // Arrange
@@ -210,13 +210,15 @@ public sealed class HubStateStoreLimitTests
             // -------------------------------------------------------------
             // Assert
             // -------------------------------------------------------------
-            (await fixture.WindowsAsync()).Select(row => row.Kind).ShouldBe(["weekly"]);
-            (await fixture.BaselineAsync("session", "")).ShouldBeEmpty();
+            var windows = await fixture.WindowsAsync();
+            windows.Select(row => row.Kind).ShouldBe(["session", "weekly"], ignoreOrder: true);
+            windows.Single(row => row.Kind == "session").Remaining.ShouldBe(90);
+            (await fixture.BaselineAsync("session", "")).ShouldBe([("d1", "m", 1.0)]);
             (await fixture.BaselineAsync("weekly", "")).ShouldBe([("d1", "m", 1.0)]);
         }
 
         [Fact]
-        public async Task AccountNoLongerReported_IsDeletedWithItsWindowsAndBaselinesAsync()
+        public async Task AccountNoLongerReported_KeepsItsAccountWindowsAndBaselinesBeforeTheResetTimeAsync()
         {
             // -------------------------------------------------------------
             // Arrange
@@ -236,9 +238,9 @@ public sealed class HubStateStoreLimitTests
             // -------------------------------------------------------------
             // Assert
             // -------------------------------------------------------------
-            (await fixture.HubAccountsAsync()).Select(row => row.AccountKey).ShouldBe(["b"]);
-            (await fixture.WindowsAsync()).Select(row => row.AccountKey).ShouldBe(["b"]);
-            (await fixture.CountAsync("limit_window_baseline_costs WHERE account_key = 'a'")).ShouldBe(0);
+            (await fixture.HubAccountsAsync()).Select(row => row.AccountKey).ShouldBe(["a", "b"], ignoreOrder: true);
+            (await fixture.WindowsAsync()).Select(row => row.AccountKey).ShouldBe(["a", "b"], ignoreOrder: true);
+            (await fixture.CountAsync("limit_window_baseline_costs WHERE account_key = 'a'")).ShouldBe(2);
             (await fixture.CountAsync("limit_window_baseline_costs WHERE account_key = 'b'")).ShouldBe(2);
         }
 
