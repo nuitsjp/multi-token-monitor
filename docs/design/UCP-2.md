@@ -8,6 +8,8 @@ HomeとHub情報の閲覧画面に共通して適用する。画面上部と区�
 
 画面の表示時に閲覧用APIを1回呼ぶ。期間・Hub・集約単位・ページの切り替えは受け取った値から選び、APIを呼び直さない。変更通知の購読は画面全体で1つにし、左のメニューと各ページが同じ通知接続を共用する。表示中の取得し直しは [UCP-3](UCP-3.md) に従う。
 
+`GET /api/limit-history` は公開しない。要求には404を返し、画面用のHTMLは返さない。
+
 | 役割 | 責務 | 実装パス |
 | --- | --- | --- |
 | 数値表示 | トークン数と推定コストの共通書式・リール更新 | `frontend/src/components/SlotNumber.tsx`、`frontend/src/format.ts` |
@@ -79,16 +81,3 @@ sequenceDiagram
 | 画面 | モデル情報の画面部品を、見出しBy device・一覧Devicesとデバイス別の集計で表示する。選択と色はデバイスIDで管理する | `frontend/src/routes/by-device.tsx`、`frontend/src/components/UsageBreakdown.tsx` |
 
 開発構成と配布構成の両方で実APIを呼び、固定データと環境変数による切り替えは設けない。
-
-## 月換算上限額の推移を表示する固有の処理
-
-画面の表示・操作は [月換算上限額の推移を表示する](../usecases/月換算上限額の推移を表示する/README.md) に従う。
-
-| 役割 | 責務 | 実装パス |
-| --- | --- | --- |
-| 取得と購読 | `fetchLimitHistory` を唯一の取得境界とし、`GET /api/limit-history` を呼ぶ。契約はOpenAPIから生成するTypeScriptの型で画面と共有する。保存確定の通知で取得し直す | `frontend/src/api/limit-history.ts`、`frontend/src/routes/limits.tsx`、`backend/Presentation/Http/Contracts.cs`、`backend/Presentation/Http/ApiEndpoints.cs` |
-| 月換算上限額の閲覧クエリ | 読み取り専用のトランザクションで日次記録・Hub・現在の利用枠を読み、契約をHubの登録順、Homeと同じ契約の順（現在の枠の最小残量の昇順。報告されなくなった契約は最後）に並べて返す。日次記録は枠グループの行を契約・日付ごとに合計し、契約の記録に現れた枠グループのうちその日に行のないものがあれば下限値の印を付ける。支払額はその日に最後に記録した行の値、契約の表示名には最新の記録のプラン名を使う | `backend/Features/LimitHistory/LimitHistoryQuery.cs` |
-| 表示集計 | 受け取った日次記録から、選択期間の契約ごとの最新値・変化率・日次推移と、集約単位ごとの最後の記録の点を返す | `frontend/src/limit-history.ts` |
-| 画面 | 契約のタイルと、Monthly limit・Multiplier の折れ線グラフを、期間・集約単位の共用部品で表示する。下限値は「≥」を付けて示す | `frontend/src/routes/limits.tsx`、`frontend/src/components/LimitTrendChart.tsx`、`frontend/src/components/UsageRangeControls.tsx` |
-
-- モックに置き換える境界と合成点: モック確認では `fetchLimitHistory`（Homeは `fetchOverview`）を合成点とし、合意後に固定データを削除した。固定データと環境変数による切り替えは設けず、通信失敗時にも固定データへ切り替えない。
