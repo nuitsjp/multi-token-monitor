@@ -173,7 +173,7 @@ test('登録済みのHubの表示名・URL・認証トークンを変更し、�
     // 認証トークンは、DBの値を除き、画面・閲覧用API・通知・ログに現れない。URLは設定画面にだけ表示する。
     const secrets = ['lab-secret-token', 'other-secret-token', 'wrong-token'];
     const bodies = await Promise.all(
-      ['/api/hubs', '/api/overview', '/api/hub-usage', '/api/limit-history'].map(async (path) =>
+      ['/api/hubs', '/api/overview', '/api/hub-usage'].map(async (path) =>
         (await page.request.get(path)).text(),
       ),
     );

@@ -47,22 +47,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/limit-history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["GetLimitHistory"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/hubs": {
         parameters: {
             query?: never;
@@ -111,8 +95,6 @@ export interface components {
             url: string | null;
             token: string | null;
         };
-        /** @enum {unknown} */
-        EstimateStatus: "estimated" | "estimating" | "unavailable";
         HealthOutput: {
             status: string;
         };
@@ -168,27 +150,6 @@ export interface components {
             /** Format: double */
             costUsd: number | null;
         };
-        LimitHistoryContractOutput: {
-            key: string;
-            hubId: string;
-            hubName: string;
-            provider: string;
-            plan: string | null;
-        };
-        LimitHistoryDayOutput: {
-            contractKey: string;
-            date: string;
-            /** Format: double */
-            monthlyLimitUsd: number;
-            /** Format: double */
-            priceUsd: number | null;
-            lowerBound: boolean;
-        };
-        LimitHistoryOutput: {
-            today: string;
-            contracts: components["schemas"]["LimitHistoryContractOutput"][];
-            days: components["schemas"]["LimitHistoryDayOutput"][];
-        };
         ModelUsageOutput: {
             tool: string;
             model: string;
@@ -228,10 +189,6 @@ export interface components {
             remainingPercent: number;
             resetsAt: string | null;
             /** Format: double */
-            estimatedLimitUsd: number | null;
-            estimate: components["schemas"]["EstimateStatus"];
-            unavailableReason: (null) | components["schemas"]["UnavailableReason"];
-            /** Format: double */
             windowMinutes: number | null;
         };
         OverviewOutput: {
@@ -251,8 +208,6 @@ export interface components {
             month: components["schemas"]["OverviewPeriodOutput"];
             allTime: components["schemas"]["OverviewPeriodOutput"];
         };
-        /** @enum {unknown} */
-        UnavailableReason: "unknown-source-device" | "shared-source-device" | "no-matching-model" | "not-countable" | null;
         UpdateHubInput: {
             name: string | null;
             url: string | null;
@@ -329,26 +284,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HubUsageDataOutput"];
-                };
-            };
-        };
-    };
-    GetLimitHistory: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LimitHistoryOutput"];
                 };
             };
         };

@@ -1,6 +1,6 @@
 import { test as base, expect } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
@@ -37,18 +37,14 @@ export interface HubConfigEntry {
   token: string;
 }
 
-const migrationsDirectory = resolve('backend/Infrastructure/Persistence/Migrations');
+const schemaPath = resolve('backend/Infrastructure/Persistence/Migrations/009-schema.sql');
 
 /** サーバーの起動前に、移行を適用した新しいDBへHubを登録する。サーバーは同じ版のDBをそのまま使う。 */
 async function seedHubs(databasePath: string, hubs: HubConfigEntry[]) {
-  const migrations = (await readdir(migrationsDirectory))
-    .filter((name) => name.endsWith('.sql'))
-    .sort();
   const database = new DatabaseSync(databasePath);
   try {
-    for (const name of migrations)
-      database.exec(await readFile(join(migrationsDirectory, name), 'utf8'));
-    database.exec(`PRAGMA user_version = ${migrations.length}`);
+    database.exec(await readFile(schemaPath, 'utf8'));
+    database.exec('PRAGMA user_version = 9');
     const insert = database.prepare(
       'INSERT INTO hubs (hub_id, name, url, token, connected) VALUES (?, ?, ?, ?, 1)',
     );

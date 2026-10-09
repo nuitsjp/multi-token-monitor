@@ -29,20 +29,21 @@ internal sealed class Database
         try
         {
             var version = await connection.ExecuteScalarAsync<int>("PRAGMA user_version;");
-            string[] migrations = ["001-hub-sync.sql", "002-limit-estimate.sql", "003-limit-window-minutes.sql", "004-daily-token-usages.sql", "005-device-daily-model-usages.sql", "006-limit-cost-baselines.sql", "007-limit-history.sql", "008-hub-connection.sql"];
-            if (version < 0 || version > migrations.Length)
+            var migration = version switch
             {
-                throw new InvalidOperationException("未対応のDBスキーマです。");
-            }
+                0 => "009-schema.sql",
+                8 => "009-remove-limit-estimates.sql",
+                9 => null,
+                _ => throw new InvalidOperationException("未対応のDBスキーマです。"),
+            };
 
-            // 現在の版より後の移行を順に適用し、同じトランザクションで版を更新する。
-            for (var next = version; next < migrations.Length; next++)
+            if (migration is not null)
             {
-                using var stream = typeof(Database).Assembly.GetManifestResourceStream($"MultiTokenMonitor.Migrations.{migrations[next]}")
+                using var stream = typeof(Database).Assembly.GetManifestResourceStream($"MultiTokenMonitor.Migrations.{migration}")
                     ?? throw new InvalidOperationException("DB migrationが見つかりません。");
                 using var reader = new StreamReader(stream);
                 await connection.ExecuteAsync(await reader.ReadToEndAsync());
-                await connection.ExecuteAsync($"PRAGMA user_version = {next + 1};");
+                await connection.ExecuteAsync("PRAGMA user_version = 9;");
             }
 
             await connection.ExecuteAsync("COMMIT;");

@@ -1,5 +1,3 @@
-using MultiTokenMonitor.Features.Overview;
-
 namespace MultiTokenMonitor.Presentation.Http;
 
 internal sealed record HealthOutput(string Status);
@@ -30,28 +28,6 @@ internal sealed record HubUsageDeviceOutput(
     bool Stale);
 
 internal sealed record HubUsageDayOutput(string Date, string DeviceId, string Model, long Tokens, double? CostUsd);
-
-/// <summary>Today はアプリを動かしているPCの現地日付（YYYY-MM-DD）。</summary>
-internal sealed record LimitHistoryOutput(
-    string Today,
-    IReadOnlyList<LimitHistoryContractOutput> Contracts,
-    IReadOnlyList<LimitHistoryDayOutput> Days);
-
-/// <summary>契約は Hub × 提供元 × アカウント。</summary>
-internal sealed record LimitHistoryContractOutput(
-    string Key,
-    string HubId,
-    string HubName,
-    string Provider,
-    string? Plan);
-
-/// <summary>契約ごと1日1行。MonthlyLimitUsd は枠グループの月換算上限額の合計で、記録のない枠グループがあれば LowerBound（下限値）。PriceUsd は価格表にプランが無ければ null。</summary>
-internal sealed record LimitHistoryDayOutput(
-    string ContractKey,
-    string Date,
-    double MonthlyLimitUsd,
-    double? PriceUsd,
-    bool LowerBound);
 
 internal sealed record OverviewOutput(
     IReadOnlyList<OverviewHubOutput> Hubs,
@@ -86,8 +62,6 @@ internal sealed record HubUsageOutput(string HubId, long Tokens, double? CostUsd
 internal sealed record ModelUsageOutput(string Tool, string Model, long Tokens, double? CostUsd);
 
 /// <summary>
-/// Estimate は推定の状態（estimated は金額あり、estimating は範囲を確定できるが条件未達、unavailable は範囲を確定できない）。
-/// EstimatedLimitUsd は推定上限額で、estimated 以外は null。UnavailableReason は unavailable のときだけ値を持つ。
 /// WindowMinutes は枠の長さ（分）で、Hubが送らない枠は null。
 /// </summary>
 internal sealed record OverviewLimitWindowOutput(
@@ -101,9 +75,6 @@ internal sealed record OverviewLimitWindowOutput(
     string? Label,
     double RemainingPercent,
     string? ResetsAt,
-    double? EstimatedLimitUsd,
-    EstimateStatus Estimate,
-    UnavailableReason? UnavailableReason,
     double? WindowMinutes);
 
 internal sealed record OverviewDeviceOutput(

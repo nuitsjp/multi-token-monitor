@@ -12,7 +12,6 @@ test('メニューから各閲覧ページへ移動する', async ({ page, app }
       'By hub',
       'By model',
       'By device',
-      'Usage limits',
       'Settings',
     ]);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Home');
@@ -33,17 +32,22 @@ test('メニューから各閲覧ページへ移動する', async ({ page, app }
     }
   });
   await test.step('手順3', async () => {
-    await menu.getByRole('link', { name: 'Usage limits' }).click();
-    await expect(page).toHaveURL(/\/limits$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Usage limits');
+    await menu.getByRole('link', { name: 'Settings' }).click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Settings');
   });
   await test.step('受け入れ条件', async () => {
-    await expect(menu.getByRole('link', { name: 'Usage limits' })).toHaveAttribute(
+    await expect(menu.getByRole('link', { name: 'Settings' })).toHaveAttribute(
       'data-active',
       'true',
     );
     await menu.getByRole('link', { name: 'Home', exact: true }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Home');
+    await expect(menu.getByRole('link', { name: 'Usage limits' })).toHaveCount(0);
+    await page.goto('/limits');
+    await expect(page.getByText('Not Found', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Usage limits' })).toHaveCount(0);
+    expect((await page.request.get('/api/limit-history')).status()).toBe(404);
   });
 });

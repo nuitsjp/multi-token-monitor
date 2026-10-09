@@ -44,11 +44,29 @@ internal static class OverviewQuery
                 """)).AsList();
 
             // 利用枠はHubごとに返し、画面でHubを切り替えて表示する。
-            var limitWindows = (await LimitWindowEstimates.ReadAsync(connection, hubId: null))
+            var limitWindows = (await connection.QueryAsync<LimitWindowRow>(
+                """
+                SELECT
+                    w.hub_id AS HubId,
+                    w.provider AS Provider,
+                    w.account_key AS AccountKey,
+                    a.account_label AS AccountLabel,
+                    a.plan_label AS PlanLabel,
+                    w.kind AS Kind,
+                    w.limit_key AS LimitKey,
+                    w.label AS Label,
+                    w.remaining_percent AS RemainingPercent,
+                    w.resets_at AS ResetsAt,
+                    w.window_minutes AS WindowMinutes
+                FROM
+                    latest_limit_windows w
+                    JOIN accounts a USING (provider, account_key)
+                ORDER BY
+                    w.hub_id, w.provider, w.account_key, w.kind, w.limit_key
+                """))
                 .Select(row => new OverviewLimitWindowOutput(
                     row.HubId, row.Provider, row.AccountKey, row.AccountLabel, row.PlanLabel, row.Kind, row.LimitKey,
-                    row.Label, row.RemainingPercent, row.ResetsAt, row.Estimate.LimitUsd, row.Estimate.Status,
-                    row.Estimate.Reason, row.WindowMinutes))
+                    row.Label, row.RemainingPercent, row.ResetsAt, row.WindowMinutes))
                 .ToList();
 
             var devices = (await connection.QueryAsync<DeviceRow>(
@@ -145,6 +163,19 @@ internal static class OverviewQuery
     }
 
     private sealed record HubRow(string HubId, string Name, long Connected, string? ReceivedAt, string? UpdatedAt);
+
+    private sealed record LimitWindowRow(
+        string HubId,
+        string Provider,
+        string AccountKey,
+        string? AccountLabel,
+        string? PlanLabel,
+        string Kind,
+        string LimitKey,
+        string? Label,
+        double RemainingPercent,
+        string? ResetsAt,
+        double? WindowMinutes);
 
     private sealed record DeviceRow(
         string HubId,

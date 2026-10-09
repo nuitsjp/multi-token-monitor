@@ -47,13 +47,6 @@ export function SideMenu() {
       />
       <NavLink
         component={Link}
-        to="/limits"
-        label="Usage limits"
-        leftSection={<MenuIcon name="limits" />}
-        active={pathname === '/limits'}
-      />
-      <NavLink
-        component={Link}
         to="/settings"
         label="Settings"
         className="side-menu-bottom"

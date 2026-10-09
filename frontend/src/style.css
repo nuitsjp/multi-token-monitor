@@ -177,7 +177,7 @@ body {
 /* 円ごとに列幅を中身の最大幅へ合わせる（行は contents にして、円の中で列を揃える） */
 .limit-rows {
   display: grid;
-  grid-template-columns: repeat(5, auto);
+  grid-template-columns: repeat(3, auto);
   justify-content: center;
   align-items: center;
   column-gap: 5px;
@@ -197,31 +197,6 @@ body {
   justify-content: center;
   color: #8b8e99;
 }
-.limit-row .c4 {
-  min-width: 10px;
-  text-align: center;
-}
-.limit-row .c5 {
-  text-align: right;
-}
-
-/* 契約の月換算上限額は、見出し行の右端に置く */
-.limit-monthly {
-  margin-left: auto;
-  flex: none;
-  padding-right: 2px;
-  font-size: 12px;
-  color: #e4e5e9;
-  white-space: nowrap;
-  cursor: help;
-}
-.limit-monthly-unit {
-  color: #8b8e99;
-}
-.limit-group-monthly {
-  cursor: help;
-}
-
 /* 全体の枠を持たない区画。右隣のカードのタイトルと見出しの高さを揃える */
 .section-bare {
   padding-top: 20px;
