@@ -10,7 +10,6 @@ import {
   type FakeStats,
 } from '../hub-sync/fake-hub.ts';
 import { connected, query, receivedAt, statsJson, watchEvents } from '../hub-sync/sync.ts';
-import * as history from '../limit-history/limit-history.ts';
 
 base.describe(() => {
   // 主成功シナリオ「設定したHubの最新状態を受信して保存する」と、ユースケース共通の受け入れ条件を検証する。
@@ -228,7 +227,7 @@ base.describe(() => {
     });
 
     await test.step('手順4', async () => {
-      // --- freshness: 時刻・鮮度情報だけを更新し、利用量と上限、受信データは維持する
+      // --- freshness: 時刻・鮮度情報だけを更新し、利用量と利用枠、受信データは維持する
       const statsMeters = meters(db, 'alpha');
       const freshAt = new Date().toISOString();
       alpha.send('freshness', {
@@ -354,138 +353,22 @@ base.describe(() => {
     });
   });
 
-  interface Point {
+  interface WindowRow {
     limit_key: string;
     resets_at: string | null;
-    base_received_at: string;
-    base_remaining_percent: number;
-    base_cost_usd: number;
     remaining_percent: number;
-    cost_usd: number;
+    meter_changed_at: string;
   }
 
-  function points(databasePath: string, hubId: string) {
-    return query<Point>(
+  function windows(databasePath: string, hubId: string) {
+    return query<WindowRow>(
       databasePath,
-      // 1つ目の計測点のコストは枠ごとの基準点の合計、2つ目は枠の提供元と同じツールの現在の累計（allTime）の合計。
-      `SELECT
-       w.limit_key, w.resets_at, w.base_received_at, w.base_remaining_percent, w.remaining_percent,
-       (SELECT TOTAL(b.cost_usd) FROM limit_window_baseline_costs b
-        WHERE b.hub_id = w.hub_id AND b.provider = w.provider AND b.account_key = w.account_key
-          AND b.kind = w.kind AND b.limit_key = w.limit_key) AS base_cost_usd,
-       (SELECT TOTAL(u.cost_usd) FROM latest_token_usages u
-        WHERE u.hub_id = w.hub_id AND u.tool = w.provider AND u.period = 'all_time') AS cost_usd
-     FROM latest_limit_windows w WHERE w.hub_id = ? ORDER BY w.limit_key`,
+      'SELECT limit_key, resets_at, remaining_percent, meter_changed_at FROM latest_limit_windows WHERE hub_id = ? ORDER BY limit_key',
       hubId,
     );
   }
 
-  // 枠の提供元（codex）と同じツールの、全端末の累計の推定コスト。
-  function codexCost(stats: FakeStats) {
-    return stats.devices
-      .flatMap((device) => Object.values(device.periods.allTime.clientModelCosts.codex ?? {}))
-      .reduce((sum, cost) => sum + cost, 0);
-  }
-
-  test('利用枠ごとに計測点を2つだけ保持し、周期の区切りか使用率の減少で1つ目を記録し直す', async ({
-    app,
-    alpha,
-  }) => {
-    const { db } = await test.step('開始条件', async () => {
-      const db = app.databasePath;
-      await expect.poll(() => receivedAt(db, 'alpha')).toBeTruthy();
-
-      return { db };
-    });
-
-    let stats = alpha.stats;
-    const { send, sessionPoint, expectPoint, first } = await test.step('手順2', async () => {
-      const snapshotAt = receivedAt(db, 'alpha')!;
-      const session = (value: FakeStats) => value.limits.providers[0].windows[0];
-      // 残量・リセット時刻・コストの増加を指定して stats を送り、保存を待つ。
-      const send = async (remaining: number, resetsAt: string | null, cost: number) => {
-        const before = receivedAt(db, 'alpha');
-        stats = structuredClone(stats);
-        session(stats).remainingPercent = remaining;
-        session(stats).usedPercent = 100 - remaining;
-        session(stats).resetsAt = resetsAt;
-        stats.devices[0].periods.allTime.clientModelCosts.codex['gpt-5'] += cost;
-        alpha.send('stats', stats);
-        await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(before);
-        return receivedAt(db, 'alpha')!;
-      };
-      const sessionPoint = () => points(db, 'alpha').find((row) => row.limit_key === 'codex')!;
-      const expectPoint = (
-        actual: Point,
-        base: { at: string; remaining: number; cost: number },
-        remaining: number,
-        cost: number,
-      ) => {
-        expect(actual.base_received_at).toBe(base.at);
-        expect(actual.base_remaining_percent).toBe(base.remaining);
-        expect(actual.base_cost_usd).toBeCloseTo(base.cost, 9);
-        expect(actual.remaining_percent).toBe(remaining);
-        expect(actual.cost_usd).toBeCloseTo(cost, 9);
-      };
-
-      // --- snapshot: 新しい枠は、今回の受信を1つ目の計測点にする
-      const first = { at: snapshotAt, remaining: 90, cost: codexCost(stats) };
-      expectPoint(sessionPoint(), first, 90, first.cost);
-
-      return { send, sessionPoint, expectPoint, first };
-    });
-
-    const { hour } = await test.step('手順3', async () => {
-      // --- stats を3回以上受けても、1つ目は最初の受信のまま、2つ目は最新の受信になる
-      // リセット時刻の値だけが揺れても、前回のリセット時刻を過ぎていなければ同じ周期とする。
-      const hour = Date.now() + 60 * 60 * 1000;
-      await send(85, new Date(hour + 5).toISOString(), 1);
-      await send(80, new Date(hour + 11).toISOString(), 2);
-      expectPoint(sessionPoint(), first, 80, codexCost(stats));
-      expect(sessionPoint().resets_at).toBe(new Date(hour + 11).toISOString());
-      // リセット時刻が無い枠（Weekly）も、残量が減っていなければ1つ目を引き継ぐ。
-      const weekly = points(db, 'alpha').find((row) => row.limit_key === 'Weekly')!;
-      expectPoint(weekly, { ...first, remaining: 60 }, 60, codexCost(stats));
-
-      return { hour };
-    });
-
-    await test.step('手順4', async () => {
-      // --- freshness では計測点を変えない
-      const beforeFreshness = points(db, 'alpha');
-      const statsAt = receivedAt(db, 'alpha');
-      const freshAt = new Date().toISOString();
-      alpha.send('freshness', {
-        updatedAt: freshAt,
-        staleAfterMs: 123_456,
-        limits: { updatedAt: freshAt },
-        devices: [],
-      });
-      await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(statsAt);
-      expect(points(db, 'alpha')).toEqual(beforeFreshness);
-    });
-
-    await test.step('手順3', async () => {
-      // --- 使用率が減った場合は、その受信を1つ目にする
-      const decreasedAt = await send(82, new Date(hour + 11).toISOString(), 1);
-      const decreased = { at: decreasedAt, remaining: 82, cost: codexCost(stats) };
-      expectPoint(sessionPoint(), decreased, 82, decreased.cost);
-
-      // --- 受信時刻が前回のリセット時刻を過ぎた場合は、その受信を1つ目にする
-      // 過ぎる前の受信は、リセット時刻が変わっても1つ目を引き継ぐ。
-      await send(80, new Date(Date.now() - 1000).toISOString(), 1);
-      expectPoint(sessionPoint(), decreased, 80, codexCost(stats));
-      const resetAt = await send(80, new Date(hour).toISOString(), 1);
-      expectPoint(
-        sessionPoint(),
-        { at: resetAt, remaining: 80, cost: codexCost(stats) },
-        80,
-        codexCost(stats),
-      );
-    });
-  });
-
-  test('報告されなくなった利用枠は次のリセット時刻まで報告中と同じ扱いで保持し、再び報告されたら計測点を引き継ぐ', async ({
+  test('報告されなくなった利用枠は次のリセット時刻まで最後の値を保持し、再び報告されたら最新値へ更新する', async ({
     app,
     alpha,
   }) => {
@@ -518,12 +401,9 @@ base.describe(() => {
       value.limits.providers[0].windows = windows;
     };
     const row = (limitKey: string) =>
-      points(db, 'alpha').find((item) => item.limit_key === limitKey);
-    const count = (table: string, limitKey?: string) =>
-      query<{ n: number }>(
-        db,
-        `SELECT COUNT(*) AS n FROM ${table} WHERE hub_id = 'alpha'${limitKey ? ` AND limit_key = '${limitKey}'` : ''}`,
-      )[0].n;
+      windows(db, 'alpha').find((item) => item.limit_key === limitKey);
+    const count = (table: string) =>
+      query<{ n: number }>(db, `SELECT COUNT(*) AS n FROM ${table} WHERE hub_id = 'alpha'`)[0].n;
     // 閲覧側が読む利用枠の一覧。
     const shown = async () => {
       const overview = (await (await fetch(`${app.url}/api/overview`)).json()) as {
@@ -536,13 +416,12 @@ base.describe(() => {
     };
 
     const first = await test.step('手順2', async () => {
-      // --- snapshot で、Session（リセット時刻あり）と Weekly（リセット時刻なし）の計測点ができる
+      // --- snapshot で、Session（リセット時刻あり）と Weekly（リセット時刻なし）の最新値を保存する
       const session = row('codex')!;
-      expect(session.base_remaining_percent).toBe(90);
-      expect(row('Weekly')!.base_remaining_percent).toBe(60);
-      expect(count('limit_window_baseline_costs', 'codex')).toBeGreaterThan(0);
+      expect(session.remaining_percent).toBe(90);
+      expect(row('Weekly')!.remaining_percent).toBe(60);
       expect(await shown()).toEqual(['Weekly:60', 'codex:90']);
-      return { session, costRows: count('limit_window_baseline_costs', 'codex') };
+      return { session };
     });
 
     await test.step('手順3', async () => {
@@ -554,45 +433,38 @@ base.describe(() => {
       });
       expect(row('codex')).toMatchObject({
         remaining_percent: 90,
-        base_received_at: first.session.base_received_at,
-        base_remaining_percent: 90,
+        meter_changed_at: first.session.meter_changed_at,
         resets_at: first.session.resets_at,
       });
-      expect(count('limit_window_baseline_costs', 'codex')).toBe(first.costRows);
       expect(row('Weekly')).toBeUndefined();
-      expect(count('limit_window_baseline_costs', 'Weekly')).toBe(0);
       expect(count('hub_accounts')).toBe(1);
       // 保持している枠は、報告中と同じように一覧に含まれる。
       expect(await shown()).toEqual(['codex:90']);
     });
 
     await test.step('手順3', async () => {
-      // --- 再び報告され、使用率が最後に記録した値以下なら、1つ目の計測点は変わらず、2つ目が最新になる
+      // --- 再び報告された枠は、残量とメーター更新時刻を最新値へ更新する
       const at = await send(report(85));
       expect(row('codex')).toMatchObject({
         remaining_percent: 85,
-        base_received_at: first.session.base_received_at,
-        base_remaining_percent: 90,
+        meter_changed_at: at,
       });
-      expect(row('codex')!.base_cost_usd).toBeCloseTo(first.session.base_cost_usd, 9);
-      // 消えていた Weekly は、新しい枠として、この受信を1つ目にする。
-      expect(row('Weekly')).toMatchObject({ base_received_at: at, base_remaining_percent: 60 });
+      // 消えていた Weekly は、新しい枠として最新値を保存する。
+      expect(row('Weekly')).toMatchObject({ meter_changed_at: at, remaining_percent: 60 });
     });
 
     await test.step('手順3', async () => {
-      // --- 外れている間に使用率が減った（残量が増えた）枠は、再び報告された受信を1つ目にする
+      // --- 外れている間に残量が増えた枠も、再び報告された受信で最新値へ更新する
       await send(unreport);
       const at = await send(report(95));
       expect(row('codex')).toMatchObject({
         remaining_percent: 95,
-        base_received_at: at,
-        base_remaining_percent: 95,
+        meter_changed_at: at,
       });
-      expect(row('codex')!.base_cost_usd).toBeCloseTo(codexCost(stats), 9);
     });
 
     await test.step('手順3', async () => {
-      // --- 報告されなくなった枠は、受信時刻が最後に記録した次のリセット時刻を過ぎた保存で、計測点のコストと一緒に消える
+      // --- 報告されなくなった枠は、最後に記録した次のリセット時刻を過ぎた保存で消える
       const resetsAt = Date.now() + 3000;
       await send(report(95, new Date(resetsAt).toISOString()));
       await send(unreport);
@@ -600,7 +472,6 @@ base.describe(() => {
       await new Promise((resolve) => setTimeout(resolve, resetsAt - Date.now() + 200));
       await send(unreport);
       expect(row('codex')).toBeUndefined();
-      expect(count('limit_window_baseline_costs', 'codex')).toBe(0);
     });
 
     await test.step('受け入れ条件', async () => {
@@ -776,217 +647,6 @@ base.describe(() => {
         accumulated[1],
         { date: '2026-09-03', tokens: 400, cost_usd: null },
       ]);
-    });
-  });
-});
-base.describe(() => {
-  const {
-    addCost,
-    estimateAll,
-    execute,
-    expect,
-    insertRecords,
-    localDate,
-    query,
-    receivedAt,
-    records,
-    send,
-    test,
-  } = history;
-
-  // 主成功シナリオ「設定したHubの最新状態を受信して保存する」のうち、月換算上限額の日次記録と価格表の適用を検証する。
-  // 偽Hubから本番の受信・保存処理でDBに状態を作り、保存処理とは別の読み取り専用接続で照合する。
-
-  const today = localDate();
-  const row = (db: string, provider: string, group = '', date = today) =>
-    records(db).find(
-      (item) => item.provider === provider && item.limit_group === group && item.date === date,
-    );
-  const price = (db: string, provider: string, plan: string) =>
-    query<{ monthly_usd: number; updated_at: string }>(
-      db,
-      'SELECT monthly_usd, updated_at FROM plan_prices WHERE provider = ? AND plan = ?',
-      provider,
-      plan,
-    )[0];
-
-  test('REC-1 同じ日の受信では枠グループごとの当日の行を1つだけ持ち、最後に求まった値と、その時点の支払額を記録する', async ({
-    app,
-    alpha,
-  }) => {
-    const { db } = await test.step('開始条件', async () => {
-      const db = app.databasePath;
-      await expect.poll(() => receivedAt(db, 'alpha')).toBeTruthy();
-
-      return { db };
-    });
-
-    await test.step('手順2', async () => {
-      // 最初の受信は1つ目の計測点だけで、どの枠グループも月換算上限額が求まらないため、行を作らない。
-      expect(records(db)).toEqual([]);
-    });
-
-    const { firstRecordedAt } = await test.step('手順3', async () => {
-      await estimateAll(alpha, db);
-      expect(
-        records(db).map((item) => [
-          item.provider,
-          item.limit_group,
-          item.date,
-          item.plan,
-          Math.round(item.monthly_limit_usd * 100) / 100,
-          item.price_usd,
-        ]),
-      ).toEqual([
-        ['claude', '', today, 'Max 20x', 2000, 200],
-        ['codex', '', today, 'Pro 20x', 1500, 200],
-        ['codex', 'GPT-5.3-Codex-Spark', today, 'Pro 20x', 500, 200],
-        // 価格表にプランが無い契約の枠グループは、支払額を空にする。
-        ['grok', '', today, 'SuperGrok', 400, null],
-      ]);
-      const firstRecordedAt = row(db, 'claude')!.recorded_at;
-
-      // 同じ日にもう一度求まると、当日の行を上書きする。プラン名は大文字・小文字を区別せずに価格表から引く。
-      await send(
-        alpha,
-        db,
-        (next) => {
-          addCost(next, 'claude', 'claude-opus', 400);
-          next.limits.providers.find((item) => item.provider === 'codex')!.accountLabel = 'PRO 20X';
-        },
-        { 'claude-a/monthly': 75 },
-      );
-
-      return { firstRecordedAt };
-    });
-
-    await test.step('受け入れ条件', async () => {
-      expect(records(db)).toHaveLength(4);
-      expect(row(db, 'claude')!.monthly_limit_usd).toBeCloseTo(4000, 6);
-      expect(row(db, 'claude')!.price_usd).toBe(200);
-      expect(row(db, 'claude')!.recorded_at > firstRecordedAt).toBe(true);
-      expect(row(db, 'codex')).toMatchObject({ plan: 'PRO 20X', price_usd: 200 });
-      expect(row(db, 'codex')!.monthly_limit_usd).toBeCloseTo(1500, 6);
-    });
-  });
-
-  test('REC-2 月換算上限額が求まらない受信と freshness では、当日の既存の行を消さず値も変えない', async ({
-    app,
-    alpha,
-  }) => {
-    const { db } = await test.step('開始条件', async () => {
-      const db = app.databasePath;
-      await expect.poll(() => receivedAt(db, 'alpha')).toBeTruthy();
-
-      return { db };
-    });
-
-    const { claudeBefore } = await test.step('手順3', async () => {
-      await estimateAll(alpha, db);
-      const before = records(db);
-
-      // 使用率が減ると1つ目の計測点を取り直し、claude は Estimating に戻る。
-      await send(alpha, db, () => {}, { 'claude-a/monthly': 95 });
-      const overview = (await (await fetch(`${app.url}/api/overview`)).json()) as {
-        limitWindows: { provider: string; estimate: string }[];
-      };
-      expect(overview.limitWindows.find((item) => item.provider === 'claude')!.estimate).toBe(
-        'estimating',
-      );
-      const claudeBefore = before.find((item) => item.provider === 'claude');
-      expect(row(db, 'claude')).toEqual(claudeBefore);
-
-      return { claudeBefore };
-    });
-
-    await test.step('手順4', async () => {
-      const statsAt = receivedAt(db, 'alpha');
-      const freshAt = new Date().toISOString();
-      alpha.send('freshness', {
-        updatedAt: freshAt,
-        staleAfterMs: 123_456,
-        limits: { updatedAt: freshAt },
-        devices: [],
-      });
-      await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(statsAt);
-    });
-
-    await test.step('受け入れ条件', async () => {
-      const afterFreshness = records(db);
-      expect(afterFreshness.find((item) => item.provider === 'claude')).toEqual(claudeBefore);
-      expect(afterFreshness).toHaveLength(4);
-    });
-  });
-
-  test('REC-3 起動時に同梱の価格一覧を新しい方だけ適用し、記録済みの過去の行は価格表が変わっても変えない', async ({
-    app,
-    alpha,
-  }) => {
-    const { db } = await test.step('開始条件', async () => {
-      const db = app.databasePath;
-      await expect.poll(() => receivedAt(db, 'alpha')).toBeTruthy();
-
-      return { db };
-    });
-
-    await test.step('手順1', async () => {
-      // 同梱の価格一覧は、起動時に価格表へ入っている。
-      expect(price(db, 'claude', 'Max 20x')).toEqual({
-        monthly_usd: 200,
-        updated_at: '2026-10-04T00:00:00Z',
-      });
-      expect(
-        query<{ count: number }>(db, 'SELECT COUNT(*) AS count FROM plan_prices')[0].count,
-      ).toBe(42);
-    });
-
-    await test.step('手順2', async () => {
-      await estimateAll(alpha, db);
-    });
-
-    const { yesterday, stoppedAt } = await test.step('手順1', async () => {
-      await app.stop();
-      // 価格表の方が新しい行、古い行、無い行と、前日の記録を用意する。
-      execute(
-        db,
-        "UPDATE plan_prices SET monthly_usd = 400, updated_at = '2099-01-01T00:00:00Z' WHERE provider = 'claude' AND plan = 'Max 20x'",
-      );
-      execute(
-        db,
-        "UPDATE plan_prices SET monthly_usd = 1, updated_at = '2000-01-01T00:00:00Z' WHERE provider = 'codex' AND plan = 'Pro 20x'",
-      );
-      execute(db, "DELETE FROM plan_prices WHERE provider = 'copilot' AND plan = 'Pro'");
-      insertRecords(db, [{ key: 'claude', days: 1, plan: 'Max 20x', monthly: 1234, price: 100 }]);
-      const yesterday = row(db, 'claude', '', localDate(1));
-      const stoppedAt = receivedAt(db, 'alpha');
-
-      await app.start();
-      expect(price(db, 'claude', 'Max 20x')).toEqual({
-        monthly_usd: 400,
-        updated_at: '2099-01-01T00:00:00Z',
-      });
-      expect(price(db, 'codex', 'Pro 20x')).toEqual({
-        monthly_usd: 200,
-        updated_at: '2026-10-04T00:00:00Z',
-      });
-      expect(price(db, 'copilot', 'Pro')).toEqual({
-        monthly_usd: 10,
-        updated_at: '2026-10-04T00:00:00Z',
-      });
-
-      return { yesterday, stoppedAt };
-    });
-
-    await test.step('手順2', async () => {
-      // 再接続後の受信では、当日の行だけをその時点の価格で書き直し、前日の行は変えない。
-      await expect.poll(() => receivedAt(db, 'alpha')).not.toBe(stoppedAt);
-      await expect.poll(() => row(db, 'claude')?.price_usd).toBe(400);
-    });
-
-    await test.step('受け入れ条件', async () => {
-      expect(row(db, 'claude')!.monthly_limit_usd).toBeCloseTo(2000, 6);
-      expect(row(db, 'codex')!.price_usd).toBe(200);
-      expect(row(db, 'claude', '', localDate(1))).toEqual(yesterday);
     });
   });
 });

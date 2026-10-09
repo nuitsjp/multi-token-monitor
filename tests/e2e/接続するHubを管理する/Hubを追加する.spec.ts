@@ -135,7 +135,7 @@ test('Settingsから追加したHubが、再起動なしに受信を開始して
     // 認証トークンは、DBの値を除き、画面・閲覧用API・通知・ログに現れない。
     const secrets = ['lab-secret-token', 'down-token'];
     const bodies = await Promise.all(
-      ['/api/hubs', '/api/overview', '/api/hub-usage', '/api/limit-history'].map(async (path) =>
+      ['/api/hubs', '/api/overview', '/api/hub-usage'].map(async (path) =>
         (await page.request.get(path)).text(),
       ),
     );

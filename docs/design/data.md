@@ -11,7 +11,7 @@
 | text | TEXT | 文字列 |
 | integer | INTEGER | 整数の件数・トークン数 |
 | boolean | INTEGER | 真は1、偽は0 |
-| float | REAL | 推定コスト・金額・百分率・枠の長さの浮動小数点数 |
+| float | REAL | 推定コスト・百分率・枠の長さの浮動小数点数 |
 | date | TEXT | `YYYY-MM-DD`。日付の由来と時刻帯の扱いはDBMLの各カラムのNoteに従う |
 | timestamp | TEXT | ISO 8601の日時。ローカルで記録する受信時刻はUTC、Hubが報告した日時は受信値を保存する |
 | json | TEXT | JSON文字列 |

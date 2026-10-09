@@ -101,7 +101,6 @@ describePart16.describe('view-device-usage', () => {
         'By hub',
         'By model',
         'By device',
-        'Usage limits',
         'Settings',
       ]);
 

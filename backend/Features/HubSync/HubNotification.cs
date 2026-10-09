@@ -83,8 +83,7 @@ internal sealed record HubLimitProvider(
     string AccountKey,
     IReadOnlyList<HubLimitWindow> Windows,
     string? AccountLabel = null,
-    string? PlanLabel = null,
-    string? SourceDeviceId = null);
+    string? PlanLabel = null);
 
 internal sealed record HubLimitWindow(
     string Kind,

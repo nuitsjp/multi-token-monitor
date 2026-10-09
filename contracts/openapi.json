@@ -65,26 +65,6 @@
         }
       }
     },
-    "/api/limit-history": {
-      "get": {
-        "tags": [
-          "MultiTokenMonitor"
-        ],
-        "operationId": "GetLimitHistory",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LimitHistoryOutput"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/hubs": {
       "get": {
         "tags": [
@@ -245,13 +225,6 @@
             "nullable": true
           }
         }
-      },
-      "EstimateStatus": {
-        "enum": [
-          "estimated",
-          "estimating",
-          "unavailable"
-        ]
       },
       "HealthOutput": {
         "required": [
@@ -458,89 +431,6 @@
           }
         }
       },
-      "LimitHistoryContractOutput": {
-        "required": [
-          "key",
-          "hubId",
-          "hubName",
-          "provider",
-          "plan"
-        ],
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "hubId": {
-            "type": "string"
-          },
-          "hubName": {
-            "type": "string"
-          },
-          "provider": {
-            "type": "string"
-          },
-          "plan": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "LimitHistoryDayOutput": {
-        "required": [
-          "contractKey",
-          "date",
-          "monthlyLimitUsd",
-          "priceUsd",
-          "lowerBound"
-        ],
-        "type": "object",
-        "properties": {
-          "contractKey": {
-            "type": "string"
-          },
-          "date": {
-            "type": "string"
-          },
-          "monthlyLimitUsd": {
-            "type": "number",
-            "format": "double"
-          },
-          "priceUsd": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "lowerBound": {
-            "type": "boolean"
-          }
-        }
-      },
-      "LimitHistoryOutput": {
-        "required": [
-          "today",
-          "contracts",
-          "days"
-        ],
-        "type": "object",
-        "properties": {
-          "today": {
-            "type": "string"
-          },
-          "contracts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LimitHistoryContractOutput"
-            }
-          },
-          "days": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LimitHistoryDayOutput"
-            }
-          }
-        }
-      },
       "ModelUsageOutput": {
         "required": [
           "tool",
@@ -654,9 +544,6 @@
           "label",
           "remainingPercent",
           "resetsAt",
-          "estimatedLimitUsd",
-          "estimate",
-          "unavailableReason",
           "windowMinutes"
         ],
         "type": "object",
@@ -695,27 +582,6 @@
           "resetsAt": {
             "type": "string",
             "nullable": true
-          },
-          "estimatedLimitUsd": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "estimate": {
-            "$ref": "#/components/schemas/EstimateStatus"
-          },
-          "unavailableReason": {
-            "oneOf": [
-              {
-                "enum": [
-                  null
-                ],
-                "nullable": true
-              },
-              {
-                "$ref": "#/components/schemas/UnavailableReason"
-              }
-            ]
           },
           "windowMinutes": {
             "type": "number",
@@ -803,15 +669,6 @@
             "$ref": "#/components/schemas/OverviewPeriodOutput"
           }
         }
-      },
-      "UnavailableReason": {
-        "enum": [
-          "unknown-source-device",
-          "shared-source-device",
-          "no-matching-model",
-          "not-countable",
-          null
-        ]
       },
       "UpdateHubInput": {
         "required": [

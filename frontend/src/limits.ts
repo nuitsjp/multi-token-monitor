@@ -64,23 +64,17 @@ export function stateOf(window: LimitWindow, now: number): Pace {
   return severity[pace] >= severity[remaining] ? pace : remaining;
 }
 
-// monthlyUsd は枠グループの月換算上限額。契約の枠グループが複数のとき、グループの先頭の円だけが持つ（2つ目以降の円と、グループが1つの契約は null）。
 export type LimitCircle = {
   key: string;
   group: string;
   windows: LimitWindow[];
-  monthlyUsd: number | null;
 };
-// monthlyUsd は契約の月換算上限額（枠グループの月換算上限額の合計。パネルの見出し行に示す）。どのグループも値を持たなければ null。
-// monthlyLowerBound は、値を持たない枠グループがあり、monthlyUsd が下限値であること。
 export type LimitAccount = {
   key: string;
   provider: string;
   accountLabel: string | null;
   planLabel: string | null;
   circles: LimitCircle[];
-  monthlyUsd: number | null;
-  monthlyLowerBound: boolean;
 };
 
 // 契約ごとに枠グループを作り、グループ内を長さの短い順（不明は最後）に並べて2枠ずつ円に詰める。
@@ -97,8 +91,6 @@ export function buildAccounts(windows: LimitWindow[]): LimitAccount[] {
           accountLabel: window.accountLabel,
           planLabel: window.planLabel,
           circles: [],
-          monthlyUsd: null,
-          monthlyLowerBound: false,
         },
         groups: new Map(),
       };
@@ -108,40 +100,17 @@ export function buildAccounts(windows: LimitWindow[]): LimitAccount[] {
     entry.groups.set(group, [...(entry.groups.get(group) ?? []), window]);
   }
   return [...accounts.values()].map(({ account, groups }) => {
-    const single = groups.size === 1;
     for (const [group, members] of groups) {
       const sorted = [...members].sort(
         (a, b) => (lengthOf(a) ?? Infinity) - (lengthOf(b) ?? Infinity),
       );
-      const monthlyUsd = monthlyLimitUsd(sorted);
-      if (monthlyUsd === null) account.monthlyLowerBound = true;
-      else account.monthlyUsd = (account.monthlyUsd ?? 0) + monthlyUsd;
       for (let index = 0; index < sorted.length; index += 2)
         account.circles.push({
           key: `${group}/${index}`,
           group,
           windows: sorted.slice(index, index + 2),
-          monthlyUsd: !single && index === 0 ? monthlyUsd : null,
         });
     }
-    if (account.monthlyUsd === null) account.monthlyLowerBound = false;
     return account;
   });
-}
-
-const MONTH = 31 * DAY;
-
-// 推定上限額が金額の各枠を31日に比例換算し、最小値を採用する。約1か月の枠はそのまま。候補がなければ null。
-export function monthlyLimitUsd(windows: LimitWindow[]): number | null {
-  let minimum: number | null = null;
-  for (const window of windows) {
-    const minutes = lengthOf(window);
-    if (minutes === null || window.estimatedLimitUsd === null) continue;
-    const monthly =
-      minutes >= 28 * DAY && minutes <= 31 * DAY
-        ? window.estimatedLimitUsd
-        : (window.estimatedLimitUsd / minutes) * MONTH;
-    minimum = minimum === null ? monthly : Math.min(minimum, monthly);
-  }
-  return minimum;
 }

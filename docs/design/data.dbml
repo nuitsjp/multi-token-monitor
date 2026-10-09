@@ -93,11 +93,10 @@ Table accounts {
 }
 
 Table hub_accounts {
-  Note: 'Hubが利用枠を報告した契約（Hub×アカウント）。メーターを表示する枠を一度でも報告した契約を保持し、報告されなくなっても削除しない（Hubの削除で消える）。利用枠の行を残すための親で、枠の行がすべて消えた契約の行は、閲覧・日次記録には現れない。'
+  Note: 'Hubが利用枠を報告した契約（Hub×アカウント）。メーターを表示する枠を一度でも報告した契約を保持し、報告されなくなっても削除しない（Hubの削除で消える）。利用枠の行を残すための親で、枠の行がすべて消えた契約の行は閲覧には現れない。'
   hub_id text [not null, note: '報告したHub']
   provider text [not null, note: 'アカウントの提供元']
   account_key text [not null, note: 'アカウント識別子']
-  source_device_id text [null, note: 'Hubが報告した、アカウントの利用枠を取得した端末（`sourceDeviceId`）。`devices.device_id` への論理参照で、外部キーは設けない。Hubが送らない場合はNULL']
 
   indexes {
     (hub_id, provider, account_key) [pk]
@@ -105,7 +104,7 @@ Table hub_accounts {
 }
 
 Table latest_limit_windows {
-  Note: 'Hubが報告した契約の利用枠。メーターを表示する枠を保持し、報告されなくなった枠も、最後に記録した `resets_at` を過ぎるまで、残量・`resets_at`・計測点を最後に記録した値のまま残す（過ぎた後の、そのHubの次の保存で削除する。`resets_at` が無い枠は、報告されなくなった保存で削除する）。報告中の枠との区別は持たない。推定上限額の2つの計測点のうち、1つ目の残量を `base_` のカラムに、2つ目（最新の受信）を `remaining_percent` に持つ。コストは保存せず、1つ目の計測点のコストは `limit_window_baseline_costs`、2つ目のコストは `latest_token_usages` から求める。'
+  Note: 'Hubが報告した契約の利用枠。メーターを表示する枠を保持し、報告されなくなった枠も、最後に記録した `resets_at` を過ぎるまで、残量・`resets_at`・メーターの最終変更時刻を最後に記録した値のまま残す（過ぎた後の、そのHubの次の保存で削除する。`resets_at` が無い枠は、報告されなくなった保存で削除する）。報告中の枠との区別は持たない。'
   hub_id text [not null, note: '報告したHub']
   provider text [not null, note: 'アカウントの提供元']
   account_key text [not null, note: 'アカウント識別子']
@@ -116,57 +115,10 @@ Table latest_limit_windows {
   used_percent float [null, note: '使用量（%）']
   resets_at timestamp [null, note: '次のリセット時刻']
   meter_changed_at timestamp [not null, note: 'remaining_percent・used_percent が最後に変わった保存時刻']
-  base_received_at timestamp [not null, note: '1つ目の計測点の受信時刻']
-  base_remaining_percent float [not null, note: '1つ目の計測点の残量（%）。枠の単位で1つ報告される値なので、端末・モデルには分けない']
   window_minutes float [null, note: 'Hubが報告した枠の長さ（分）。Hubが送らない枠はNULL。画面は、NULLの枠の長さを `kind` の固定表で補う']
 
   indexes {
     (hub_id, provider, account_key, kind, limit_key) [pk]
-  }
-}
-
-Table limit_window_baseline_costs {
-  Note: '枠の1つ目の計測点を取った時点の、端末×モデル別の累計推定コスト。枠の提供元と同じツールの累計（allTime）で、推定コストのある実績だけを保持する。枠のコストの範囲は問わず、事実だけを保存する（範囲は閲覧時に UCP-1（UCP-1.md） の純粋関数が適用する）。'
-  hub_id text [not null, note: '枠を報告したHub']
-  provider text [not null, note: '枠の提供元']
-  account_key text [not null, note: 'アカウント識別子']
-  kind text [not null, note: '枠のリセット周期']
-  limit_key text [not null, note: '枠の識別子']
-  device_id text [not null, note: '利用した端末。`devices.device_id` への論理参照で、外部キーは設けない']
-  model text [not null, note: 'モデル識別子']
-  cost_usd float [not null, note: '1つ目の計測点での累計推定コスト（USD）']
-
-  indexes {
-    (hub_id, provider, account_key, kind, limit_key, device_id, model) [pk]
-  }
-}
-
-Table plan_prices {
-  Note: 'プランごとの月額。起動時の同梱一覧の適用が書き込みます。日次記録とは外部キーで結ばず、記録した時点の値を日次記録へ写します。'
-  provider text [not null, note: '提供元の識別子（`claude`・`codex` など）']
-  plan text [not null, note: 'Hubが報告するプラン名。大文字・小文字を区別しない（`COLLATE NOCASE`）']
-  monthly_usd float [not null, note: '月額（USD）']
-  updated_at timestamp [not null, note: '最終更新日時。UTC の ISO 8601']
-
-  indexes {
-    (provider, plan) [pk]
-  }
-}
-
-Table daily_monthly_limits {
-  Note: '契約の枠グループ（Hub × 契約 × 枠グループ）ごと、日ごとに1行の枠グループの月換算上限額と支払額。閲覧では契約・日付ごとに合計する。'
-  hub_id text [not null, note: '契約を報告したHub']
-  provider text [not null, note: '契約の提供元。`accounts` への外部キーは設けない（報告されなくなった契約でも記録を残すため）']
-  account_key text [not null, note: '契約のアカウント識別子']
-  limit_group text [not null, note: '枠グループ名。名前が無いグループは空文字']
-  date date [not null, note: 'アプリを動かしているPCの現地日付（`YYYY-MM-DD`）']
-  plan text [null, note: 'その時点のプラン名（`plan_label`、空なら `account_label`）。どちらも無ければNULL']
-  monthly_limit_usd float [not null, note: 'その日に最後に求まった枠グループの月換算上限額（USD）']
-  price_usd float [null, note: '同じ時点で価格表から引いた月額。価格表にプランが無ければNULL']
-  recorded_at timestamp [not null, note: '最後にこの行を書いた受信時刻。UTC の ISO 8601']
-
-  indexes {
-    (hub_id, provider, account_key, limit_group, date) [pk]
   }
 }
 
@@ -179,5 +131,3 @@ Ref: device_daily_model_usages.(hub_id, device_id) > devices.(hub_id, device_id)
 Ref: hub_accounts.hub_id > hubs.hub_id [delete: cascade, update: no action]
 Ref: hub_accounts.(provider, account_key) > accounts.(provider, account_key) [delete: no action, update: no action]
 Ref: latest_limit_windows.(hub_id, provider, account_key) > hub_accounts.(hub_id, provider, account_key) [delete: cascade, update: no action]
-Ref: limit_window_baseline_costs.(hub_id, provider, account_key, kind, limit_key) > latest_limit_windows.(hub_id, provider, account_key, kind, limit_key) [delete: cascade, update: no action]
-Ref: daily_monthly_limits.hub_id > hubs.hub_id [delete: cascade, update: no action]
